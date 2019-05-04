@@ -1,0 +1,16 @@
+[package]
+name = "raylib-physics"
+version = "0.1.0"
+authors = ["David Ayeke"]
+edition = "2018"
+
+[dependencies]
+stretch = "0.2.2"
+raylib = { git = 'https://github.com/Dacode45/raylib-rs.git', features = ["bundled"] }
+specs = { version = "0.14", features = ["nightly"]}
+specs-derive = "0.4"
+specs-hierarchy = "0.3"
+hibitset = { version = "0.5.2", features = ["parallel"] }
+nphysics2d = "0.11"
+ncollide2d = "0.19"
+nalgebra = "0.18"
