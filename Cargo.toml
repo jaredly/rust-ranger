@@ -11,6 +11,9 @@ specs = { version = "0.14", features = ["nightly"]}
 specs-derive = "0.4"
 specs-hierarchy = "0.3"
 hibitset = { version = "0.5.2", features = ["parallel"] }
-nphysics2d = "0.11"
-ncollide2d = "0.19"
+nphysics2d = "0.12"
+ncollide2d = "0.20.1"
 nalgebra = "0.18"
+
+sxd-document = "0.3.2"
+sxd-xpath = "0.4.2"
