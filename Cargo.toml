@@ -1,12 +1,12 @@
 [package]
-name = "raylib-physics"
+name = "lost-ranger"
 version = "0.1.0"
-authors = ["David Ayeke"]
+authors = ["Jared Forsyth"]
 edition = "2018"
 
 [dependencies]
 stretch = "0.2.2"
-raylib = { git = 'https://github.com/Dacode45/raylib-rs.git', features = ["bundled"] }
+raylib = { git = 'https://github.com/deltaphc/raylib-rs.git' }
 specs = { version = "0.14", features = ["nightly"]}
 specs-derive = "0.4"
 specs-hierarchy = "0.3"

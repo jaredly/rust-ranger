@@ -35,7 +35,7 @@ impl Coords {
 }
 
 pub struct SpriteSheet {
-  pub textures: std::collections::HashMap<String, raylib::Texture2D>,
+  pub textures: std::collections::HashMap<String, raylib::texture::Texture2D>,
   pub sprites: std::collections::HashMap<String, Coords>
 }
 
@@ -69,6 +69,7 @@ fn get_coords(root: Package, texture: &str) -> Vec<Coords> {
 }
 
 use std::collections::HashMap;
+use raylib::core::drawing::RaylibDraw;
 
 impl SpriteSheet {
   pub fn new() -> Self {
@@ -78,8 +79,8 @@ impl SpriteSheet {
     }
   }
 
-  pub fn add(&mut self, rl: &raylib::RaylibHandle, image_path: &str, xml_path: &str) {
-    let image = rl.load_texture(image_path);
+  pub fn add(&mut self, rl: &mut raylib::RaylibHandle, rt: &raylib::RaylibThread, image_path: &str, xml_path: &str) {
+    let image = rl.load_texture(rt, image_path).unwrap();
     let xml = parser::parse(&std::fs::read_to_string(xml_path).expect("xml file not found")).expect("Invalid XML file");
     let coords = get_coords(xml, image_path);
     self.textures.insert(image_path.to_owned(), image);
@@ -92,11 +93,11 @@ impl SpriteSheet {
     // }
   }
   
-  pub fn draw(&self, rl: &raylib::RaylibHandle, sprite: &String, dest: (f32, f32), rotation: f32, height: f32) {
+  pub fn draw(&self, rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>, sprite: &String, dest: (f32, f32), rotation: f32, height: f32) {
     let coords = self.sprites.get(sprite).expect("Sprite not found");
-    let source = raylib::Rectangle {x: coords.x as f32, y: coords.y as f32, width: coords.width as f32, height: coords.height as f32};
+    let source = raylib::math::Rectangle {x: coords.x as f32, y: coords.y as f32, width: coords.width as f32, height: coords.height as f32};
     let width = coords.width as f32 / coords.height as f32 * height;
-    rl.draw_texture_pro(&self.textures.get(&coords.texture).unwrap(), source, raylib::Rectangle {
+    rd.draw_texture_pro(&self.textures.get(&coords.texture).unwrap(), source, raylib::math::Rectangle {
       x: dest.0,
       y: dest.1,
       // width: coords.width as f32,
@@ -104,6 +105,6 @@ impl SpriteSheet {
       // width: coords.width as f32 / coords.height as f32 * height,
       width,
       height,
-    }, (width as f32 * coords.px, height as f32 * coords.py), rotation, (255, 255, 255))
+    }, raylib::math::Vector2::from((width as f32 * coords.px, height as f32 * coords.py)), rotation, raylib::color::Color::from((255, 255, 255, 255)))
   }
 }
