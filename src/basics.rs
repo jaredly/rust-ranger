@@ -1,7 +1,7 @@
 use specs::prelude::*;
 
-use nalgebra::{Point2, Vector2};
-use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
+use nalgebra::{Vector2};
+
 use nphysics2d::object::{
   BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
 };
@@ -13,7 +13,7 @@ use nphysics2d::joint::DefaultJointConstraintSet;
 use nphysics2d::object::{DefaultBodySet, DefaultColliderSet};
 use nphysics2d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
 
-use std::sync::Arc;
+
 
 #[derive(Component)]
 pub struct Collider(pub DefaultColliderHandle);

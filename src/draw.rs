@@ -1,17 +1,15 @@
 use specs::prelude::*;
 
-use nalgebra::{Point2, Vector2};
-use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
-use nphysics2d::object::{
-  BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
-};
+use nalgebra::{Point2};
+
+
 
 extern crate nalgebra as na;
 
-use nphysics2d::force_generator::DefaultForceGeneratorSet;
-use nphysics2d::joint::DefaultJointConstraintSet;
-use nphysics2d::object::{DefaultBodySet, DefaultColliderSet};
-use nphysics2d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
+
+
+
+
 
 use crate::basics::*;
 

@@ -3,7 +3,7 @@ extern crate specs_derive;
 
 use specs::prelude::*;
 
-use nalgebra::{Point2, Vector2};
+use nalgebra::{Vector2};
 use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
 use nphysics2d::object::{
     BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
@@ -11,12 +11,12 @@ use nphysics2d::object::{
 
 extern crate nalgebra as na;
 
-use nphysics2d::force_generator::DefaultForceGeneratorSet;
-use nphysics2d::joint::DefaultJointConstraintSet;
-use nphysics2d::object::{DefaultBodySet, DefaultColliderSet};
-use nphysics2d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
 
-use std::sync::Arc;
+
+
+
+
+
 
 const BOX_SIZE_WIDTH: f32 = 7.0;
 const BOX_SIZE_HEIGHT: f32 = 0.2;
@@ -183,7 +183,7 @@ impl<'a> System<'a> for ArrowSys {
             rl,
             mut physics_world,
             mut arrow,
-            player,
+            _player,
             mut colliders,
             mut bodies,
             mut drawables,
@@ -207,7 +207,7 @@ impl<'a> System<'a> for ArrowSys {
                             let v = nphysics2d::algebra::Velocity2::new(vec, 0.0);
                             let off = vec.normalize();
                             let pos = Vector2::new(pos.x, pos.y) + off * 0.3;
-                            let mut rb = RigidBodyDesc::new()
+                            let rb = RigidBodyDesc::new()
                                 .translation(pos)
                                 .set_velocity(v)
                                 .build();
@@ -499,7 +499,7 @@ fn main() {
 
     dispatcher.setup(&mut world.res);
 
-    let mut should_close = false;
+    let should_close = false;
     while !window_should_close(&world) && !should_close {
         // rl.begin_drawing();
         // rl.clear_background(raylib::Color::WHITE);
