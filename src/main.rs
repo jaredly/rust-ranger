@@ -245,6 +245,48 @@ impl<'a> System<'a> for ArrowSys {
     }
 }
 
+#[derive(Component)]
+struct GravityOnCollide;
+
+struct GravitySys;
+
+impl<'a> System<'a> for GravitySys {
+    type SystemData = (
+        Entities<'a>,
+        WriteExpect<'a, PhysicsWorld<f32>>,
+        ReadStorage<'a, Collider>,
+        ReadStorage<'a, Body>,
+        // ReadStorage<'a, GravityOnCollide>,
+        WriteStorage<'a, GravityOnCollide>,
+    );
+
+    fn run(
+        &mut self,
+        (entities, mut physics_world, colliders, bodies, mut gravities): Self::SystemData,
+    ) {
+        let mut to_remove = vec![];
+        for (entity, _, body, collider) in (&entities, &gravities, &bodies, &colliders).join() {
+            let mut remove = false;
+            if let Some(_) = physics_world
+                .geom
+                .colliders_in_contact_with(&physics_world.colliders, collider.0)
+                .unwrap()
+                .next()
+            {
+                remove = true;
+            }
+            if remove {
+                let rb = physics_world.rigid_body_mut(body.0).unwrap();
+                rb.enable_gravity(true);
+                to_remove.push(entity.clone());
+            }
+        }
+        for entity in to_remove {
+            gravities.remove(entity);
+        }
+    }
+}
+
 struct PlayerSys;
 
 impl<'a> System<'a> for PlayerSys {
@@ -338,6 +380,7 @@ fn main() {
     let mut world = World::new();
     let mut physics_world: PhysicsWorld<f32> = PhysicsWorld::new();
 
+    world.register::<GravityOnCollide>();
     world.register::<Collider>();
     world.register::<Drawable>();
     world.register::<Player>();
@@ -354,12 +397,19 @@ fn main() {
     // let collider = ColliderDesc::new(ball_shape).density(1.0);
     // let mut rigid_body = RigidBodyDesc::new().collider(&collider);
 
-    // Note that for rust the last statement without a semicolon is the return
-    let ball_handles: Vec<_> = (0..15)
+    let phys_w = screen_w as f32 / draw::WORLD_SCALE;
+    let phys_h = screen_h as f32 / draw::WORLD_SCALE;
+
+    let ball_handles: Vec<_> = (0..90)
         .map(|i| {
-            let x = 3.0
-                + i as f32 * ((BALL_RADIUS + ColliderDesc::<f32>::default_margin()) * 2.0 - 0.05);
-            let y = 1.0 + i as f32 * 0.1;
+            let l = (i / 30) as f32;
+            let r = phys_h / 6.0 * (2.0 + l);
+            let i = i % 30;
+            let cx = phys_w / 2.0;
+            let cy = phys_h / 2.0;
+            let t = i as f32 / 30.0 * std::f32::consts::PI * 2.0;
+            let x = t.cos() * r + cx;
+            let y = t.sin() * r + cy;
 
             // Build the rigid body.
             let mut rb = RigidBodyDesc::new().translation(Vector2::new(x, y)).build();
@@ -374,11 +424,6 @@ fn main() {
             let co_handle = physics_world.colliders.insert(co);
 
             (rb_handle, co_handle)
-            // We use the rigid_body as a template to insert balls into the world
-            // rigid_body
-            //     .set_translation(Vector2::new(x, y))
-            //     .build(&mut physics_world)
-            //     .handle()
         })
         .collect();
     for (body, collider) in ball_handles {
@@ -386,6 +431,7 @@ fn main() {
             .create_entity()
             .with(Body(body))
             .with(Collider(collider))
+            .with(GravityOnCollide)
             .with(Drawable::Sprite {
                 name: "apple.png".to_owned(),
                 scale: 0.4,
@@ -398,8 +444,37 @@ fn main() {
     // Add ground to system
     let ground_handle = physics_world.bodies.insert(Ground::new());
 
-    let phys_w = screen_w as f32 / draw::WORLD_SCALE;
-    let phys_h = screen_h as f32 / draw::WORLD_SCALE;
+    add_ground(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        phys_w / 6.0 * 5.0,
+        phys_h / 4.0 * 3.0,
+        phys_w / 3.0,
+        0.10,
+    );
+
+    add_ground(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        phys_w / 2.0,
+        phys_h / 2.0,
+        phys_w / 3.0,
+        0.10,
+    );
+
+    add_ground(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        phys_w / 6.0,
+        phys_h / 4.0,
+        phys_w / 3.0,
+        0.10,
+    );
+
+    // bottom
     add_ground(
         &mut world,
         &mut physics_world,
@@ -409,6 +484,7 @@ fn main() {
         phys_w,
         0.10,
     );
+    // top
     add_ground(
         &mut world,
         &mut physics_world,
@@ -418,6 +494,7 @@ fn main() {
         phys_w,
         0.10,
     );
+    // l
     add_ground(
         &mut world,
         &mut physics_world,
@@ -427,6 +504,7 @@ fn main() {
         0.1,
         phys_h,
     );
+    // r
     add_ground(
         &mut world,
         &mut physics_world,
@@ -478,6 +556,7 @@ fn main() {
         .with(PlayerSys, "player_move", &[])
         .with(ArrowSys, "arrows", &[])
         .with(PhysicsMove, "p_move", &["player_move"])
+        .with(GravitySys, "gravity_on_collide", &["p_move"])
         .with_thread_local(draw::Draw { thread })
         .build();
 
@@ -494,6 +573,7 @@ fn main() {
         // rl.begin_drawing();
         // rl.clear_background(raylib::Color::WHITE);
         dispatcher.dispatch(&mut world.res);
+        world.maintain();
         // rl.end_drawing();
     }
 }
