@@ -240,26 +240,29 @@ impl Player {
         physics_world: &mut PhysicsWorld<f32>,
         position: Vector2<f32>,
     ) {
+        let height = 0.1;
+        let width = 0.1;
+        let offset = 0.05;
         let mut body = RigidBodyDesc::new().translation(position).build();
         body.set_rotations_kinematic(true);
         let rb = physics_world.bodies.insert(body);
-        let collider = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+        let collider = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .density(1.0)
             .build(BodyPartHandle(rb, 0));
-        let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+        let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .sensor(true)
-            .translation(Vector2::new(0.0, 0.05))
+            .translation(Vector2::new(0.0, offset))
             .build(BodyPartHandle(rb, 0));
         let left_sensor = physics_world.colliders.insert(
-            ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+            ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
                 .sensor(true)
-                .translation(Vector2::new(-0.05, 0.0))
+                .translation(Vector2::new(-offset, 0.0))
                 .build(BodyPartHandle(rb, 0)),
         );
         let right_sensor = physics_world.colliders.insert(
-            ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+            ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
                 .sensor(true)
-                .translation(Vector2::new(0.05, 0.0))
+                .translation(Vector2::new(offset, 0.0))
                 .build(BodyPartHandle(rb, 0)),
         );
         let cb = physics_world.colliders.insert(collider);
@@ -401,7 +404,7 @@ impl<'a> System<'a> for ArrowSys {
 
                             // Build the collider.
                             let ball_shape = ShapeHandle::new(Ball::new(BALL_RADIUS));
-                            let mut material = nphysics2d::material::BasicMaterial::new(0.0, 0.0);
+                            let mut material = nphysics2d::material::BasicMaterial::new(0.0, 1.0);
                             material.restitution_combine_mode =
                                 nphysics2d::material::MaterialCombineMode::Multiply;
                             let mh = nphysics2d::material::MaterialHandle::new(material);
