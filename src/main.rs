@@ -174,7 +174,37 @@ impl<'a> System<'a> for Draw {
 #[derive(Component)]
 struct Player(DefaultColliderHandle);
 
+impl Player {
+    fn can_jump(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
+                let mut is_on_ground = false;
+                for (_handle, collider) in physics.geom.colliders_in_proximity_of(&physics.colliders, self.0).unwrap() {
+                    let bh = collider.body();
+                    if &bh == body {
+                        continue;
+                    }
+                    let body = physics.rigid_body(bh).unwrap();
+                    if let Some(part) = body.part(0) {
+                        if part.is_ground() || part.velocity().linear.y.abs() < 0.1 {
+                            is_on_ground = true;
+                            println!("Gound ir");
+                            break;
+                        }
+                    }
+                    // if body.is::<Ground<f32>>() {
+                    //     is_on_ground = true;
+                    //     println!("Gound ir");
+                    //     break;
+                    // }
+                    println!("Not ground I guess")
+                    // if other.
+                }
+                return is_on_ground
+
+    }
+}
+
 struct PlayerSys;
+
 
 impl<'a> System<'a> for PlayerSys {
     type SystemData = (
@@ -195,7 +225,6 @@ impl<'a> System<'a> for PlayerSys {
 
         for (body, player) in (&body, &player).join() {
             let v = {
-
                 let body = physics.rigid_body_mut(body.0).unwrap();
                 let part = body.part(0).unwrap();
                 part.velocity().linear
@@ -203,28 +232,7 @@ impl<'a> System<'a> for PlayerSys {
 
             let mut push = Vector2::new(0.0, 0.0);
             if rl.is_key_down(KEY_W) {
-                let mut is_on_ground = false;
-                for (_handle, collider) in physics.geom.colliders_in_proximity_of(&physics.colliders, player.0).unwrap() {
-                    let bh = collider.body();
-                    if bh == body.0 {
-                        continue;
-                    }
-                    let body = physics.rigid_body(bh).unwrap();
-                    if let Some(part) = body.part(0) {
-                        if part.is_ground() || part.velocity().linear.y.abs() < 0.1 {
-                            is_on_ground = true;
-                            println!("Gound ir");
-                            break;
-                        }
-                    }
-                    // if body.is::<Ground<f32>>() {
-                    //     is_on_ground = true;
-                    //     println!("Gound ir");
-                    //     break;
-                    // }
-                    println!("Not ground I guess")
-                    // if other.
-                }
+                let is_on_ground = player.can_jump(&physics, &body.0);
                 if is_on_ground && v.y > -jump_speed {
                     let max_jump = -jump_speed - v.y;
                     push.y += max_jump;
