@@ -247,7 +247,7 @@ impl Player {
             }
             let body = physics.rigid_body(bh).unwrap();
             if let Some(part) = body.part(0) {
-                if part.is_ground() {//|| part.velocity().linear.x.abs() < 0.1 {
+                if part.is_ground() {
                     return false;
                 }
             }
@@ -266,8 +266,9 @@ impl Player {
                 continue;
             }
             let body = physics.rigid_body(bh).unwrap();
+            // TODO if there are multiple body parts?
             if let Some(part) = body.part(0) {
-                if part.is_ground() {//|| part.velocity().linear.x.abs() < 0.1 {
+                if part.is_ground() {
                     return false;
                 }
             }
