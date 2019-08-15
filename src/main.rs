@@ -22,87 +22,13 @@ const BOX_SIZE_WIDTH: f32 = 7.0;
 const BOX_SIZE_HEIGHT: f32 = 0.2;
 const BALL_RADIUS: f32 = 0.1;
 
+mod basics;
+mod draw;
 mod sprites;
-
-#[derive(Component)]
-enum Drawable {
-    Sprite {
-        name: String,
-        scale: f32,
-    },
-    Rect {
-        color: raylib::color::Color,
-        width: f32,
-        height: f32,
-    },
-}
-
-#[derive(Component)]
-struct Collider(DefaultColliderHandle);
-
-#[derive(Component)]
-struct Body(DefaultBodyHandle);
+use basics::*;
+use draw::Drawable;
 
 struct PhysicsMove;
-
-struct PhysicsWorld<N: na::RealField> {
-    mech: DefaultMechanicalWorld<N>,
-    geom: DefaultGeometricalWorld<N>,
-    bodies: DefaultBodySet<N>,
-    colliders: DefaultColliderSet<N>,
-    joints: DefaultJointConstraintSet<N>,
-    forces: DefaultForceGeneratorSet<N>,
-}
-
-impl PhysicsWorld<f32> {
-    fn new() -> Self {
-        let mech = DefaultMechanicalWorld::new(Vector2::new(0.0, 9.81));
-        let geom = DefaultGeometricalWorld::new();
-
-        let bodies = DefaultBodySet::new();
-        let colliders = DefaultColliderSet::new();
-        let joints = DefaultJointConstraintSet::new();
-        let forces = DefaultForceGeneratorSet::new();
-        PhysicsWorld {
-            mech,
-            geom,
-            bodies,
-            colliders,
-            joints,
-            forces,
-        }
-    }
-}
-
-impl<N: na::RealField> PhysicsWorld<N> {
-    fn step(&mut self) {
-        self.mech.step(
-            &mut self.geom,
-            &mut self.bodies,
-            &mut self.colliders,
-            &mut self.joints,
-            &mut self.forces,
-        );
-    }
-
-    fn collider(
-        &self,
-        handle: DefaultColliderHandle,
-    ) -> Option<&nphysics2d::object::Collider<N, DefaultColliderHandle>> {
-        self.colliders.get(handle)
-    }
-
-    fn rigid_body(&self, handle: DefaultBodyHandle) -> Option<&dyn nphysics2d::object::Body<N>> {
-        self.bodies.get(handle)
-    }
-
-    fn rigid_body_mut(
-        &mut self,
-        handle: DefaultBodyHandle,
-    ) -> Option<&mut dyn nphysics2d::object::Body<N>> {
-        self.bodies.get_mut(handle)
-    }
-}
 
 impl<'a> System<'a> for PhysicsMove {
     // this is how we declare our dependencies
@@ -111,119 +37,6 @@ impl<'a> System<'a> for PhysicsMove {
     // this runs the system
     fn run(&mut self, (mut physics_world,): Self::SystemData) {
         physics_world.step();
-    }
-}
-
-struct Draw {
-    thread: raylib::RaylibThread,
-}
-
-const WORLD_SCALE: f32 = 100.0;
-
-use na::Isometry2;
-use ncollide2d::shape::{self, Shape};
-fn draw_shape(
-    rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
-    offset: Isometry2<f32>,
-    shape: &dyn Shape<f32>,
-) {
-    let fill = raylib::color::Color::new(255, 0, 0, 100);
-    use raylib::core::drawing::RaylibDraw;
-    if let Some(s) = shape.as_shape::<shape::Ball<f32>>() {
-        rd.draw_circle_v(
-            raylib::math::Vector2::new(
-                offset.translation.x * WORLD_SCALE,
-                offset.translation.y * WORLD_SCALE,
-            ),
-            s.radius() * WORLD_SCALE,
-            fill,
-        );
-    } else if let Some(s) = shape.as_shape::<shape::Cuboid<f32>>() {
-        let size = s.half_extents();
-        rd.draw_rectangle_v(
-            raylib::math::Vector2::new(
-                (offset.translation.x - size.x) * WORLD_SCALE,
-                (offset.translation.y - size.y) * WORLD_SCALE,
-            ),
-            raylib::math::Vector2::new(size.x * 2.0 * WORLD_SCALE, size.y * 2.0 * WORLD_SCALE),
-            fill,
-        );
-    } else if let Some(s) = shape.as_shape::<shape::Capsule<f32>>() {
-        let x = offset.translation.x - s.radius();
-        let y = offset.translation.y - s.half_height() - s.radius();
-        rd.draw_rectangle_rounded(
-            raylib::math::Rectangle::new(
-                x * WORLD_SCALE,
-                y * WORLD_SCALE,
-                s.radius() * 2.0 * WORLD_SCALE,
-                (s.height() + s.radius() * 2.0) * WORLD_SCALE,
-            ),
-            s.radius() * WORLD_SCALE,
-            10,
-            fill,
-        );
-    } else if let Some(s) = shape.as_shape::<shape::Compound<f32>>() {
-        for &(t, ref s) in s.shapes().iter() {
-            draw_shape(rd, offset * t, s.as_ref());
-        }
-    }
-}
-
-impl<'a> System<'a> for Draw {
-    type SystemData = (
-        WriteExpect<'a, raylib::RaylibHandle>,
-        ReadExpect<'a, PhysicsWorld<f32>>,
-        ReadStorage<'a, Collider>,
-        ReadStorage<'a, Body>,
-        ReadStorage<'a, Drawable>,
-        ReadExpect<'a, sprites::SpriteSheet>,
-    );
-
-    fn run(&mut self, (mut rl, physics, colliders, _bodies, drawables, sheet): Self::SystemData) {
-        use raylib::core::drawing::RaylibDraw;
-
-        let mut rd = rl.begin_drawing(&self.thread);
-        rd.clear_background(raylib::color::Color::WHITE);
-
-        for (collider, drawable) in (&colliders, &drawables).join() {
-            if let Some(collider) = physics.collider(collider.0) {
-                let p = collider.position() * Point2::new(0.0, 0.0);
-                let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
-
-                match drawable {
-                    Drawable::Sprite { name, scale } => {
-                        sheet.draw(
-                            &mut rd,
-                            &name,
-                            (p.x * WORLD_SCALE, p.y * WORLD_SCALE),
-                            r,
-                            scale * WORLD_SCALE,
-                        );
-                    }
-                    Drawable::Rect {
-                        color,
-                        width,
-                        height,
-                    } => {
-                        rd.draw_rectangle_v(
-                            raylib::math::Vector2::from((
-                                (p.x - width / 2.0) * WORLD_SCALE,
-                                (p.y - height / 2.0) * WORLD_SCALE,
-                            )),
-                            raylib::math::Vector2::from((
-                                width * WORLD_SCALE,
-                                height * WORLD_SCALE,
-                            )),
-                            *color,
-                        );
-                    }
-                }
-
-                draw_shape(&mut rd, *collider.position(), collider.shape());
-            }
-        }
-
-        rd.draw_fps(5, 5);
     }
 }
 
@@ -390,7 +203,7 @@ impl<'a> System<'a> for ArrowSys {
                             let pos = collider.position().translation;
                             // create an arrow
 
-                            let vec = (start - end) / WORLD_SCALE * 3.0;
+                            let vec = (start - end) / draw::WORLD_SCALE * 3.0;
                             let v = nphysics2d::algebra::Velocity2::new(vec, 0.0);
                             let off = vec.normalize();
                             let pos = Vector2::new(pos.x, pos.y) + off * 0.3;
@@ -404,7 +217,7 @@ impl<'a> System<'a> for ArrowSys {
 
                             // Build the collider.
                             let ball_shape = ShapeHandle::new(Ball::new(BALL_RADIUS));
-                            let mut material = nphysics2d::material::BasicMaterial::new(0.0, 1.0);
+                            let mut material = nphysics2d::material::BasicMaterial::new(0.1, 0.5);
                             material.restitution_combine_mode =
                                 nphysics2d::material::MaterialCombineMode::Multiply;
                             let mh = nphysics2d::material::MaterialHandle::new(material);
@@ -675,7 +488,7 @@ fn main() {
         .with(PlayerSys, "player_move", &[])
         .with(ArrowSys, "arrows", &[])
         .with(PhysicsMove, "p_move", &["player_move"])
-        .with_thread_local(Draw { thread })
+        .with_thread_local(draw::Draw { thread })
         .build();
 
     // Now we setup raylib for the drawing
