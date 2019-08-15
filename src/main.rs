@@ -4,16 +4,17 @@ extern crate specs_derive;
 use specs::prelude::*;
 
 use nalgebra::{Point2, Vector2};
-use ncollide2d::shape::{Ball, Cuboid, ShapeHandle, Capsule};
-use nphysics2d::object::{DefaultBodyHandle, ColliderDesc, DefaultColliderHandle, RigidBodyDesc, Ground, BodyPartHandle};
+use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
+use nphysics2d::object::{
+    BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
+};
 
 extern crate nalgebra as na;
 
-use nphysics2d::object::{DefaultBodySet, DefaultColliderSet};
 use nphysics2d::force_generator::DefaultForceGeneratorSet;
 use nphysics2d::joint::DefaultJointConstraintSet;
-use nphysics2d::world::{DefaultMechanicalWorld, DefaultGeometricalWorld};
-
+use nphysics2d::object::{DefaultBodySet, DefaultColliderSet};
+use nphysics2d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
 
 use std::sync::Arc;
 
@@ -33,7 +34,7 @@ enum Drawable {
         color: raylib::color::Color,
         width: f32,
         height: f32,
-    }
+    },
 }
 
 #[derive(Component)]
@@ -62,22 +63,32 @@ impl PhysicsWorld<f32> {
         let colliders = DefaultColliderSet::new();
         let joints = DefaultJointConstraintSet::new();
         let forces = DefaultForceGeneratorSet::new();
-        PhysicsWorld {mech, geom, bodies, colliders, joints, forces}
+        PhysicsWorld {
+            mech,
+            geom,
+            bodies,
+            colliders,
+            joints,
+            forces,
+        }
     }
 }
 
 impl<N: na::RealField> PhysicsWorld<N> {
     fn step(&mut self) {
         self.mech.step(
-                &mut self.geom,
-                &mut self.bodies,
-                &mut self.colliders,
-                &mut self.joints,
-                &mut self.forces,
-            );
+            &mut self.geom,
+            &mut self.bodies,
+            &mut self.colliders,
+            &mut self.joints,
+            &mut self.forces,
+        );
     }
 
-    fn collider(&self, handle: DefaultColliderHandle) -> Option<&nphysics2d::object::Collider<N, DefaultColliderHandle>> {
+    fn collider(
+        &self,
+        handle: DefaultColliderHandle,
+    ) -> Option<&nphysics2d::object::Collider<N, DefaultColliderHandle>> {
         self.colliders.get(handle)
     }
 
@@ -85,7 +96,10 @@ impl<N: na::RealField> PhysicsWorld<N> {
         self.bodies.get(handle)
     }
 
-    fn rigid_body_mut(&mut self, handle: DefaultBodyHandle) -> Option<&mut dyn nphysics2d::object::Body<N>> {
+    fn rigid_body_mut(
+        &mut self,
+        handle: DefaultBodyHandle,
+    ) -> Option<&mut dyn nphysics2d::object::Body<N>> {
         self.bodies.get_mut(handle)
     }
 }
@@ -104,23 +118,50 @@ struct Draw {
     thread: raylib::RaylibThread,
 }
 
-
 const WORLD_SCALE: f32 = 100.0;
 
-use ncollide2d::shape::{self, Shape};
 use na::Isometry2;
-fn draw_shape(rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>, offset: Isometry2<f32>, shape: &dyn Shape<f32>) {
-    let fill = raylib::color::Color::new(255,0,0,100);
+use ncollide2d::shape::{self, Shape};
+fn draw_shape(
+    rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
+    offset: Isometry2<f32>,
+    shape: &dyn Shape<f32>,
+) {
+    let fill = raylib::color::Color::new(255, 0, 0, 100);
     use raylib::core::drawing::RaylibDraw;
     if let Some(s) = shape.as_shape::<shape::Ball<f32>>() {
-        rd.draw_circle_v(raylib::math::Vector2::new(offset.translation.x * WORLD_SCALE, offset.translation.y * WORLD_SCALE), s.radius() * WORLD_SCALE, fill);
+        rd.draw_circle_v(
+            raylib::math::Vector2::new(
+                offset.translation.x * WORLD_SCALE,
+                offset.translation.y * WORLD_SCALE,
+            ),
+            s.radius() * WORLD_SCALE,
+            fill,
+        );
     } else if let Some(s) = shape.as_shape::<shape::Cuboid<f32>>() {
         let size = s.half_extents();
-        rd.draw_rectangle_v(raylib::math::Vector2::new((offset.translation.x - size.x) * WORLD_SCALE, (offset.translation.y - size.y) * WORLD_SCALE), raylib::math::Vector2::new(size.x * 2.0 * WORLD_SCALE, size.y * 2.0 * WORLD_SCALE), fill);
+        rd.draw_rectangle_v(
+            raylib::math::Vector2::new(
+                (offset.translation.x - size.x) * WORLD_SCALE,
+                (offset.translation.y - size.y) * WORLD_SCALE,
+            ),
+            raylib::math::Vector2::new(size.x * 2.0 * WORLD_SCALE, size.y * 2.0 * WORLD_SCALE),
+            fill,
+        );
     } else if let Some(s) = shape.as_shape::<shape::Capsule<f32>>() {
         let x = offset.translation.x - s.radius();
         let y = offset.translation.y - s.half_height() - s.radius();
-        rd.draw_rectangle_rounded(raylib::math::Rectangle::new(x * WORLD_SCALE, y * WORLD_SCALE, s.radius() * 2.0 * WORLD_SCALE, (s.height() + s.radius() * 2.0) * WORLD_SCALE), s.radius() * WORLD_SCALE, 10, fill);
+        rd.draw_rectangle_rounded(
+            raylib::math::Rectangle::new(
+                x * WORLD_SCALE,
+                y * WORLD_SCALE,
+                s.radius() * 2.0 * WORLD_SCALE,
+                (s.height() + s.radius() * 2.0) * WORLD_SCALE,
+            ),
+            s.radius() * WORLD_SCALE,
+            10,
+            fill,
+        );
     } else if let Some(s) = shape.as_shape::<shape::Compound<f32>>() {
         for &(t, ref s) in s.shapes().iter() {
             draw_shape(rd, offset * t, s.as_ref());
@@ -149,15 +190,30 @@ impl<'a> System<'a> for Draw {
                 let p = collider.position() * Point2::new(0.0, 0.0);
                 let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
 
-
                 match drawable {
-                    Drawable::Sprite {name, scale} => {
-                        sheet.draw(&mut rd, &name, (p.x * WORLD_SCALE, p.y * WORLD_SCALE), r, scale * WORLD_SCALE);
-                    },
-                    Drawable::Rect { color, width, height } => {
+                    Drawable::Sprite { name, scale } => {
+                        sheet.draw(
+                            &mut rd,
+                            &name,
+                            (p.x * WORLD_SCALE, p.y * WORLD_SCALE),
+                            r,
+                            scale * WORLD_SCALE,
+                        );
+                    }
+                    Drawable::Rect {
+                        color,
+                        width,
+                        height,
+                    } => {
                         rd.draw_rectangle_v(
-                            raylib::math::Vector2::from(((p.x - width / 2.0)  * WORLD_SCALE, (p.y - height / 2.0) * WORLD_SCALE)),
-                            raylib::math::Vector2::from((width  * WORLD_SCALE, height * WORLD_SCALE)),
+                            raylib::math::Vector2::from((
+                                (p.x - width / 2.0) * WORLD_SCALE,
+                                (p.y - height / 2.0) * WORLD_SCALE,
+                            )),
+                            raylib::math::Vector2::from((
+                                width * WORLD_SCALE,
+                                height * WORLD_SCALE,
+                            )),
                             *color,
                         );
                     }
@@ -176,35 +232,37 @@ struct Player(DefaultColliderHandle);
 
 impl Player {
     fn can_jump(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
-                let mut is_on_ground = false;
-                for (_handle, collider) in physics.geom.colliders_in_proximity_of(&physics.colliders, self.0).unwrap() {
-                    let bh = collider.body();
-                    if &bh == body {
-                        continue;
-                    }
-                    let body = physics.rigid_body(bh).unwrap();
-                    if let Some(part) = body.part(0) {
-                        if part.is_ground() || part.velocity().linear.y.abs() < 0.1 {
-                            is_on_ground = true;
-                            println!("Gound ir");
-                            break;
-                        }
-                    }
-                    // if body.is::<Ground<f32>>() {
-                    //     is_on_ground = true;
-                    //     println!("Gound ir");
-                    //     break;
-                    // }
-                    println!("Not ground I guess")
-                    // if other.
+        let mut is_on_ground = false;
+        for (_handle, collider) in physics
+            .geom
+            .colliders_in_proximity_of(&physics.colliders, self.0)
+            .unwrap()
+        {
+            let bh = collider.body();
+            if &bh == body {
+                continue;
+            }
+            let body = physics.rigid_body(bh).unwrap();
+            if let Some(part) = body.part(0) {
+                if part.is_ground() || part.velocity().linear.y.abs() < 0.1 {
+                    is_on_ground = true;
+                    println!("Gound ir");
+                    break;
                 }
-                return is_on_ground
-
+            }
+            // if body.is::<Ground<f32>>() {
+            //     is_on_ground = true;
+            //     println!("Gound ir");
+            //     break;
+            // }
+            println!("Not ground I guess")
+            // if other.
+        }
+        return is_on_ground;
     }
 }
 
 struct PlayerSys;
-
 
 impl<'a> System<'a> for PlayerSys {
     type SystemData = (
@@ -221,7 +279,6 @@ impl<'a> System<'a> for PlayerSys {
         let speed = 0.5;
         let jump_speed = speed * 10.0;
         let max_speed = 3.0;
-
 
         for (body, player) in (&body, &player).join() {
             let v = {
@@ -250,7 +307,7 @@ impl<'a> System<'a> for PlayerSys {
                 push.y += speed;
             }
             if push.x == 0.0 && push.y == 0.0 {
-                continue
+                continue;
             }
 
             if push.x > 0.0 && v.x > max_speed {
@@ -260,12 +317,15 @@ impl<'a> System<'a> for PlayerSys {
                 push.x = 0.0;
             }
             let body = physics.rigid_body_mut(body.0).unwrap();
-            body.apply_force(0, &nphysics2d::algebra::Force2::linear(push), nphysics2d::algebra::ForceType::VelocityChange, true);
+            body.apply_force(
+                0,
+                &nphysics2d::algebra::Force2::linear(push),
+                nphysics2d::algebra::ForceType::VelocityChange,
+                true,
+            );
         }
     }
 }
-
-
 
 fn main() {
     let mut world = World::new();
@@ -289,14 +349,12 @@ fn main() {
     // Note that for rust the last statement without a semicolon is the return
     let ball_handles: Vec<_> = (0..15)
         .map(|i| {
-
-            let x = 3.0 + i as f32 * ((BALL_RADIUS + ColliderDesc::<f32>::default_margin()) * 2.0 - 0.05);
+            let x = 3.0
+                + i as f32 * ((BALL_RADIUS + ColliderDesc::<f32>::default_margin()) * 2.0 - 0.05);
             let y = 1.0 + i as f32 * 0.1;
 
             // Build the rigid body.
-            let rb = RigidBodyDesc::new()
-                .translation(Vector2::new(x, y))
-                .build();
+            let rb = RigidBodyDesc::new().translation(Vector2::new(x, y)).build();
             let rb_handle = physics_world.bodies.insert(rb);
 
             // Build the collider.
@@ -314,34 +372,49 @@ fn main() {
         })
         .collect();
     for (body, collider) in ball_handles {
-        world.create_entity()
+        world
+            .create_entity()
             .with(Body(body))
             .with(Collider(collider))
-            .with(Drawable::Sprite {name: "apple.png".to_owned(), scale: 0.4})
+            .with(Drawable::Sprite {
+                name: "apple.png".to_owned(),
+                scale: 0.4,
+            })
             .build();
     }
 
     {
-        let mut body = RigidBodyDesc::new().translation(Vector2::new(3.0, 1.0)).build();
+        let mut body = RigidBodyDesc::new()
+            .translation(Vector2::new(3.0, 1.0))
+            .build();
         body.set_rotations_kinematic(true);
         let rb = physics_world.bodies.insert(body);
-        let collider = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1))).density(1.0).build(BodyPartHandle(rb, 0));
+        let collider = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+            .density(1.0)
+            .build(BodyPartHandle(rb, 0));
         let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
             .sensor(true)
             .translation(Vector2::new(0.0, 0.05))
             .build(BodyPartHandle(rb, 1));
         let cb = physics_world.colliders.insert(collider);
         let jcb = physics_world.colliders.insert(jump_sensor);
-        world.create_entity()
+        world
+            .create_entity()
             .with(Body(rb))
             .with(Player(jcb))
             .with(Collider(cb))
-            .with(Drawable::Sprite {name: "gnome_head.png".to_owned(), scale: 0.4})
+            .with(Drawable::Sprite {
+                name: "gnome_head.png".to_owned(),
+                scale: 0.4,
+            })
             .build();
     }
 
     // Create the ground
-    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(BOX_SIZE_WIDTH / 2.0, BOX_SIZE_HEIGHT / 2.0)));
+    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(
+        BOX_SIZE_WIDTH / 2.0,
+        BOX_SIZE_HEIGHT / 2.0,
+    )));
 
     // Add ground to system
     let ground_handle = physics_world.bodies.insert(Ground::new());
@@ -354,13 +427,21 @@ fn main() {
 
     // Hard part over, populate the specs world
     // First we register our components and physics_world
-    world.create_entity()
+    world
+        .create_entity()
         .with(Collider(ground_collider))
-        .with(Drawable::Rect { color: raylib::color::Color::BLACK, width: BOX_SIZE_WIDTH, height: BOX_SIZE_HEIGHT})
+        .with(Drawable::Rect {
+            color: raylib::color::Color::BLACK,
+            width: BOX_SIZE_WIDTH,
+            height: BOX_SIZE_HEIGHT,
+        })
         .build();
 
     // Vertical ground
-    let ground_shape_v = ShapeHandle::new(Cuboid::new(Vector2::new(BOX_SIZE_HEIGHT / 2.0, BOX_SIZE_WIDTH / 2.0)));
+    let ground_shape_v = ShapeHandle::new(Cuboid::new(Vector2::new(
+        BOX_SIZE_HEIGHT / 2.0,
+        BOX_SIZE_WIDTH / 2.0,
+    )));
     let ground_collider = ColliderDesc::new(ground_shape_v)
         .translation(Vector2::new(0.1, 3.40))
         .build(BodyPartHandle(ground_handle, 1));
@@ -369,13 +450,21 @@ fn main() {
 
     // Hard part over, populate the specs world
     // First we register our components and physics_world
-    world.create_entity()
+    world
+        .create_entity()
         .with(Collider(ground_collider))
-        .with(Drawable::Rect { color: raylib::color::Color::BLACK, width: BOX_SIZE_HEIGHT, height: BOX_SIZE_WIDTH})
+        .with(Drawable::Rect {
+            color: raylib::color::Color::BLACK,
+            width: BOX_SIZE_HEIGHT,
+            height: BOX_SIZE_WIDTH,
+        })
         .build();
 
     // Vertical ground
-    let ground_shape_v = ShapeHandle::new(Cuboid::new(Vector2::new(BOX_SIZE_HEIGHT / 2.0, BOX_SIZE_WIDTH / 2.0)));
+    let ground_shape_v = ShapeHandle::new(Cuboid::new(Vector2::new(
+        BOX_SIZE_HEIGHT / 2.0,
+        BOX_SIZE_WIDTH / 2.0,
+    )));
     let ground_collider = ColliderDesc::new(ground_shape_v)
         .translation(Vector2::new(5.0, 3.40))
         .build(BodyPartHandle(ground_handle, 2));
@@ -384,9 +473,14 @@ fn main() {
 
     // Hard part over, populate the specs world
     // First we register our components and physics_world
-    world.create_entity()
+    world
+        .create_entity()
         .with(Collider(ground_collider))
-        .with(Drawable::Rect { color: raylib::color::Color::BLACK, width: BOX_SIZE_HEIGHT, height: BOX_SIZE_WIDTH})
+        .with(Drawable::Rect {
+            color: raylib::color::Color::BLACK,
+            width: BOX_SIZE_HEIGHT,
+            height: BOX_SIZE_WIDTH,
+        })
         .build();
 
     world.add_resource(physics_world);
@@ -399,11 +493,31 @@ fn main() {
     rl.set_target_fps(60);
 
     let mut sprites = sprites::SpriteSheet::new();
-    sprites.add(&mut rl, &thread, "assets/spritesheet_items.png", "assets/spritesheet_items.xml");
+    sprites.add(
+        &mut rl,
+        &thread,
+        "assets/spritesheet_items.png",
+        "assets/spritesheet_items.xml",
+    );
     sprites.add(&mut rl, &thread, "assets/extras.png", "assets/extras.xml");
-    sprites.add(&mut rl, &thread, "assets/spritesheet_characters.png", "assets/spritesheet_characters.xml");
-    sprites.add(&mut rl, &thread, "assets/spritesheet_particles.png", "assets/spritesheet_particles.xml");
-    sprites.add(&mut rl, &thread, "assets/spritesheet_tiles.png", "assets/spritesheet_tiles.xml");
+    sprites.add(
+        &mut rl,
+        &thread,
+        "assets/spritesheet_characters.png",
+        "assets/spritesheet_characters.xml",
+    );
+    sprites.add(
+        &mut rl,
+        &thread,
+        "assets/spritesheet_particles.png",
+        "assets/spritesheet_particles.xml",
+    );
+    sprites.add(
+        &mut rl,
+        &thread,
+        "assets/spritesheet_tiles.png",
+        "assets/spritesheet_tiles.xml",
+    );
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(PlayerSys, "player_move", &[])
