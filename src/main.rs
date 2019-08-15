@@ -3,20 +3,13 @@ extern crate specs_derive;
 
 use specs::prelude::*;
 
-use nalgebra::{Vector2};
+use nalgebra::Vector2;
 use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
 use nphysics2d::object::{
     BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
 };
 
 extern crate nalgebra as na;
-
-
-
-
-
-
-
 
 const BOX_SIZE_WIDTH: f32 = 7.0;
 const BOX_SIZE_HEIGHT: f32 = 0.2;
@@ -114,7 +107,7 @@ impl Player {
                 }
             }
         }
-        return true;
+        true
     }
 
     fn can_go_right(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
@@ -135,7 +128,7 @@ impl Player {
                 }
             }
         }
-        return true;
+        true
     }
 
     fn can_jump(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
@@ -155,7 +148,7 @@ impl Player {
                 }
             }
         }
-        return false;
+        false
     }
 }
 
@@ -278,11 +271,9 @@ impl<'a> System<'a> for PlayerSys {
             };
 
             let mut push = Vector2::new(0.0, 0.0);
-            if rl.is_key_down(KEY_W) {
-                if player.can_jump(&physics, &body.0) && v.y > -jump_speed {
-                    let max_jump = -jump_speed - v.y;
-                    push.y += max_jump;
-                }
+            if rl.is_key_down(KEY_W) && player.can_jump(&physics, &body.0) && v.y > -jump_speed {
+                let max_jump = -jump_speed - v.y;
+                push.y += max_jump;
             }
             if rl.is_key_down(KEY_D) && player.can_go_right(&physics, &body.0) {
                 push.x += speed;
