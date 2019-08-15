@@ -228,14 +228,57 @@ impl<'a> System<'a> for Draw {
 }
 
 #[derive(Component)]
-struct Player(DefaultColliderHandle);
+struct Player {
+    down: DefaultColliderHandle,
+    left: DefaultColliderHandle,
+    right: DefaultColliderHandle,
+}
 
 impl Player {
-    fn can_jump(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
-        let mut is_on_ground = false;
+    fn can_go_left(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
         for (_handle, collider) in physics
             .geom
-            .colliders_in_proximity_of(&physics.colliders, self.0)
+            .colliders_in_proximity_of(&physics.colliders, self.left)
+            .unwrap()
+        {
+            let bh = collider.body();
+            if &bh == body {
+                continue;
+            }
+            let body = physics.rigid_body(bh).unwrap();
+            if let Some(part) = body.part(0) {
+                if part.is_ground() {//|| part.velocity().linear.x.abs() < 0.1 {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    fn can_go_right(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
+        for (_handle, collider) in physics
+            .geom
+            .colliders_in_proximity_of(&physics.colliders, self.right)
+            .unwrap()
+        {
+            let bh = collider.body();
+            if &bh == body {
+                continue;
+            }
+            let body = physics.rigid_body(bh).unwrap();
+            if let Some(part) = body.part(0) {
+                if part.is_ground() {//|| part.velocity().linear.x.abs() < 0.1 {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    fn can_jump(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
+        for (_handle, collider) in physics
+            .geom
+            .colliders_in_proximity_of(&physics.colliders, self.down)
             .unwrap()
         {
             let bh = collider.body();
@@ -245,20 +288,11 @@ impl Player {
             let body = physics.rigid_body(bh).unwrap();
             if let Some(part) = body.part(0) {
                 if part.is_ground() || part.velocity().linear.y.abs() < 0.1 {
-                    is_on_ground = true;
-                    println!("Gound ir");
-                    break;
+                    return true;
                 }
             }
-            // if body.is::<Ground<f32>>() {
-            //     is_on_ground = true;
-            //     println!("Gound ir");
-            //     break;
-            // }
-            println!("Not ground I guess")
-            // if other.
         }
-        return is_on_ground;
+        return false;
     }
 }
 
@@ -289,18 +323,15 @@ impl<'a> System<'a> for PlayerSys {
 
             let mut push = Vector2::new(0.0, 0.0);
             if rl.is_key_down(KEY_W) {
-                let is_on_ground = player.can_jump(&physics, &body.0);
-                if is_on_ground && v.y > -jump_speed {
+                if player.can_jump(&physics, &body.0) && v.y > -jump_speed {
                     let max_jump = -jump_speed - v.y;
                     push.y += max_jump;
-                } else {
-                    println!("No ground")
                 }
             }
-            if rl.is_key_down(KEY_D) {
+            if rl.is_key_down(KEY_D) && player.can_go_right(&physics, &body.0) {
                 push.x += speed;
             }
-            if rl.is_key_down(KEY_A) {
+            if rl.is_key_down(KEY_A) && player.can_go_left(&physics, &body.0) {
                 push.x -= speed;
             }
             if rl.is_key_down(KEY_S) {
@@ -395,13 +426,29 @@ fn main() {
         let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
             .sensor(true)
             .translation(Vector2::new(0.0, 0.05))
-            .build(BodyPartHandle(rb, 1));
+            .build(BodyPartHandle(rb, 0));
+        let left_sensor = physics_world.colliders.insert(
+            ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+                .sensor(true)
+                .translation(Vector2::new(-0.05, 0.0))
+                .build(BodyPartHandle(rb, 0)),
+        );
+        let right_sensor = physics_world.colliders.insert(
+            ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+                .sensor(true)
+                .translation(Vector2::new(0.05, 0.0))
+                .build(BodyPartHandle(rb, 0)),
+        );
         let cb = physics_world.colliders.insert(collider);
         let jcb = physics_world.colliders.insert(jump_sensor);
         world
             .create_entity()
             .with(Body(rb))
-            .with(Player(jcb))
+            .with(Player {
+                down: jcb,
+                left: left_sensor,
+                right: right_sensor,
+            })
             .with(Collider(cb))
             .with(Drawable::Sprite {
                 name: "gnome_head.png".to_owned(),
