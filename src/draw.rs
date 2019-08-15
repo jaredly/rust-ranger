@@ -1,15 +1,8 @@
 use specs::prelude::*;
 
-use nalgebra::{Point2};
-
-
+use nalgebra::Point2;
 
 extern crate nalgebra as na;
-
-
-
-
-
 
 use crate::basics::*;
 

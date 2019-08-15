@@ -305,7 +305,36 @@ impl<'a> System<'a> for PlayerSys {
     }
 }
 
+fn add_ground(
+    world: &mut World,
+    physics_world: &mut PhysicsWorld<f32>,
+    ground_handle: DefaultBodyHandle,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+) {
+    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(w / 2.0, h / 2.0)));
+    let ground_collider = ColliderDesc::new(ground_shape)
+        .translation(Vector2::new(x, y))
+        .build(BodyPartHandle(ground_handle, 0));
+    let ground_collider = physics_world.colliders.insert(ground_collider);
+    world
+        .create_entity()
+        .with(Collider(ground_collider))
+        .with(Drawable::Rect {
+            color: raylib::color::Color::BLACK,
+            width: w,
+            height: h,
+        })
+        .build();
+}
+
 fn main() {
+    // screen
+    let screen_w = 640;
+    let screen_h = 480;
+
     let mut world = World::new();
     let mut physics_world: PhysicsWorld<f32> = PhysicsWorld::new();
 
@@ -366,84 +395,54 @@ fn main() {
 
     Player::create_entity(&mut world, &mut physics_world, Vector2::new(3.0, 1.0));
 
-    // Create the ground
-    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(
-        BOX_SIZE_WIDTH / 2.0,
-        BOX_SIZE_HEIGHT / 2.0,
-    )));
-
     // Add ground to system
     let ground_handle = physics_world.bodies.insert(Ground::new());
 
-    let ground_collider = ColliderDesc::new(ground_shape)
-        .translation(Vector2::new(3.20, 3.40))
-        .build(BodyPartHandle(ground_handle, 0));
-    let ground_collider = physics_world.colliders.insert(ground_collider);
-    // ground
-
-    // Hard part over, populate the specs world
-    // First we register our components and physics_world
-    world
-        .create_entity()
-        .with(Collider(ground_collider))
-        .with(Drawable::Rect {
-            color: raylib::color::Color::BLACK,
-            width: BOX_SIZE_WIDTH,
-            height: BOX_SIZE_HEIGHT,
-        })
-        .build();
-
-    // Vertical ground
-    let ground_shape_v = ShapeHandle::new(Cuboid::new(Vector2::new(
-        BOX_SIZE_HEIGHT / 2.0,
-        BOX_SIZE_WIDTH / 2.0,
-    )));
-    let ground_collider = ColliderDesc::new(ground_shape_v)
-        .translation(Vector2::new(0.1, 3.40))
-        .build(BodyPartHandle(ground_handle, 1));
-    let ground_collider = physics_world.colliders.insert(ground_collider);
-    // ground
-
-    // Hard part over, populate the specs world
-    // First we register our components and physics_world
-    world
-        .create_entity()
-        .with(Collider(ground_collider))
-        .with(Drawable::Rect {
-            color: raylib::color::Color::BLACK,
-            width: BOX_SIZE_HEIGHT,
-            height: BOX_SIZE_WIDTH,
-        })
-        .build();
-
-    // Vertical ground
-    let ground_shape_v = ShapeHandle::new(Cuboid::new(Vector2::new(
-        BOX_SIZE_HEIGHT / 2.0,
-        BOX_SIZE_WIDTH / 2.0,
-    )));
-    let ground_collider = ColliderDesc::new(ground_shape_v)
-        .translation(Vector2::new(5.0, 3.40))
-        .build(BodyPartHandle(ground_handle, 2));
-    let ground_collider = physics_world.colliders.insert(ground_collider);
-    // ground
-
-    // Hard part over, populate the specs world
-    // First we register our components and physics_world
-    world
-        .create_entity()
-        .with(Collider(ground_collider))
-        .with(Drawable::Rect {
-            color: raylib::color::Color::BLACK,
-            width: BOX_SIZE_HEIGHT,
-            height: BOX_SIZE_WIDTH,
-        })
-        .build();
+    let phys_w = screen_w as f32 / draw::WORLD_SCALE;
+    let phys_h = screen_h as f32 / draw::WORLD_SCALE;
+    add_ground(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        phys_w / 2.0,
+        phys_h,
+        phys_w,
+        0.10,
+    );
+    add_ground(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        phys_w / 2.0,
+        0.0,
+        phys_w,
+        0.10,
+    );
+    add_ground(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        0.0,
+        phys_h / 2.0,
+        0.1,
+        phys_h,
+    );
+    add_ground(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        phys_w,
+        phys_h / 2.0,
+        0.1,
+        phys_h,
+    );
 
     world.add_resource(physics_world);
 
-    let w = 640;
-    let h = 480;
-    let (mut rl, thread) = raylib::init().size(w, h).title("Examples").build();
+    let (mut rl, thread) = raylib::init()
+        .size(screen_w, screen_h)
+        .title("Examples")
+        .build();
 
     // Use an reference counted pointer to share raylib between this thread and the drawing one
     rl.set_target_fps(60);
