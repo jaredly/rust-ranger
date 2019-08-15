@@ -1,10 +1,8 @@
 use specs::prelude::*;
 
 use nalgebra::Vector2;
-use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
-use nphysics2d::object::{
-    BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
-};
+use ncollide2d::shape::{Ball, ShapeHandle};
+use nphysics2d::object::{BodyPartHandle, ColliderDesc, RigidBodyDesc};
 
 use crate::basics::*;
 use crate::draw::Drawable;

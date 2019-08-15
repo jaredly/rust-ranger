@@ -21,7 +21,7 @@ mod sprites;
 use basics::*;
 use draw::Drawable;
 mod throw;
-use throw::{ArrowLauncher, ArrowSys};
+use throw::ArrowSys;
 
 struct PhysicsMove;
 
