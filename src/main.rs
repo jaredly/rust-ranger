@@ -235,6 +235,52 @@ struct Player {
 }
 
 impl Player {
+    fn create_entity(
+        world: &mut World,
+        physics_world: &mut PhysicsWorld<f32>,
+        position: Vector2<f32>,
+    ) {
+        let mut body = RigidBodyDesc::new().translation(position).build();
+        body.set_rotations_kinematic(true);
+        let rb = physics_world.bodies.insert(body);
+        let collider = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+            .density(1.0)
+            .build(BodyPartHandle(rb, 0));
+        let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+            .sensor(true)
+            .translation(Vector2::new(0.0, 0.05))
+            .build(BodyPartHandle(rb, 0));
+        let left_sensor = physics_world.colliders.insert(
+            ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+                .sensor(true)
+                .translation(Vector2::new(-0.05, 0.0))
+                .build(BodyPartHandle(rb, 0)),
+        );
+        let right_sensor = physics_world.colliders.insert(
+            ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
+                .sensor(true)
+                .translation(Vector2::new(0.05, 0.0))
+                .build(BodyPartHandle(rb, 0)),
+        );
+        let cb = physics_world.colliders.insert(collider);
+        let jcb = physics_world.colliders.insert(jump_sensor);
+        world
+            .create_entity()
+            .with(Body(rb))
+            .with(ArrowLauncher(None))
+            .with(Player {
+                down: jcb,
+                left: left_sensor,
+                right: right_sensor,
+            })
+            .with(Collider(cb))
+            .with(Drawable::Sprite {
+                name: "gnome_head.png".to_owned(),
+                scale: 0.4,
+            })
+            .build();
+    }
+
     fn can_go_left(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
         for (_handle, collider) in physics
             .geom
@@ -294,6 +340,99 @@ impl Player {
             }
         }
         return false;
+    }
+}
+
+#[derive(Component)]
+struct ArrowLauncher(Option<Vector2<f32>>);
+
+struct ArrowSys;
+
+impl<'a> System<'a> for ArrowSys {
+    type SystemData = (
+        Entities<'a>,
+        ReadExpect<'a, raylib::RaylibHandle>,
+        WriteExpect<'a, PhysicsWorld<f32>>,
+        WriteStorage<'a, ArrowLauncher>,
+        ReadStorage<'a, Player>,
+        WriteStorage<'a, Collider>,
+        WriteStorage<'a, Body>,
+        WriteStorage<'a, Drawable>,
+    );
+
+    fn run(
+        &mut self,
+        (
+            entities,
+            rl,
+            mut physics_world,
+            mut arrow,
+            player,
+            mut colliders,
+            mut bodies,
+            mut drawables,
+        ): Self::SystemData,
+    ) {
+        if let Some((mut arrow, collider)) = (&mut arrow, &colliders).join().next() {
+            if rl.is_mouse_button_pressed(raylib::consts::MouseButton::MOUSE_LEFT_BUTTON) {
+                let vec = rl.get_mouse_position();
+                arrow.0 = Some(Vector2::new(vec.x, vec.y));
+            } else if rl.is_mouse_button_released(raylib::consts::MouseButton::MOUSE_LEFT_BUTTON) {
+                match arrow.0 {
+                    None => (),
+                    Some(start) => {
+                        let vec = rl.get_mouse_position();
+                        let end = Vector2::new(vec.x, vec.y);
+                        if let Some(collider) = physics_world.collider(collider.0) {
+                            let pos = collider.position().translation;
+                            // create an arrow
+
+                            let vec = (start - end) / WORLD_SCALE * 3.0;
+                            let v = nphysics2d::algebra::Velocity2::new(vec, 0.0);
+                            let off = vec.normalize();
+                            let pos = Vector2::new(pos.x, pos.y) + off * 0.3;
+                            let mut rb = RigidBodyDesc::new()
+                                .translation(pos)
+                                .set_velocity(v)
+                                .build();
+                            // use nphysics2d::object::Body;
+                            // rb.enable_gravity(false);
+                            let rb_handle = physics_world.bodies.insert(rb);
+
+                            // Build the collider.
+                            let ball_shape = ShapeHandle::new(Ball::new(BALL_RADIUS));
+                            let mut material = nphysics2d::material::BasicMaterial::new(0.0, 0.0);
+                            material.restitution_combine_mode =
+                                nphysics2d::material::MaterialCombineMode::Multiply;
+                            let mh = nphysics2d::material::MaterialHandle::new(material);
+
+                            let co = ColliderDesc::new(ball_shape.clone())
+                                .density(1.0)
+                                .material(mh)
+                                .build(BodyPartHandle(rb_handle, 0));
+                            let co_handle = physics_world.colliders.insert(co);
+
+                            let entity = entities.create();
+                            bodies.insert(entity, Body(rb_handle)).unwrap();
+                            colliders.insert(entity, Collider(co_handle)).unwrap();
+                            drawables
+                                .insert(
+                                    entity,
+                                    Drawable::Sprite {
+                                        name: "ore_coal.png".to_owned(),
+                                        scale: 0.5,
+                                    },
+                                )
+                                .unwrap();
+                            println!("Ok inserted")
+                        } else {
+                            println!("nope")
+                        }
+                    }
+                }
+                arrow.0 = None;
+            }
+        }
     }
 }
 
@@ -366,6 +505,7 @@ fn main() {
     world.register::<Collider>();
     world.register::<Drawable>();
     world.register::<Player>();
+    world.register::<ArrowLauncher>();
     world.register::<Body>();
 
     // Set up physics world (the hard part) first
@@ -386,7 +526,9 @@ fn main() {
             let y = 1.0 + i as f32 * 0.1;
 
             // Build the rigid body.
-            let rb = RigidBodyDesc::new().translation(Vector2::new(x, y)).build();
+            let mut rb = RigidBodyDesc::new().translation(Vector2::new(x, y)).build();
+            use nphysics2d::object::Body;
+            rb.enable_gravity(false);
             let rb_handle = physics_world.bodies.insert(rb);
 
             // Build the collider.
@@ -415,48 +557,7 @@ fn main() {
             .build();
     }
 
-    {
-        let mut body = RigidBodyDesc::new()
-            .translation(Vector2::new(3.0, 1.0))
-            .build();
-        body.set_rotations_kinematic(true);
-        let rb = physics_world.bodies.insert(body);
-        let collider = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
-            .density(1.0)
-            .build(BodyPartHandle(rb, 0));
-        let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
-            .sensor(true)
-            .translation(Vector2::new(0.0, 0.05))
-            .build(BodyPartHandle(rb, 0));
-        let left_sensor = physics_world.colliders.insert(
-            ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
-                .sensor(true)
-                .translation(Vector2::new(-0.05, 0.0))
-                .build(BodyPartHandle(rb, 0)),
-        );
-        let right_sensor = physics_world.colliders.insert(
-            ColliderDesc::new(ShapeHandle::new(Capsule::new(0.3, 0.1)))
-                .sensor(true)
-                .translation(Vector2::new(0.05, 0.0))
-                .build(BodyPartHandle(rb, 0)),
-        );
-        let cb = physics_world.colliders.insert(collider);
-        let jcb = physics_world.colliders.insert(jump_sensor);
-        world
-            .create_entity()
-            .with(Body(rb))
-            .with(Player {
-                down: jcb,
-                left: left_sensor,
-                right: right_sensor,
-            })
-            .with(Collider(cb))
-            .with(Drawable::Sprite {
-                name: "gnome_head.png".to_owned(),
-                scale: 0.4,
-            })
-            .build();
-    }
+    Player::create_entity(&mut world, &mut physics_world, Vector2::new(3.0, 1.0));
 
     // Create the ground
     let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(
@@ -569,6 +670,7 @@ fn main() {
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(PlayerSys, "player_move", &[])
+        .with(ArrowSys, "arrows", &[])
         .with(PhysicsMove, "p_move", &["player_move"])
         .with_thread_local(Draw { thread })
         .build();
