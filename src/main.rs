@@ -20,6 +20,8 @@ mod draw;
 mod sprites;
 use basics::*;
 use draw::Drawable;
+mod throw;
+use throw::{ArrowLauncher, ArrowSys};
 
 struct PhysicsMove;
 
@@ -76,7 +78,7 @@ impl Player {
         world
             .create_entity()
             .with(Body(rb))
-            .with(ArrowLauncher(None))
+            .with(throw::ArrowLauncher(None))
             .with(Player {
                 down: jcb,
                 left: left_sensor,
@@ -152,100 +154,8 @@ impl Player {
     }
 }
 
-#[derive(Component)]
-struct ArrowLauncher(Option<Vector2<f32>>);
-
-struct ArrowSys;
-
-impl<'a> System<'a> for ArrowSys {
-    type SystemData = (
-        Entities<'a>,
-        ReadExpect<'a, raylib::RaylibHandle>,
-        WriteExpect<'a, PhysicsWorld<f32>>,
-        WriteStorage<'a, ArrowLauncher>,
-        ReadStorage<'a, Player>,
-        WriteStorage<'a, Collider>,
-        WriteStorage<'a, Body>,
-        WriteStorage<'a, Drawable>,
-    );
-
-    fn run(
-        &mut self,
-        (
-            entities,
-            rl,
-            mut physics_world,
-            mut arrow,
-            _player,
-            mut colliders,
-            mut bodies,
-            mut drawables,
-        ): Self::SystemData,
-    ) {
-        if let Some((mut arrow, collider)) = (&mut arrow, &colliders).join().next() {
-            if rl.is_mouse_button_pressed(raylib::consts::MouseButton::MOUSE_LEFT_BUTTON) {
-                let vec = rl.get_mouse_position();
-                arrow.0 = Some(Vector2::new(vec.x, vec.y));
-            } else if rl.is_mouse_button_released(raylib::consts::MouseButton::MOUSE_LEFT_BUTTON) {
-                match arrow.0 {
-                    None => (),
-                    Some(start) => {
-                        let vec = rl.get_mouse_position();
-                        let end = Vector2::new(vec.x, vec.y);
-                        if let Some(collider) = physics_world.collider(collider.0) {
-                            let pos = collider.position().translation;
-                            // create an arrow
-
-                            let vec = (start - end) / draw::WORLD_SCALE * 3.0;
-                            let v = nphysics2d::algebra::Velocity2::new(vec, 0.0);
-                            let off = vec.normalize();
-                            let pos = Vector2::new(pos.x, pos.y) + off * 0.3;
-                            let rb = RigidBodyDesc::new()
-                                .translation(pos)
-                                .set_velocity(v)
-                                .build();
-                            // use nphysics2d::object::Body;
-                            // rb.enable_gravity(false);
-                            let rb_handle = physics_world.bodies.insert(rb);
-
-                            // Build the collider.
-                            let ball_shape = ShapeHandle::new(Ball::new(BALL_RADIUS));
-                            let mut material = nphysics2d::material::BasicMaterial::new(0.1, 0.5);
-                            material.restitution_combine_mode =
-                                nphysics2d::material::MaterialCombineMode::Multiply;
-                            let mh = nphysics2d::material::MaterialHandle::new(material);
-
-                            let co = ColliderDesc::new(ball_shape.clone())
-                                .density(1.0)
-                                .material(mh)
-                                .build(BodyPartHandle(rb_handle, 0));
-                            let co_handle = physics_world.colliders.insert(co);
-
-                            let entity = entities.create();
-                            bodies.insert(entity, Body(rb_handle)).unwrap();
-                            colliders.insert(entity, Collider(co_handle)).unwrap();
-                            drawables
-                                .insert(
-                                    entity,
-                                    Drawable::Sprite {
-                                        name: "ore_coal.png".to_owned(),
-                                        scale: 0.5,
-                                    },
-                                )
-                                .unwrap();
-                            println!("Ok inserted")
-                        } else {
-                            println!("nope")
-                        }
-                    }
-                }
-                arrow.0 = None;
-            }
-        }
-    }
-}
-
-#[derive(Component)]
+#[derive(Component, Default)]
+#[storage(NullStorage)]
 struct GravityOnCollide;
 
 struct GravitySys;
@@ -256,7 +166,6 @@ impl<'a> System<'a> for GravitySys {
         WriteExpect<'a, PhysicsWorld<f32>>,
         ReadStorage<'a, Collider>,
         ReadStorage<'a, Body>,
-        // ReadStorage<'a, GravityOnCollide>,
         WriteStorage<'a, GravityOnCollide>,
     );
 
@@ -377,29 +286,59 @@ fn main() {
     let screen_w = 640;
     let screen_h = 480;
 
+    let (mut rl, thread) = raylib::init()
+        .size(screen_w, screen_h)
+        .title("Examples")
+        .build();
+    rl.set_target_fps(60);
+
+    let mut sprites = sprites::SpriteSheet::new();
+    sprites.add(
+        &mut rl,
+        &thread,
+        "assets/spritesheet_items.png",
+        "assets/spritesheet_items.xml",
+    );
+    sprites.add(&mut rl, &thread, "assets/extras.png", "assets/extras.xml");
+    sprites.add(
+        &mut rl,
+        &thread,
+        "assets/spritesheet_characters.png",
+        "assets/spritesheet_characters.xml",
+    );
+    sprites.add(
+        &mut rl,
+        &thread,
+        "assets/spritesheet_particles.png",
+        "assets/spritesheet_particles.xml",
+    );
+    sprites.add(
+        &mut rl,
+        &thread,
+        "assets/spritesheet_tiles.png",
+        "assets/spritesheet_tiles.xml",
+    );
+
     let mut world = World::new();
+
+    let mut dispatcher = DispatcherBuilder::new()
+        .with(PlayerSys, "player_move", &[])
+        .with(ArrowSys, "arrows", &[])
+        .with(PhysicsMove, "p_move", &["player_move"])
+        .with(GravitySys, "gravity_on_collide", &["p_move"])
+        .with_thread_local(draw::Draw { thread })
+        .build();
+
+    dispatcher.setup(&mut world.res);
+
     let mut physics_world: PhysicsWorld<f32> = PhysicsWorld::new();
 
-    world.register::<GravityOnCollide>();
-    world.register::<Collider>();
-    world.register::<Drawable>();
-    world.register::<Player>();
-    world.register::<ArrowLauncher>();
-    world.register::<Body>();
-
-    // Set up physics world (the hard part) first
-    // Raylib uses top left as 0,0 so down is really increasing
-    // physics_world.set_gravity(Vector2::new(0.0, 9.81));
-
-    // Create a couple of balls with actual rigidbodies (only rigidbodies have gravity)
-
     let ball_shape = ShapeHandle::new(Ball::new(BALL_RADIUS));
-    // let collider = ColliderDesc::new(ball_shape).density(1.0);
-    // let mut rigid_body = RigidBodyDesc::new().collider(&collider);
 
     let phys_w = screen_w as f32 / draw::WORLD_SCALE;
     let phys_h = screen_h as f32 / draw::WORLD_SCALE;
 
+    // three rings of apples
     let ball_handles: Vec<_> = (0..90)
         .map(|i| {
             let l = (i / 30) as f32;
@@ -516,65 +455,13 @@ fn main() {
     );
 
     world.add_resource(physics_world);
-
-    let (mut rl, thread) = raylib::init()
-        .size(screen_w, screen_h)
-        .title("Examples")
-        .build();
-
-    // Use an reference counted pointer to share raylib between this thread and the drawing one
-    rl.set_target_fps(60);
-
-    let mut sprites = sprites::SpriteSheet::new();
-    sprites.add(
-        &mut rl,
-        &thread,
-        "assets/spritesheet_items.png",
-        "assets/spritesheet_items.xml",
-    );
-    sprites.add(&mut rl, &thread, "assets/extras.png", "assets/extras.xml");
-    sprites.add(
-        &mut rl,
-        &thread,
-        "assets/spritesheet_characters.png",
-        "assets/spritesheet_characters.xml",
-    );
-    sprites.add(
-        &mut rl,
-        &thread,
-        "assets/spritesheet_particles.png",
-        "assets/spritesheet_particles.xml",
-    );
-    sprites.add(
-        &mut rl,
-        &thread,
-        "assets/spritesheet_tiles.png",
-        "assets/spritesheet_tiles.xml",
-    );
-
-    let mut dispatcher = DispatcherBuilder::new()
-        .with(PlayerSys, "player_move", &[])
-        .with(ArrowSys, "arrows", &[])
-        .with(PhysicsMove, "p_move", &["player_move"])
-        .with(GravitySys, "gravity_on_collide", &["p_move"])
-        .with_thread_local(draw::Draw { thread })
-        .build();
-
-    // Now we setup raylib for the drawing
-
     world.add_resource(sprites);
-
     world.add_resource(rl);
-
-    dispatcher.setup(&mut world.res);
 
     let should_close = false;
     while !window_should_close(&world) && !should_close {
-        // rl.begin_drawing();
-        // rl.clear_background(raylib::Color::WHITE);
         dispatcher.dispatch(&mut world.res);
         world.maintain();
-        // rl.end_drawing();
     }
 }
 
