@@ -1,0 +1,31 @@
+Skeletons({
+    "female": Skeleton(
+        shape: Capsule(width: 0.1, height: 0.1),
+        scale: Plain(0.4),
+        offset: Plain((0.0, 0.0)),
+        // flip_left_right: true,
+        bones: [
+            Bone(
+                sprite: "female_body.png",
+                offset: Plain((0.0, 0.0)),
+                scale: Plain(1.0),
+                rotation: Plain(0.0),
+                pivot_offset: Plain((0.0, 0.0)),
+            ),
+            Bone(
+                sprite: "female_arm.png",
+                offset: Plain((0.0, 0.0)),
+                pivot_offset: Plain((0.0, 0.0)),
+                scale: Plain(1.0),
+                rotation: Sin(center: 0.0, frequency: 500.0, amplitude: 45, offset: 0.0), // or Cos() or Ease() or Linear(from:, to:, speed:)
+            ),
+            Bone(
+                sprite: "female_head.png",
+                offset: Plain((0.0, -30.0)),
+                pivot_offset: Plain((0.0, 0.0)),
+                scale: Plain(1.0),
+                rotation: Sin(center: 0.0, frequency: 500.0, amplitude: 3.14159, offset: 0.0), // or Cos() or Ease()
+            )
+        ]
+    )
+})

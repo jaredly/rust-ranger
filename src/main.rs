@@ -16,6 +16,7 @@ const BALL_RADIUS: f32 = 0.1;
 mod basics;
 mod draw;
 mod groups;
+mod skeletons;
 mod sprites;
 use basics::*;
 use draw::Drawable;
@@ -88,16 +89,17 @@ impl Player {
             .create_entity()
             .with(Body(rb))
             .with(throw::ArrowLauncher(None, sensor_handle))
+            .with(skeletons::component::Skeleton::new("female"))
             .with(Player {
                 down: jcb,
                 left: left_sensor,
                 right: right_sensor,
             })
             .with(Collider(cb))
-            .with(Drawable::Sprite {
-                name: "gnome_head.png".to_owned(),
-                scale: 0.4,
-            })
+            // .with(Drawable::Sprite {
+            //     name: "gnome_head.png".to_owned(),
+            //     scale: 0.4,
+            // })
             .build();
     }
 
@@ -334,6 +336,11 @@ fn main() {
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(PlayerSys, "player_move", &[])
+        .with(
+            skeletons::component::SkeletonSys,
+            "skeletons",
+            &["player_move"],
+        )
         .with(PhysicsMove, "p_move", &["player_move"])
         .with(throw::ThrownSys, "sensor_until", &["p_move"])
         .with(ArrowSys, "arrows", &["sensor_until"])
@@ -471,8 +478,32 @@ fn main() {
     world.add_resource(sprites);
     world.add_resource(rl);
 
+    let skel_file = "./assets/skeletons.ron";
+
+    let skeletons = skeletons::read(skel_file).unwrap();
+    world.add_resource(skeletons);
+
     let should_close = false;
+    let mut skel_change = std::fs::metadata(skel_file).unwrap().modified().unwrap();
+    let mut last = std::time::Instant::now();
     while !window_should_close(&world) && !should_close {
+        {
+            let mut tick = world.write_resource::<basics::Tick>();
+            let now = std::time::Instant::now();
+            *tick = basics::Tick(now - last);
+            last = now;
+            let skel_new = std::fs::metadata(skel_file).unwrap().modified().unwrap();
+            if skel_new > skel_change {
+                let mut skeletons = world.write_resource::<skeletons::Skeletons>();
+                match skeletons::read(skel_file) {
+                    Ok(skel) => {
+                        *skeletons = skel;
+                        skel_change = skel_new;
+                    }
+                    Err(_) => (),
+                }
+            }
+        }
         dispatcher.dispatch(&world.res);
         world.maintain();
     }

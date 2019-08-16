@@ -11,6 +11,13 @@ use nphysics2d::joint::DefaultJointConstraintSet;
 use nphysics2d::object::{DefaultBodySet, DefaultColliderSet};
 use nphysics2d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
 
+pub struct Tick(pub std::time::Duration);
+impl Default for Tick {
+    fn default() -> Self {
+        Tick(std::time::Duration::from_secs(0))
+    }
+}
+
 #[derive(Component)]
 pub struct Collider(pub DefaultColliderHandle);
 

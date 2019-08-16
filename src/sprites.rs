@@ -1,9 +1,6 @@
 pub struct Coords {
     name: String,
-    x: usize,
-    y: usize,
-    width: usize,
-    height: usize,
+    rect: raylib::math::Rectangle,
     px: f32,
     py: f32,
     texture: String,
@@ -47,10 +44,16 @@ impl Coords {
                 let py = element.attr_opt::<f32>("pY", 0.5);
                 Some(Coords {
                     name,
-                    x,
-                    y,
-                    width,
-                    height,
+                    rect: raylib::math::Rectangle::new(
+                        x as f32,
+                        y as f32,
+                        width as f32,
+                        height as f32,
+                    ),
+                    // x,
+                    // y,
+                    // width,
+                    // height,
                     px,
                     py,
                     texture: texture.to_owned(),
@@ -123,10 +126,6 @@ impl SpriteSheet {
         for item in coords {
             self.sprites.insert(item.name.clone(), item);
         }
-        // SpriteSheet {
-        //   textures: image,
-        //   sprites: std::collections::HashMap::from_iter(coords.into_iter().map(|item| (item.name.clone(), item)))
-        // }
     }
 
     pub fn draw(
@@ -134,30 +133,26 @@ impl SpriteSheet {
         rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
         sprite: &str,
         dest: (f32, f32),
+        pivot_offset: (f32, f32),
         rotation: f32,
         height: f32,
     ) {
         let coords = self.sprites.get(sprite).expect("Sprite not found");
-        let source = raylib::math::Rectangle {
-            x: coords.x as f32,
-            y: coords.y as f32,
-            width: coords.width as f32,
-            height: coords.height as f32,
-        };
-        let width = coords.width as f32 / coords.height as f32 * height;
+        let source = coords.rect;
+        let width = coords.rect.width as f32 / coords.rect.height as f32 * height;
         rd.draw_texture_pro(
             &self.textures.get(&coords.texture).unwrap(),
             source,
             raylib::math::Rectangle {
                 x: dest.0,
                 y: dest.1,
-                // width: coords.width as f32,
-                // height: coords.height as f32,
-                // width: coords.width as f32 / coords.height as f32 * height,
                 width,
                 height,
             },
-            raylib::math::Vector2::from((width as f32 * coords.px, height as f32 * coords.py)),
+            raylib::math::Vector2::from((
+                width as f32 * coords.px + pivot_offset.0,
+                height as f32 * coords.py + pivot_offset.1,
+            )),
             rotation,
             raylib::color::Color::from((255, 255, 255, 255)),
         )
