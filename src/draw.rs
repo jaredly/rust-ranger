@@ -109,6 +109,7 @@ impl<'a> System<'a> for Draw {
                             (0.0, 0.0),
                             r,
                             scale * WORLD_SCALE,
+                            false,
                         );
                     }
                     Drawable::Rect {
@@ -140,6 +141,7 @@ impl<'a> System<'a> for Draw {
                 let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
                 let sk = skeleton_map.0.get(&skeleton.name).unwrap();
                 sk.draw(&skeleton, &mut rd, &sheet, p, r, WORLD_SCALE);
+                // draw_shape(&mut rd, *collider.position(), collider.shape());
             }
         }
 

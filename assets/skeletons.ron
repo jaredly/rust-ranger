@@ -1,10 +1,33 @@
 Skeletons({
     "female": Skeleton(
         shape: Capsule(width: 0.1, height: 0.1),
-        scale: Plain(0.4),
+        scale: Plain(0.3),
         offset: Plain((0.0, 0.0)),
         // flip_left_right: true,
         bones: [
+            Bone(
+                sprite: "female_arm.png",
+                pivot_offset: Plain((0.0, -0.3)),
+                offset: Sin(center: (0.0, -30), frequency: 1000.0, amplitude: (30.0, 0.0), offset: 0.0),
+                scale: Plain(1.0),
+                rotation: Sin(center: 0.0, frequency: 1000.0, amplitude: 45, offset: 2.0), // or Cos() or Ease() or Linear(from:, to:, speed:)
+            ),
+            Bone(
+                sprite: "female_leg.png",
+                // offset: Plain((0.0, 50.0)),
+                offset: Sin(center: (0.0, 50), frequency: 1000.0, amplitude: (-20.0, 0.0), offset: 0.0),
+                pivot_offset: Plain((0.0, -0.3)),
+                scale: Plain(1.0),
+                rotation: Sin(center: 0.0, frequency: 1000.0, amplitude: 20, offset: 0.0), // or Cos() or Ease()
+            ),
+            Bone(
+                sprite: "female_leg.png",
+                // offset: Plain((0.0, 50.0)),
+                offset: Sin(center: (0.0, 50), frequency: 1000.0, amplitude: (20.0, 0.0), offset: 0.0),
+                pivot_offset: Plain((0.0, -0.3)),
+                scale: Plain(1.0),
+                rotation: Sin(center: 0.0, frequency: 1000.0, amplitude: -20, offset: 0.0), // or Cos() or Ease()
+            ),
             Bone(
                 sprite: "female_body.png",
                 offset: Plain((0.0, 0.0)),
@@ -14,18 +37,18 @@ Skeletons({
             ),
             Bone(
                 sprite: "female_arm.png",
-                offset: Plain((0.0, 0.0)),
-                pivot_offset: Plain((0.0, 0.0)),
+                offset: Sin(center: (0.0, -30), frequency: 1000.0, amplitude: (-30.0, 0.0), offset: 0.0),
+                pivot_offset: Plain((0.0, -0.3)),
                 scale: Plain(1.0),
-                rotation: Sin(center: 0.0, frequency: 500.0, amplitude: 45, offset: 0.0), // or Cos() or Ease() or Linear(from:, to:, speed:)
+                rotation: Sin(center: 0.0, frequency: 1000.0, amplitude: 45, offset: 0.0), // or Cos() or Ease() or Linear(from:, to:, speed:)
             ),
             Bone(
                 sprite: "female_head.png",
-                offset: Plain((0.0, -30.0)),
+                offset: Plain((0.0, -100.0)),
                 pivot_offset: Plain((0.0, 0.0)),
                 scale: Plain(1.0),
                 rotation: Sin(center: 0.0, frequency: 500.0, amplitude: 3.14159, offset: 0.0), // or Cos() or Ease()
-            )
+            ),
         ]
     )
 })

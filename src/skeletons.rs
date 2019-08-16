@@ -103,7 +103,7 @@ pub trait Animatable {
 
 impl Animatable for f32 {
     fn sin(center: f32, frequency: f32, amplitude: f32, offset: f32) -> f32 {
-        (offset / frequency).sin() * amplitude + center
+        (offset / frequency * std::f32::consts::PI * 2.0).sin() * amplitude + center
     }
 
     fn linear(from: f32, to: f32, speed: f32, offset: f32) -> f32 {
@@ -172,13 +172,18 @@ impl<T: Animatable + Copy> Animated<T> {
                 frequency,
                 amplitude,
                 offset,
-            } => T::sin(*center, *frequency, *amplitude, offset + timer),
+            } => T::sin(
+                *center,
+                *frequency,
+                *amplitude,
+                (offset * frequency * std::f32::consts::PI * 2.0) + timer,
+            ),
             Animated::Linear {
                 from,
                 to,
                 speed,
                 offset,
-            } => T::linear(*from, *to, *speed, offset + timer),
+            } => T::linear(*from, *to, *speed, (offset * speed) + timer),
         }
     }
 }
@@ -227,15 +232,17 @@ pub mod draw {
             scale: f32,
         ) {
             for bone in &self.bones {
+                let local_scale = self.scale.eval(state.timer) * bone.scale.eval(state.timer);
                 let (x, y) = bone.offset.eval(state.timer);
-                let offset = position + na::Vector2::new(x, y);
+                let offset = position + na::Vector2::new(x * local_scale, y * local_scale);
                 sheet.draw(
                     rd,
                     &bone.sprite,
                     (offset.x, offset.y),
                     bone.pivot_offset.eval(state.timer),
                     rotation + bone.rotation.eval(state.timer),
-                    scale * self.scale.eval(state.timer) * bone.scale.eval(state.timer),
+                    scale * local_scale,
+                    state.facing == component::Facing::Right,
                 )
             }
         }

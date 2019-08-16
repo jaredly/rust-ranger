@@ -48,7 +48,7 @@ impl Player {
         physics_world: &mut PhysicsWorld<f32>,
         position: Vector2<f32>,
     ) {
-        let height = 0.1;
+        let height = 0.3;
         let width = 0.1;
         let offset = 0.05;
         let mut body = RigidBodyDesc::new().translation(position).build();

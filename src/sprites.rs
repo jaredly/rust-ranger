@@ -136,9 +136,19 @@ impl SpriteSheet {
         pivot_offset: (f32, f32),
         rotation: f32,
         height: f32,
+        flip: bool,
     ) {
         let coords = self.sprites.get(sprite).expect("Sprite not found");
-        let source = coords.rect;
+        let source = if flip {
+            raylib::math::Rectangle {
+                x: coords.rect.x, // + coords.rect.width,
+                y: coords.rect.y,
+                width: -coords.rect.width,
+                height: coords.rect.height,
+            }
+        } else {
+            coords.rect
+        };
         let width = coords.rect.width as f32 / coords.rect.height as f32 * height;
         rd.draw_texture_pro(
             &self.textures.get(&coords.texture).unwrap(),
@@ -150,8 +160,8 @@ impl SpriteSheet {
                 height,
             },
             raylib::math::Vector2::from((
-                width as f32 * coords.px + pivot_offset.0,
-                height as f32 * coords.py + pivot_offset.1,
+                width as f32 * (coords.px + pivot_offset.0),
+                height as f32 * (coords.py + pivot_offset.1),
             )),
             rotation,
             raylib::color::Color::from((255, 255, 255, 255)),
