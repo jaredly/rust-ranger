@@ -1,6 +1,8 @@
-Skeletons({
+Skeletons(
+    fns: {
     // "leg_off_x": Fn(args: ["inv"], body: )
-}, {
+},
+shared: {
     "run_freq": Plain(1000.0),
     "vx_sin": Mul(Sin(Mul(TAU, Div(Time, Shared("run_freq")))), Abs(Vx)),
     "vx_sin_half": Mul(Sin(Mul(TAU, Div(Time, Div(Shared("run_freq"), Plain(2.0))))), Abs(Vx)),
@@ -13,7 +15,9 @@ Skeletons({
     ),
     "leg_pos": Plain(60),
     "body_offset": Mul(Abs(Shared("vx_sin")), Plain(4.0)),
-}, {
+},
+shared_bones: {},
+skeletons: {
     "female": Skeleton(
         shape: Capsule(width: 0.1, height: 0.1),
         scale: Plain(0.3),
@@ -22,7 +26,7 @@ Skeletons({
         offset: (Plain(0.0), Shared("body_offset")),
         // flip_left_right: true,
         bones: [
-            Bone(
+            Plain(Bone(
                 sprite: "female_arm.png",
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
                 offset: (
@@ -31,42 +35,52 @@ Skeletons({
                 ),
                 scale: Plain(1.0),
                 rotation: Mul(Shared("vx_sin"), Plain(-10.0)),
-            ),
-            Bone(
+            )),
+            Plain(Bone(
                 sprite: "female_leg.png",
                 offset: (Mul(Shared("vx_sin"), Plain(-5.0)), Add(Shared("leg_pos"), Mul(Plain(-1), Shared("body_offset")))),
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
                 scale: Plain(1.0),
                 rotation: Mul(Shared("vx_sin"), Plain(5.0)),
-            ),
-            Bone(
+            )),
+            Plain(Bone(
                 sprite: "female_leg.png",
                 offset: (Mul(Shared("vx_sin"), Plain(5.0)), Add(Shared("leg_pos"), Mul(Plain(-1), Shared("body_offset")))),
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
                 scale: Plain(1.0),
                 rotation: Mul(Shared("vx_sin"), Plain(-5.0)),
-            ),
-            Bone(
+            )),
+            Plain(Bone(
                 sprite: "female_body.png",
                 offset: (Plain(0.0), Plain(0.0)),
                 scale: Plain(1.0),
                 rotation: Plain(0.0),
                 pivot_offset: (Plain(0.0), Plain(0.0)),
-            ),
-            Bone(
-                sprite: "female_arm.png",
-                offset: (Mul(Shared("vx_sin"), Plain(-0.1)), Plain(-20)),
-                pivot_offset: (Plain(0.0), Plain(-0.3)),
-                scale: Plain(1.0),
-                rotation: Mul(Shared("vx_sin"), Plain(10.0)),
-            ),
-            Bone(
+            )),
+            Plain(Bone(
                 sprite: "female_head.png",
                 offset: (Plain(0.0), Plain(-80.0)),
                 pivot_offset: (Plain(-0.1), Plain(0.0)),
                 scale: Plain(1.0),
                 rotation: Plain(0.0),
-            ),
+            )),
+            StrMatch("arm_action", {
+                "none": Plain(Bone(
+                    sprite: "female_arm.png",
+                    offset: (Mul(Shared("vx_sin"), Plain(-0.1)), Plain(-20)),
+                    pivot_offset: (Plain(0.0), Plain(-0.3)),
+                    scale: Plain(1.0),
+                    rotation: Mul(Shared("vx_sin"), Plain(10.0)),
+                )),
+                "throw": Plain(Bone(
+                    sprite: "female_arm.png",
+                    offset: (Plain(0.0), Plain(-20)),
+                    pivot_offset: (Plain(0.0), Plain(-0.3)),
+                    scale: Plain(1.0),
+                    rotation: Mul(Div(Var("throw_theta"), PI), Plain(180)),
+                ))
+            }),
+            // IfStrEq(key: "action", value: "walk", yes: , no: None),
         ]
     )
 })

@@ -37,7 +37,7 @@ pub mod component {
 
     impl Action {
         fn for_velocity(v: &nphysics2d::algebra::Velocity2<f32>) -> Self {
-            if v.linear.y.abs() < 0.01 {
+            if v.linear.y.abs() > 0.01 {
                 Action::Jump
             } else if v.linear.x == 0.0 {
                 Action::Stand
@@ -53,6 +53,7 @@ pub mod component {
         pub name: String,
         pub facing: Facing,
         pub action: Action,
+        pub arm_action: ArmAction,
         pub timer: f32,
     }
 
@@ -62,6 +63,7 @@ pub mod component {
                 name: name.to_owned(),
                 facing: Facing::Left,
                 action: Action::Stand,
+                arm_action: ArmAction::None,
                 timer: 0.0,
             }
         }
@@ -69,6 +71,18 @@ pub mod component {
         pub fn face(&mut self, facing: Facing) {
             self.facing = facing;
         }
+
+        // pub fn action_name(&self) -> String {
+        //     format!(
+        //         "{}_{}",
+        //         self.name,
+        //         match self.action {
+        //             Action::Walk => "walking",
+        //             Action::Stand => "standing",
+        //             Action::Jump => "jumping",
+        //         }
+        //     )
+        // }
     }
 
     pub struct SkeletonSys;
@@ -117,9 +131,9 @@ pub mod component {
 //         )
 //     }
 // }
-use crate::scripting::{Animated, Fns, Shared};
+use crate::scripting::{Animated, Fns, Shared, Simple};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Bone {
     pub sprite: String,
     pub offset: (Animated<f32>, Animated<f32>),
@@ -139,11 +153,16 @@ pub struct Skeleton {
     pub shape: Shape,
     pub scale: Animated<f32>,
     pub offset: (Animated<f32>, Animated<f32>),
-    pub bones: Vec<Bone>,
+    pub bones: Vec<Simple<Bone>>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Skeletons(pub Fns, pub Shared, pub HashMap<String, Skeleton>);
+pub struct Skeletons {
+    pub fns: Fns,
+    pub shared: Shared,
+    pub shared_bones: HashMap<String, Simple<Bone>>,
+    pub skeletons: HashMap<String, Skeleton>,
+}
 
 pub fn read(path: &str) -> Result<Skeletons, ron::de::Error> {
     let f = File::open(path).expect("Failed opening file");
@@ -163,9 +182,19 @@ pub mod draw {
             rotation: f32,
             scale: f32,
         ) -> Result<(), crate::scripting::EvalErr> {
-            let sk = self.2.get(&state.name).unwrap();
+            let sk = self.skeletons.get(&state.name).unwrap();
             sk.draw(
-                &state, &self.1, &self.0, rd, &sheet, velocity, position, rotation, scale,
+                // &self,
+                &state,
+                &self.shared,
+                &self.shared_bones,
+                &self.fns,
+                rd,
+                &sheet,
+                velocity,
+                position,
+                rotation,
+                scale,
             )
         }
     }
@@ -173,8 +202,10 @@ pub mod draw {
     impl Skeleton {
         pub fn draw(
             &self,
+            // skeletons: &Skeletons,
             state: &component::Skeleton,
             shared: &Shared,
+            shared_bones: &HashMap<String, Simple<Bone>>,
             fns: &Fns,
             rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
             sheet: &crate::sprites::SpriteSheet,
@@ -188,8 +219,51 @@ pub mod draw {
                 vel: velocity.linear,
             };
             let args = vec![];
-            let ctx = crate::scripting::Context { vbls, shared, fns };
+            let mut floats = HashMap::new();
+            let mut strings = HashMap::new();
+            strings.insert(
+                "arm_action".into(),
+                match state.arm_action {
+                    component::ArmAction::None => "none".to_owned(),
+                    component::ArmAction::Throw(v) => {
+                        floats.insert("throw_vx".into(), v.x);
+                        floats.insert("throw_vy".into(), v.y);
+                        floats.insert("throw_mag".into(), v.norm_squared().sqrt());
+                        floats.insert("throw_theta".into(), v.y.atan2(v.x));
+                        "throw".into()
+                    }
+                    component::ArmAction::Bow(v) => {
+                        floats.insert("throw_vx".into(), v.x);
+                        floats.insert("throw_vy".into(), v.y);
+                        floats.insert("throw_mag".into(), v.norm_squared().sqrt());
+                        floats.insert("throw_theta".into(), v.y.atan2(v.x));
+                        "bow".into()
+                    }
+                },
+            );
+            strings.insert(
+                "action".into(),
+                match state.action {
+                    component::Action::Jump => "jump".into(),
+                    component::Action::Walk => "walk".into(),
+                    component::Action::Stand => "stand".into(),
+                },
+            );
+            let ctx = crate::scripting::Context {
+                vbls,
+                shared,
+                floats,
+                fns,
+                strings,
+            };
+            let simples = crate::scripting::SimpleContext {
+                shared: shared_bones,
+            };
             for bone in &self.bones {
+                let bone = match bone.eval(&ctx, &simples, &args)? {
+                    None => continue,
+                    Some(bone) => bone,
+                };
                 let local_scale = self.scale.eval(&ctx, &args)? * bone.scale.eval(&ctx, &args)?;
                 let offset = position
                     + na::Vector2::new(

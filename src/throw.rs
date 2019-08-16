@@ -55,6 +55,7 @@ impl<'a> System<'a> for ArrowSys {
         ReadExpect<'a, raylib::RaylibHandle>,
         WriteExpect<'a, PhysicsWorld<f32>>,
         WriteStorage<'a, ArrowLauncher>,
+        WriteStorage<'a, crate::skeletons::component::Skeleton>,
         WriteStorage<'a, Thrown>,
         WriteStorage<'a, Collider>,
         WriteStorage<'a, Body>,
@@ -68,13 +69,16 @@ impl<'a> System<'a> for ArrowSys {
             rl,
             mut physics_world,
             mut arrow,
+            mut skeletons,
             mut sensors,
             mut colliders,
             mut bodies,
             mut drawables,
         ): Self::SystemData,
     ) {
-        if let Some((mut arrow, collider_entity)) = (&mut arrow, &colliders).join().next() {
+        if let Some((mut arrow, mut skeleton, collider_entity)) =
+            (&mut arrow, &mut skeletons, &colliders).join().next()
+        {
             if rl.is_mouse_button_pressed(raylib::consts::MouseButton::MOUSE_LEFT_BUTTON) {
                 let vec = rl.get_mouse_position();
                 arrow.0 = Some(Vector2::new(vec.x, vec.y));
@@ -88,6 +92,8 @@ impl<'a> System<'a> for ArrowSys {
                             let pos = collider.position().translation;
                             // create an arrow
 
+                            let size = 0.05;
+
                             let vec = (start - end) / crate::draw::WORLD_SCALE * 3.0;
                             let vel = nphysics2d::algebra::Velocity2::new(vec, 0.0);
                             let rb = RigidBodyDesc::new()
@@ -97,7 +103,7 @@ impl<'a> System<'a> for ArrowSys {
                             let rb_handle = physics_world.bodies.insert(rb);
 
                             // Build the collider.
-                            let ball_shape = ShapeHandle::new(Ball::new(0.1));
+                            let ball_shape = ShapeHandle::new(Ball::new(size));
                             let mut material = nphysics2d::material::BasicMaterial::new(0.1, 0.5);
                             material.restitution_combine_mode =
                                 nphysics2d::material::MaterialCombineMode::Multiply;
@@ -122,7 +128,7 @@ impl<'a> System<'a> for ArrowSys {
                                     entity,
                                     Drawable::Sprite {
                                         name: "ore_coal.png".to_owned(),
-                                        scale: 0.5,
+                                        scale: 5.0 * size,
                                     },
                                 )
                                 .unwrap();
@@ -130,6 +136,12 @@ impl<'a> System<'a> for ArrowSys {
                     }
                 }
                 arrow.0 = None;
+            } else if let Some(initial) = arrow.0 {
+                let vec = rl.get_mouse_position();
+                let end = Vector2::new(vec.x, vec.y);
+                skeleton.arm_action = crate::skeletons::component::ArmAction::Throw(initial - end);
+            } else {
+                skeleton.arm_action = crate::skeletons::component::ArmAction::None;
             }
         }
     }

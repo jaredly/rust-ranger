@@ -64,18 +64,111 @@ impl<T: Animatable> Animatable for (T, T) {
 pub struct Vbls {
     pub time: f32,
     pub vel: na::Vector2<f32>,
+    // pub action:
 }
 
 pub type Shared = HashMap<String, Animated<f32>>;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Fn<T: Animatable + na::base::Scalar> {
     args: Vec<String>,
     body: Animated<T>,
 }
 pub type Fns = HashMap<String, Fn<f32>>;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
+pub enum Bool<T: Animatable + na::base::Scalar> {
+    True,
+    False,
+    Gt(Animated<T>, Animated<T>),
+    Lt(Animated<T>, Animated<T>),
+    Eq(Animated<T>, Animated<T>),
+    StrEq { key: String, val: String },
+    Within(Animated<T>, Animated<T>, Animated<T>),
+}
+
+impl Bool<f32> {
+    fn eval(&self, ctx: &Context, args: &Vec<(String, f32)>) -> Result<bool, EvalErr> {
+        Ok(match self {
+            Bool::True => true,
+            Bool::False => false,
+            Bool::StrEq { key, val } => ctx.strings.get(key) == Some(val),
+            Bool::Gt(a, b) => a.eval(ctx, args)? > b.eval(ctx, args)?,
+            Bool::Lt(a, b) => a.eval(ctx, args)? < b.eval(ctx, args)?,
+            Bool::Eq(a, b) => a.eval(ctx, args)? == b.eval(ctx, args)?,
+            Bool::Within(a, b, c) => {
+                (a.eval(ctx, args)? - b.eval(ctx, args)?).abs() < c.eval(ctx, args)?
+            }
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub enum Simple<T: Clone> {
+    None,
+    Plain(T),
+    Shared(String),
+    IfStrEq {
+        key: String,
+        value: String,
+        yes: Box<Simple<T>>,
+        no: Box<Simple<T>>,
+    },
+    If(Bool<f32>, Box<Simple<T>>, Box<Simple<T>>),
+    StrMatch(String, HashMap<String, Simple<T>>),
+}
+
+pub type SimpleShared<T: Clone> = HashMap<String, Simple<T>>;
+
+pub struct SimpleContext<'a, T: Clone> {
+    pub shared: &'a SimpleShared<T>,
+}
+
+impl<T: Clone> Simple<T> {
+    pub fn eval(
+        &self,
+        ctx: &Context,
+        simples: &SimpleContext<T>,
+        args: &Vec<(String, f32)>,
+    ) -> Result<Option<T>, EvalErr> {
+        match self {
+            Simple::If(cond, iftrue, iffalse) => {
+                if cond.eval(ctx, args)? {
+                    iftrue.eval(ctx, simples, args)
+                } else {
+                    iffalse.eval(ctx, simples, args)
+                }
+            }
+            Simple::None => Ok(None),
+            Simple::Plain(t) => Ok(Some(t.clone())),
+            Simple::Shared(name) => match simples.shared.get(name) {
+                None => Err(EvalErr::MissingShared(name.clone())),
+                Some(t) => t.eval(ctx, simples, args),
+            },
+            Simple::IfStrEq {
+                key,
+                value,
+                yes,
+                no,
+            } => {
+                if ctx.strings.get(key) == Some(value) {
+                    yes.eval(ctx, simples, args)
+                } else {
+                    no.eval(ctx, simples, args)
+                }
+            }
+            Simple::StrMatch(key, map) => match ctx.strings.get(key) {
+                None => Err(EvalErr::MissingShared(key.clone())),
+                Some(v) => match map.get(v) {
+                    None => Ok(None),
+                    Some(v) => v.eval(ctx, simples, args),
+                },
+            },
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub enum Animated<T: Animatable + na::base::Scalar> {
     Plain(T),
     Mul(Box<Animated<T>>, Box<Animated<T>>),
@@ -83,11 +176,14 @@ pub enum Animated<T: Animatable + na::base::Scalar> {
     Inv(Box<Animated<T>>),
     Max(Box<Animated<T>>, Box<Animated<T>>),
     Min(Box<Animated<T>>, Box<Animated<T>>),
+    If(Box<Bool<T>>, Box<Animated<T>>, Box<Animated<T>>),
+    StrMatch(String, HashMap<String, Animated<T>>),
     PI,
     TAU,
     Add(Box<Animated<T>>, Box<Animated<T>>),
     Abs(Box<Animated<T>>),
     Shared(String),
+    Var(String),
     Time,
     Vx,
     Vy,
@@ -102,6 +198,7 @@ pub enum Animated<T: Animatable + na::base::Scalar> {
 #[derive(std::fmt::Debug)]
 pub enum EvalErr {
     MissingShared(String),
+    MissingVar(String),
     MissingArg(String),
     MissingFn(String),
 }
@@ -109,6 +206,8 @@ pub enum EvalErr {
 pub struct Context<'a> {
     pub vbls: Vbls,
     pub shared: &'a Shared,
+    pub strings: HashMap<String, String>,
+    pub floats: HashMap<String, f32>,
     pub fns: &'a Fns,
 }
 
@@ -125,6 +224,20 @@ impl Animated<f32> {
                     f.body.eval(ctx, &new_args)?
                 }
             },
+            Animated::If(cond, iftrue, iffalse) => {
+                if cond.eval(ctx, args)? {
+                    iftrue.eval(ctx, args)?
+                } else {
+                    iffalse.eval(ctx, args)?
+                }
+            }
+            Animated::StrMatch(key, map) => match ctx.strings.get(key) {
+                None => Err(EvalErr::MissingShared(key.clone())),
+                Some(v) => match map.get(v) {
+                    None => Err(EvalErr::MissingShared(key.clone())),
+                    Some(v) => v.eval(ctx, args),
+                },
+            }?,
             Animated::Arg(name) => {
                 for (n, a) in args {
                     if n == name {
@@ -135,6 +248,10 @@ impl Animated<f32> {
             }
             // normal life
             Animated::Plain(t) => *t,
+            Animated::Var(key) => match ctx.floats.get(key) {
+                Some(v) => *v,
+                None => return Err(EvalErr::MissingVar(key.clone())),
+            },
             Animated::PI => std::f32::consts::PI,
             Animated::TAU => std::f32::consts::PI * 2.0,
             Animated::Time => ctx.vbls.time,
