@@ -19,6 +19,7 @@ const BALL_RADIUS: f32 = 0.1;
 mod basics;
 mod draw;
 mod groups;
+mod scripting;
 mod skeletons;
 mod sprites;
 use basics::*;
