@@ -2,13 +2,51 @@ use specs::prelude::*;
 
 use nalgebra::Vector2;
 use ncollide2d::shape::{Ball, ShapeHandle};
-use nphysics2d::object::{BodyPartHandle, ColliderDesc, RigidBodyDesc};
+use nphysics2d::object::{BodyPartHandle, ColliderDesc, DefaultColliderHandle, RigidBodyDesc};
 
 use crate::basics::*;
 use crate::draw::Drawable;
 
 #[derive(Component)]
-pub struct ArrowLauncher(pub Option<Vector2<f32>>);
+pub struct SensorUntil(DefaultColliderHandle);
+
+pub struct SensorUntilSys;
+
+impl<'a> System<'a> for SensorUntilSys {
+    type SystemData = (
+        Entities<'a>,
+        WriteExpect<'a, PhysicsWorld<f32>>,
+        WriteStorage<'a, SensorUntil>,
+        WriteStorage<'a, Collider>,
+    );
+
+    fn run(&mut self, (entities, mut physics_world, mut sensors, colliders): Self::SystemData) {
+        let mut to_remove = vec![];
+        for (entity, SensorUntil(parent_collider), collider) in
+            (&entities, &mut sensors, &colliders).join()
+        {
+            if let None = physics_world.geom.proximity_pair(
+                &physics_world.colliders,
+                collider.0,
+                *parent_collider,
+                true,
+            ) {
+                to_remove.push(entity.clone());
+                if let Some(collider) = physics_world.collider_mut(collider.0) {
+                    let mut groups = collider.collision_groups().clone();
+                    groups.modify_blacklist(crate::groups::PLAYER_GROUP, false);
+                    collider.set_collision_groups(groups);
+                }
+            }
+        }
+        for entity in to_remove {
+            sensors.remove(entity);
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct ArrowLauncher(pub Option<Vector2<f32>>, pub DefaultColliderHandle);
 
 pub struct ArrowSys;
 
@@ -18,6 +56,7 @@ impl<'a> System<'a> for ArrowSys {
         ReadExpect<'a, raylib::RaylibHandle>,
         WriteExpect<'a, PhysicsWorld<f32>>,
         WriteStorage<'a, ArrowLauncher>,
+        WriteStorage<'a, SensorUntil>,
         WriteStorage<'a, Collider>,
         WriteStorage<'a, Body>,
         WriteStorage<'a, Drawable>,
@@ -30,12 +69,13 @@ impl<'a> System<'a> for ArrowSys {
             rl,
             mut physics_world,
             mut arrow,
+            mut sensors,
             mut colliders,
             mut bodies,
             mut drawables,
         ): Self::SystemData,
     ) {
-        if let Some((mut arrow, collider)) = (&mut arrow, &colliders).join().next() {
+        if let Some((mut arrow, collider_entity)) = (&mut arrow, &colliders).join().next() {
             if rl.is_mouse_button_pressed(raylib::consts::MouseButton::MOUSE_LEFT_BUTTON) {
                 let vec = rl.get_mouse_position();
                 arrow.0 = Some(Vector2::new(vec.x, vec.y));
@@ -45,14 +85,14 @@ impl<'a> System<'a> for ArrowSys {
                     Some(start) => {
                         let vec = rl.get_mouse_position();
                         let end = Vector2::new(vec.x, vec.y);
-                        if let Some(collider) = physics_world.collider(collider.0) {
+                        if let Some(collider) = physics_world.collider(collider_entity.0) {
                             let pos = collider.position().translation;
                             // create an arrow
 
                             let vec = (start - end) / crate::draw::WORLD_SCALE * 3.0;
                             let v = nphysics2d::algebra::Velocity2::new(vec, 0.0);
-                            let off = vec.normalize();
-                            let pos = Vector2::new(pos.x, pos.y) + off * 0.3;
+                            // let off = vec.normalize();
+                            let pos = Vector2::new(pos.x, pos.y);
                             let rb = RigidBodyDesc::new()
                                 .translation(pos)
                                 .set_velocity(v)
@@ -71,10 +111,13 @@ impl<'a> System<'a> for ArrowSys {
                             let co = ColliderDesc::new(ball_shape.clone())
                                 .density(1.0)
                                 .material(mh)
+                                // .sensor(true)
+                                .collision_groups(crate::groups::collide_all_but_player())
                                 .build(BodyPartHandle(rb_handle, 0));
                             let co_handle = physics_world.colliders.insert(co);
 
                             let entity = entities.create();
+                            sensors.insert(entity, SensorUntil(arrow.1)).unwrap();
                             bodies.insert(entity, Body(rb_handle)).unwrap();
                             colliders.insert(entity, Collider(co_handle)).unwrap();
                             drawables

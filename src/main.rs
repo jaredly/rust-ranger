@@ -11,12 +11,11 @@ use nphysics2d::object::{
 
 extern crate nalgebra as na;
 
-const BOX_SIZE_WIDTH: f32 = 7.0;
-const BOX_SIZE_HEIGHT: f32 = 0.2;
 const BALL_RADIUS: f32 = 0.1;
 
 mod basics;
 mod draw;
+mod groups;
 mod sprites;
 use basics::*;
 use draw::Drawable;
@@ -37,6 +36,7 @@ impl<'a> System<'a> for PhysicsMove {
 
 #[derive(Component)]
 struct Player {
+    sensor: DefaultColliderHandle,
     down: DefaultColliderHandle,
     left: DefaultColliderHandle,
     right: DefaultColliderHandle,
@@ -56,30 +56,41 @@ impl Player {
         let rb = physics_world.bodies.insert(body);
         let collider = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .density(1.0)
+            .collision_groups(groups::player())
+            .build(BodyPartHandle(rb, 0));
+        // this is the only one that's not in the player group
+        let sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
+            .sensor(true)
+            .collision_groups(groups::memberAllButPlayer())
             .build(BodyPartHandle(rb, 0));
         let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .sensor(true)
+            .collision_groups(groups::player())
             .translation(Vector2::new(0.0, offset))
             .build(BodyPartHandle(rb, 0));
         let left_sensor = physics_world.colliders.insert(
             ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
                 .sensor(true)
+                .collision_groups(groups::player())
                 .translation(Vector2::new(-offset, 0.0))
                 .build(BodyPartHandle(rb, 0)),
         );
         let right_sensor = physics_world.colliders.insert(
             ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
                 .sensor(true)
+                .collision_groups(groups::player())
                 .translation(Vector2::new(offset, 0.0))
                 .build(BodyPartHandle(rb, 0)),
         );
         let cb = physics_world.colliders.insert(collider);
         let jcb = physics_world.colliders.insert(jump_sensor);
+        let sensor_handle = physics_world.colliders.insert(sensor);
         world
             .create_entity()
             .with(Body(rb))
-            .with(throw::ArrowLauncher(None))
+            .with(throw::ArrowLauncher(None, sensor_handle))
             .with(Player {
+                sensor: sensor_handle,
                 down: jcb,
                 left: left_sensor,
                 right: right_sensor,
@@ -268,6 +279,7 @@ fn add_ground(
     let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(w / 2.0, h / 2.0)));
     let ground_collider = ColliderDesc::new(ground_shape)
         .translation(Vector2::new(x, y))
+        .collision_groups(groups::memberAllButPlayer())
         .build(BodyPartHandle(ground_handle, 0));
     let ground_collider = physics_world.colliders.insert(ground_collider);
     world
@@ -323,8 +335,9 @@ fn main() {
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(PlayerSys, "player_move", &[])
-        .with(ArrowSys, "arrows", &[])
         .with(PhysicsMove, "p_move", &["player_move"])
+        .with(throw::SensorUntilSys, "sensor_until", &["p_move"])
+        .with(ArrowSys, "arrows", &["sensor_until"])
         .with(GravitySys, "gravity_on_collide", &["p_move"])
         .with_thread_local(draw::Draw { thread })
         .build();
@@ -359,6 +372,7 @@ fn main() {
             // Build the collider.
             let co = ColliderDesc::new(ball_shape.clone())
                 .density(1.0)
+                .collision_groups(groups::memberAllButPlayer())
                 .build(BodyPartHandle(rb_handle, 0));
             let co_handle = physics_world.colliders.insert(co);
 

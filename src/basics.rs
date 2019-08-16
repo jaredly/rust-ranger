@@ -66,6 +66,13 @@ impl<N: na::RealField> PhysicsWorld<N> {
         self.colliders.get(handle)
     }
 
+    pub fn collider_mut(
+        &mut self,
+        handle: DefaultColliderHandle,
+    ) -> Option<&mut nphysics2d::object::Collider<N, DefaultColliderHandle>> {
+        self.colliders.get_mut(handle)
+    }
+
     pub fn rigid_body(
         &self,
         handle: DefaultBodyHandle,
