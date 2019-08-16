@@ -1,56 +1,100 @@
 Skeletons({
+    "run_freq": Plain(1000.0),
+    "vx_sin": Mul(Sin(Mul(TAU, Div(Time, Shared("run_freq")))), Abs(Vx)),
+    "vx_sin_half": Mul(Sin(Mul(TAU, Div(Time, Div(Shared("run_freq"), Plain(2.0))))), Abs(Vx)),
+    "vx_cos_half": Mul(
+        Mul(Add(
+            Sin(Mul(TAU, Div(Time, Div(Shared("run_freq"), Plain(2.0))))),
+            Plain(1.0),
+        ), Plain(0.5)),
+        Abs(Vx)
+    ),
+    "leg_pos": Plain(60),
+    "body_offset": Mul(Abs(Shared("vx_sin")), Plain(4.0)),
+}, {
     "female": Skeleton(
         shape: Capsule(width: 0.1, height: 0.1),
         scale: Plain(0.3),
-        offset: Plain((0.0, 0.0)),
+                // offset: (Plain(0.0), Plain(0.0)),
+        // offset: Plain((0.0, 0.0)),
+        offset: (Plain(0.0), Shared("body_offset")),
         // flip_left_right: true,
         bones: [
             Bone(
                 sprite: "female_arm.png",
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
-                offset: (Sin(center: 0.0, frequency: Plain(1000.0), amplitude: 30.0, offset: Plain(0.0)), Plain(-20)),
+                offset: (
+                    Mul(Shared("vx_sin"), Plain(1.0)),
+                    // SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: 20.0, offset: Plain(0.0)),
+                    Plain(-20)
+                ),
                 scale: Plain(1.0),
-                rotation: Sin(center: 0.0, frequency: Plain(1000.0), amplitude: 45, offset: Plain(2.0)), // or Cos() or Ease() or Linear(from:, to:, speed:)
+                // rotation: SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: 45, offset: Plain(2.0)), // or Cos() or Ease() or Linear(from:, to:, speed:)
+                rotation: Mul(Shared("vx_sin"), Plain(-10.0)),
             ),
             Bone(
                 sprite: "female_leg.png",
                 // offset: Plain((0.0, 50.0)),
-                offset: (Sin(center: 0.0, frequency: Plain(1000.0), amplitude: -20.0, offset: Plain(0.0)), Plain(50)),
+                // offset: (SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: -20.0, offset: Plain(0.0)), Plain(50)),
+                offset: (Mul(Shared("vx_sin"), Plain(-5.0)), Add(Shared("leg_pos"), Mul(Plain(-1), Shared("body_offset")))),
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
                 scale: Plain(1.0),
-                rotation: Sin(center: 0.0, frequency: Plain(1000.0), amplitude: 20, offset: Plain(0.0)), // or Cos() or Ease()
+                rotation: Mul(Shared("vx_sin"), Plain(5.0)),
+                // rotation: SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: 20, offset: Plain(0.0)), // or Cos() or Ease()
             ),
             Bone(
                 sprite: "female_leg.png",
                 // offset: Plain((0.0, 50.0)),
-                offset: (Sin(center: 0.0, frequency: Plain(1000.0), amplitude: 20.0, offset: Plain(0.0)), Plain(50)),
+                // offset: (SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: 20.0, offset: Plain(0.0)), Plain(50)),
+                offset: (Mul(Shared("vx_sin"), Plain(5.0)), Add(Shared("leg_pos"), Mul(Plain(-1), Shared("body_offset")))),
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
                 scale: Plain(1.0),
-                rotation: Sin(center: 0.0, frequency: Plain(1000.0), amplitude: -20, offset: Plain(0.0)), // or Cos() or Ease()
+                rotation: Mul(Shared("vx_sin"), Plain(-5.0)),
+                // rotation: SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: -20, offset: Plain(0.0)), // or Cos() or Ease()
             ),
             Bone(
                 sprite: "female_body.png",
+                // offset: (Plain(0.0), Plain(0.0)),
                 offset: (Plain(0.0), Plain(0.0)),
+                // offset: (Plain(0.0), Mul(Shared("vx_cos_half"), Plain(4.0))),
                 scale: Plain(1.0),
                 rotation: Plain(0.0),
                 pivot_offset: (Plain(0.0), Plain(0.0)),
             ),
             Bone(
                 sprite: "female_arm.png",
-                offset: (Sin(center: 0.0, frequency: Plain(1000.0), amplitude: -30, offset: Plain(0.0)), Plain(-20)),
+                offset: (Mul(Shared("vx_sin"), Plain(-0.1)), Plain(-20)),
+                // offset: (Mul(Sin(Mul(TAU, Div(Time, Shared("run_freq")))), Mul(Abs(Vx), Plain(-0.1))), Plain(-20)),
+                // offset: (SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: -30, offset: Plain(0.0)), Plain(-20)),
+                // offset: (SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: -30, offset: Plain(0.0)), Plain(-20)),
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
                 scale: Plain(1.0),
-                rotation: Sin(center: 0.0, frequency: Plain(1000.0), amplitude: 45, offset: Plain(0.0)), // or Cos() or Ease() or Linear(from:, to:, speed:)
+                rotation: Mul(Shared("vx_sin"), Plain(10.0)),
+                // rotation: SinExt(center: 0.0, frequency: Shared("run_freq"), amplitude: 45, offset: Plain(0.0)), // or Cos() or Ease() or Linear(from:, to:, speed:)
             ),
             Bone(
                 sprite: "female_head.png",
-                offset: (Plain(0.0), Sin(center: -80.0, frequency: Plain(500.0), amplitude: 4, offset: Plain(0))),
+                offset: (Plain(0.0), Plain(-80.0)),
+                // offset: (Plain(0.0), Add(Plain(-80.0), Mul(Shared("vx_cos_half"), Plain(4.0)))), // SinExt(center: -80.0, frequency: Plain(500.0), amplitude: 4, offset: Plain(0))),
                 // offset: (Plain(0.0), Plain(-100.0)),
                 pivot_offset: (Plain(-0.1), Plain(0.0)),
                 scale: Plain(1.0),
-                // rotation: Sin(center: 0.0, frequency: Plain(500.0), amplitude: 3.14159, offset: Plain(0.0)), // or Cos() or Ease()
+                // rotation: SinExt(center: 0.0, frequency: Plain(500.0), amplitude: 3.14159, offset: Plain(0.0)), // or Cos() or Ease()
                 rotation: Plain(0.0),
             ),
         ]
     )
 })
+/**
+Ok what would a good system look like here?
+
+// (define female_skeleton [])
+it would be great to have a language that looks & feels like rust as much as possible.
+
+rhai looks decent
+but maybe doesn't separate parsing from evaluating
+but I can do that. dunno how long that takes
+
+
+
+*/

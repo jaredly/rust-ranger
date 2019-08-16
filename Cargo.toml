@@ -17,5 +17,9 @@ nalgebra = "0.18"
 ron = "0.5.1"
 serde = "*"
 
+# rhai = { path="./rhai" }
+# ketos = "*"
+# ketos_derive = "0.11.0"
+
 sxd-document = "0.3.2"
 sxd-xpath = "0.4.2"

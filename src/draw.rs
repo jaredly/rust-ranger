@@ -146,8 +146,17 @@ impl<'a> System<'a> for Draw {
                     .velocity();
                 let p = collider.position() * Point2::new(0.0, 0.0) * WORLD_SCALE;
                 let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
-                let sk = skeleton_map.0.get(&skeleton.name).unwrap();
-                sk.draw(&skeleton, &mut rd, &sheet, v, p, r, WORLD_SCALE);
+                let sk = skeleton_map.1.get(&skeleton.name).unwrap();
+                sk.draw(
+                    &skeleton,
+                    &skeleton_map.0,
+                    &mut rd,
+                    &sheet,
+                    v,
+                    p,
+                    r,
+                    WORLD_SCALE,
+                );
                 // draw_shape(&mut rd, *collider.position(), collider.shape());
             }
         }

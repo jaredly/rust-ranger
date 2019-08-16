@@ -28,6 +28,13 @@ pub mod component {
         Jump,
     }
 
+    #[derive(Copy, Clone, PartialEq)]
+    pub enum ArmAction {
+        None,
+        Throw(na::Vector2<f32>),
+        Bow(na::Vector2<f32>),
+    }
+
     impl Action {
         fn for_velocity(v: &nphysics2d::algebra::Velocity2<f32>) -> Self {
             if v.linear.y.abs() < 0.01 {
@@ -179,13 +186,18 @@ pub struct Vbls {
 pub enum Animated<T: Animatable + na::base::Scalar> {
     Plain(T),
     Mul(Box<Animated<T>>, Box<Animated<T>>),
+    Div(Box<Animated<T>>, Box<Animated<T>>),
+    PI,
+    TAU,
     Add(Box<Animated<T>>, Box<Animated<T>>),
     Abs(Box<Animated<T>>),
+    Shared(String),
     Time,
     Vx,
     Vy,
     V,
-    Sin {
+    Sin(Box<Animated<T>>),
+    SinExt {
         center: T,
         frequency: Box<Animated<f32>>,
         amplitude: T,
@@ -200,26 +212,35 @@ pub enum Animated<T: Animatable + na::base::Scalar> {
 }
 
 impl Animated<f32> {
-    fn eval(&self, vbls: Vbls) -> f32 {
+    fn eval(&self, vbls: Vbls, shared: &Shared) -> f32 {
         match self {
             Animated::Plain(t) => *t,
+            Animated::PI => std::f32::consts::PI,
+            Animated::TAU => std::f32::consts::PI * 2.0,
             Animated::Time => vbls.time,
             Animated::Vx => vbls.vel.x,
             Animated::Vy => vbls.vel.y,
             Animated::V => vbls.vel.norm_squared().sqrt(),
-            Animated::Mul(a, b) => Animatable::mul(a.eval(vbls), b.eval(vbls)),
-            Animated::Add(a, b) => Animatable::add(a.eval(vbls), b.eval(vbls)),
-            Animated::Abs(a) => Animatable::abs(a.eval(vbls)),
-            Animated::Sin {
+            Animated::Mul(a, b) => a.eval(vbls, shared) * b.eval(vbls, shared),
+            Animated::Add(a, b) => a.eval(vbls, shared) + b.eval(vbls, shared),
+            Animated::Div(a, b) => a.eval(vbls, shared) / b.eval(vbls, shared),
+            Animated::Abs(a) => Animatable::abs(a.eval(vbls, shared)),
+            Animated::Shared(key) => shared.get(key).unwrap().eval(vbls, shared),
+            Animated::Sin(a) => a.eval(vbls, shared).sin(),
+            Animated::SinExt {
                 center,
                 frequency,
                 amplitude,
                 offset,
             } => Animatable::sin(
                 *center,
-                frequency.eval(vbls),
+                frequency.eval(vbls, shared),
                 *amplitude,
-                (offset.eval(vbls) * frequency.eval(vbls) * std::f32::consts::PI * 2.0) + vbls.time,
+                (offset.eval(vbls, shared)
+                    * frequency.eval(vbls, shared)
+                    * std::f32::consts::PI
+                    * 2.0)
+                    + vbls.time,
             ),
             Animated::Linear {
                 from,
@@ -229,8 +250,8 @@ impl Animated<f32> {
             } => Animatable::linear(
                 *from,
                 *to,
-                speed.eval(vbls),
-                (offset.eval(vbls) * speed.eval(vbls)) + vbls.time,
+                speed.eval(vbls, shared),
+                (offset.eval(vbls, shared) * speed.eval(vbls, shared)) + vbls.time,
             ),
         }
     }
@@ -255,12 +276,14 @@ pub enum Shape {
 pub struct Skeleton {
     pub shape: Shape,
     pub scale: Animated<f32>,
-    pub offset: Animated<(f32, f32)>,
+    pub offset: (Animated<f32>, Animated<f32>),
     pub bones: Vec<Bone>,
 }
 
+pub type Shared = HashMap<String, Animated<f32>>;
+
 #[derive(Debug, Deserialize)]
-pub struct Skeletons(pub HashMap<String, Skeleton>);
+pub struct Skeletons(pub Shared, pub HashMap<String, Skeleton>);
 
 pub fn read(path: &str) -> Result<Skeletons, ron::de::Error> {
     let f = File::open(path).expect("Failed opening file");
@@ -273,6 +296,7 @@ pub mod draw {
         pub fn draw(
             &self,
             state: &component::Skeleton,
+            shared: &Shared,
             rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
             sheet: &crate::sprites::SpriteSheet,
             velocity: nphysics2d::math::Velocity<f32>,
@@ -285,26 +309,30 @@ pub mod draw {
                 vel: velocity.linear,
             };
             for bone in &self.bones {
-                let local_scale = self.scale.eval(vbls) * bone.scale.eval(vbls);
+                let local_scale = self.scale.eval(vbls, shared) * bone.scale.eval(vbls, shared);
                 let offset = position
                     + na::Vector2::new(
-                        bone.offset.0.eval(vbls) * local_scale,
-                        bone.offset.1.eval(vbls) * local_scale,
+                        self.offset.0.eval(vbls, shared) * local_scale,
+                        self.offset.1.eval(vbls, shared) * local_scale,
+                    )
+                    + na::Vector2::new(
+                        bone.offset.0.eval(vbls, shared) * local_scale,
+                        bone.offset.1.eval(vbls, shared) * local_scale,
                     );
                 sheet.draw(
                     rd,
                     &bone.sprite,
                     (offset.x, offset.y),
                     (
-                        bone.pivot_offset.0.eval(vbls)
+                        bone.pivot_offset.0.eval(vbls, shared)
                             * if state.facing == component::Facing::Right {
                                 -1.0
                             } else {
                                 1.0
                             },
-                        bone.pivot_offset.1.eval(vbls),
+                        bone.pivot_offset.1.eval(vbls, shared),
                     ),
-                    rotation + bone.rotation.eval(vbls),
+                    rotation + bone.rotation.eval(vbls, shared),
                     scale * local_scale,
                     state.facing == component::Facing::Right,
                 )

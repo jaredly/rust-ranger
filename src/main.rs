@@ -8,7 +8,10 @@ use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
 use nphysics2d::object::{
     BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
 };
-
+// extern crate ketos;
+// #[macro_use]
+// extern crate ketos_derive;
+//
 extern crate nalgebra as na;
 
 const BALL_RADIUS: f32 = 0.1;
