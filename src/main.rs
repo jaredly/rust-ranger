@@ -36,7 +36,6 @@ impl<'a> System<'a> for PhysicsMove {
 
 #[derive(Component)]
 struct Player {
-    sensor: DefaultColliderHandle,
     down: DefaultColliderHandle,
     left: DefaultColliderHandle,
     right: DefaultColliderHandle,
@@ -90,7 +89,6 @@ impl Player {
             .with(Body(rb))
             .with(throw::ArrowLauncher(None, sensor_handle))
             .with(Player {
-                sensor: sensor_handle,
                 down: jcb,
                 left: left_sensor,
                 right: right_sensor,
