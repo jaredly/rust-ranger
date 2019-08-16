@@ -80,12 +80,11 @@ impl<'a> System<'a> for Draw {
         WriteExpect<'a, raylib::RaylibHandle>,
         ReadExpect<'a, PhysicsWorld<f32>>,
         ReadStorage<'a, Collider>,
-        ReadStorage<'a, Body>,
         ReadStorage<'a, Drawable>,
         ReadExpect<'a, crate::sprites::SpriteSheet>,
     );
 
-    fn run(&mut self, (mut rl, physics, colliders, _bodies, drawables, sheet): Self::SystemData) {
+    fn run(&mut self, (mut rl, physics, colliders, drawables, sheet): Self::SystemData) {
         use raylib::core::drawing::RaylibDraw;
 
         let mut rd = rl.begin_drawing(&self.thread);

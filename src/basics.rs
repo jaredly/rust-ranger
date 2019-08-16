@@ -2,9 +2,7 @@ use specs::prelude::*;
 
 use nalgebra::Vector2;
 
-use nphysics2d::object::{
-    BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
-};
+use nphysics2d::object::{DefaultBodyHandle, DefaultColliderHandle};
 
 extern crate nalgebra as na;
 

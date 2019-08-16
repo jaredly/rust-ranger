@@ -134,7 +134,7 @@ impl SpriteSheet {
     pub fn draw(
         &self,
         rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
-        sprite: &String,
+        sprite: &str,
         dest: (f32, f32),
         rotation: f32,
         height: f32,

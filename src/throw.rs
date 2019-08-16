@@ -8,33 +8,32 @@ use crate::basics::*;
 use crate::draw::Drawable;
 
 #[derive(Component)]
-pub struct SensorUntil(DefaultColliderHandle);
+pub struct Thrown(DefaultColliderHandle, usize);
 
-pub struct SensorUntilSys;
+pub struct ThrownSys;
 
-impl<'a> System<'a> for SensorUntilSys {
+impl<'a> System<'a> for ThrownSys {
     type SystemData = (
         Entities<'a>,
         WriteExpect<'a, PhysicsWorld<f32>>,
-        WriteStorage<'a, SensorUntil>,
+        WriteStorage<'a, Thrown>,
         WriteStorage<'a, Collider>,
     );
 
     fn run(&mut self, (entities, mut physics_world, mut sensors, colliders): Self::SystemData) {
         let mut to_remove = vec![];
-        for (entity, SensorUntil(parent_collider), collider) in
+        for (entity, Thrown(parent_collider, parent_group), collider) in
             (&entities, &mut sensors, &colliders).join()
         {
-            if let None = physics_world.geom.proximity_pair(
-                &physics_world.colliders,
-                collider.0,
-                *parent_collider,
-                true,
-            ) {
-                to_remove.push(entity.clone());
+            if physics_world
+                .geom
+                .proximity_pair(&physics_world.colliders, collider.0, *parent_collider, true)
+                .is_none()
+            {
+                to_remove.push(entity);
                 if let Some(collider) = physics_world.collider_mut(collider.0) {
-                    let mut groups = collider.collision_groups().clone();
-                    groups.modify_blacklist(crate::groups::PLAYER_GROUP, false);
+                    let mut groups = *collider.collision_groups();
+                    groups.modify_blacklist(*parent_group, false);
                     collider.set_collision_groups(groups);
                 }
             }
@@ -56,7 +55,7 @@ impl<'a> System<'a> for ArrowSys {
         ReadExpect<'a, raylib::RaylibHandle>,
         WriteExpect<'a, PhysicsWorld<f32>>,
         WriteStorage<'a, ArrowLauncher>,
-        WriteStorage<'a, SensorUntil>,
+        WriteStorage<'a, Thrown>,
         WriteStorage<'a, Collider>,
         WriteStorage<'a, Body>,
         WriteStorage<'a, Drawable>,
@@ -117,7 +116,9 @@ impl<'a> System<'a> for ArrowSys {
                             let co_handle = physics_world.colliders.insert(co);
 
                             let entity = entities.create();
-                            sensors.insert(entity, SensorUntil(arrow.1)).unwrap();
+                            sensors
+                                .insert(entity, Thrown(arrow.1, crate::groups::PLAYER_GROUP))
+                                .unwrap();
                             bodies.insert(entity, Body(rb_handle)).unwrap();
                             colliders.insert(entity, Collider(co_handle)).unwrap();
                             drawables

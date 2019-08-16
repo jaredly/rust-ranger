@@ -60,7 +60,7 @@ impl Player {
         // this is the only one that's not in the player group
         let sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .sensor(true)
-            .collision_groups(groups::memberAllButPlayer())
+            .collision_groups(groups::member_all_but_player())
             .build(BodyPartHandle(rb, 0));
         let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .sensor(true)
@@ -185,18 +185,19 @@ impl<'a> System<'a> for GravitySys {
         let mut to_remove = vec![];
         for (entity, _, body, collider) in (&entities, &gravities, &bodies, &colliders).join() {
             let mut remove = false;
-            if let Some(_) = physics_world
+            if physics_world
                 .geom
                 .colliders_in_contact_with(&physics_world.colliders, collider.0)
                 .unwrap()
                 .next()
+                .is_some()
             {
                 remove = true;
-            }
+            };
             if remove {
                 let rb = physics_world.rigid_body_mut(body.0).unwrap();
                 rb.enable_gravity(true);
-                to_remove.push(entity.clone());
+                to_remove.push(entity);
             }
         }
         for entity in to_remove {
@@ -277,7 +278,7 @@ fn add_ground(
     let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(w / 2.0, h / 2.0)));
     let ground_collider = ColliderDesc::new(ground_shape)
         .translation(Vector2::new(x, y))
-        .collision_groups(groups::memberAllButPlayer())
+        .collision_groups(groups::member_all_but_player())
         .build(BodyPartHandle(ground_handle, 0));
     let ground_collider = physics_world.colliders.insert(ground_collider);
     world
@@ -334,7 +335,7 @@ fn main() {
     let mut dispatcher = DispatcherBuilder::new()
         .with(PlayerSys, "player_move", &[])
         .with(PhysicsMove, "p_move", &["player_move"])
-        .with(throw::SensorUntilSys, "sensor_until", &["p_move"])
+        .with(throw::ThrownSys, "sensor_until", &["p_move"])
         .with(ArrowSys, "arrows", &["sensor_until"])
         .with(GravitySys, "gravity_on_collide", &["p_move"])
         .with_thread_local(draw::Draw { thread })
@@ -352,14 +353,14 @@ fn main() {
     // three rings of apples
     let ball_handles: Vec<_> = (0..90)
         .map(|i| {
-            let l = (i / 30) as f32;
-            let r = phys_h / 6.0 * (2.0 + l);
+            let level = (i / 30) as f32;
+            let radius = phys_h / 6.0 * (2.0 + level);
             let i = i % 30;
             let cx = phys_w / 2.0;
             let cy = phys_h / 2.0;
-            let t = i as f32 / 30.0 * std::f32::consts::PI * 2.0;
-            let x = t.cos() * r + cx;
-            let y = t.sin() * r + cy;
+            let theta = i as f32 / 30.0 * std::f32::consts::PI * 2.0;
+            let x = theta.cos() * radius + cx;
+            let y = theta.sin() * radius + cy;
 
             // Build the rigid body.
             let mut rb = RigidBodyDesc::new().translation(Vector2::new(x, y)).build();
@@ -370,7 +371,7 @@ fn main() {
             // Build the collider.
             let co = ColliderDesc::new(ball_shape.clone())
                 .density(1.0)
-                .collision_groups(groups::memberAllButPlayer())
+                .collision_groups(groups::member_all_but_player())
                 .build(BodyPartHandle(rb_handle, 0));
             let co_handle = physics_world.colliders.insert(co);
 
@@ -472,7 +473,7 @@ fn main() {
 
     let should_close = false;
     while !window_should_close(&world) && !should_close {
-        dispatcher.dispatch(&mut world.res);
+        dispatcher.dispatch(&world.res);
         world.maintain();
     }
 }
