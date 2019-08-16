@@ -89,7 +89,8 @@ impl<'a> System<'a> for ArrowSys {
                         let vec = rl.get_mouse_position();
                         let end = Vector2::new(vec.x, vec.y);
                         if let Some(collider) = physics_world.collider(collider_entity.0) {
-                            let pos = collider.position().translation;
+                            let mut pos = collider.position().translation;
+                            pos.vector.y -= 0.2;
                             // create an arrow
 
                             let size = 0.05;

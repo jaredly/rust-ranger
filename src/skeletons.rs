@@ -131,13 +131,15 @@ pub mod component {
 //         )
 //     }
 // }
-use crate::scripting::{Animated, Fns, Shared, Simple};
+use crate::scripting;
+use scripting::{Animated, Fns, Shared, Simple};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Bone {
     pub sprite: String,
     pub offset: (Animated<f32>, Animated<f32>),
     pub pivot_offset: (Animated<f32>, Animated<f32>),
+    pub flip: scripting::Bool<f32>,
     pub scale: Animated<f32>,
     pub rotation: Animated<f32>,
 }
@@ -242,6 +244,13 @@ pub mod draw {
                 },
             );
             strings.insert(
+                "facing".into(),
+                match state.facing {
+                    component::Facing::Left => "left".into(),
+                    component::Facing::Right => "right".into(),
+                },
+            );
+            strings.insert(
                 "action".into(),
                 match state.action {
                     component::Action::Jump => "jump".into(),
@@ -274,22 +283,18 @@ pub mod draw {
                         bone.offset.0.eval(&ctx, &args)? * local_scale,
                         bone.offset.1.eval(&ctx, &args)? * local_scale,
                     );
+                let flip = bone.flip.eval(&ctx, &args)?;
                 sheet.draw(
                     rd,
                     &bone.sprite,
                     (offset.x, offset.y),
                     (
-                        bone.pivot_offset.0.eval(&ctx, &args)?
-                            * if state.facing == component::Facing::Right {
-                                -1.0
-                            } else {
-                                1.0
-                            },
+                        bone.pivot_offset.0.eval(&ctx, &args)? * if flip { -1.0 } else { 1.0 },
                         bone.pivot_offset.1.eval(&ctx, &args)?,
                     ),
                     rotation + bone.rotation.eval(&ctx, &args)?,
                     scale * local_scale,
-                    state.facing == component::Facing::Right,
+                    flip,
                 )
             }
             Ok(())

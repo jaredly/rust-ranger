@@ -80,6 +80,9 @@ pub type Fns = HashMap<String, Fn<f32>>;
 pub enum Bool<T: Animatable + na::base::Scalar> {
     True,
     False,
+    Or(Box<Bool<T>>, Box<Bool<T>>),
+    And(Box<Bool<T>>, Box<Bool<T>>),
+    If(Box<Bool<T>>, Box<Bool<T>>, Box<Bool<T>>),
     Gt(Animated<T>, Animated<T>),
     Lt(Animated<T>, Animated<T>),
     Eq(Animated<T>, Animated<T>),
@@ -88,11 +91,20 @@ pub enum Bool<T: Animatable + na::base::Scalar> {
 }
 
 impl Bool<f32> {
-    fn eval(&self, ctx: &Context, args: &Vec<(String, f32)>) -> Result<bool, EvalErr> {
+    pub fn eval(&self, ctx: &Context, args: &Vec<(String, f32)>) -> Result<bool, EvalErr> {
         Ok(match self {
             Bool::True => true,
             Bool::False => false,
             Bool::StrEq { key, val } => ctx.strings.get(key) == Some(val),
+            Bool::If(a, b, c) => {
+                if (a.eval(ctx, args)?) {
+                    b.eval(ctx, args)?
+                } else {
+                    c.eval(ctx, args)?
+                }
+            }
+            Bool::Or(a, b) => a.eval(ctx, args)? || b.eval(ctx, args)?,
+            Bool::And(a, b) => a.eval(ctx, args)? && b.eval(ctx, args)?,
             Bool::Gt(a, b) => a.eval(ctx, args)? > b.eval(ctx, args)?,
             Bool::Lt(a, b) => a.eval(ctx, args)? < b.eval(ctx, args)?,
             Bool::Eq(a, b) => a.eval(ctx, args)? == b.eval(ctx, args)?,

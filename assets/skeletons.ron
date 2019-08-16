@@ -34,10 +34,12 @@ skeletons: {
                     Plain(-20)
                 ),
                 scale: Plain(1.0),
+                flip: StrEq(key: "facing", val: "right"),
                 rotation: Mul(Shared("vx_sin"), Plain(-10.0)),
             )),
             Plain(Bone(
                 sprite: "female_leg.png",
+                flip: StrEq(key: "facing", val: "right"),
                 offset: (Mul(Shared("vx_sin"), Plain(-5.0)), Add(Shared("leg_pos"), Mul(Plain(-1), Shared("body_offset")))),
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
                 scale: Plain(1.0),
@@ -45,6 +47,7 @@ skeletons: {
             )),
             Plain(Bone(
                 sprite: "female_leg.png",
+                flip: StrEq(key: "facing", val: "right"),
                 offset: (Mul(Shared("vx_sin"), Plain(5.0)), Add(Shared("leg_pos"), Mul(Plain(-1), Shared("body_offset")))),
                 pivot_offset: (Plain(0.0), Plain(-0.3)),
                 scale: Plain(1.0),
@@ -52,6 +55,7 @@ skeletons: {
             )),
             Plain(Bone(
                 sprite: "female_body.png",
+                flip: StrEq(key: "facing", val: "right"),
                 offset: (Plain(0.0), Plain(0.0)),
                 scale: Plain(1.0),
                 rotation: Plain(0.0),
@@ -59,6 +63,17 @@ skeletons: {
             )),
             Plain(Bone(
                 sprite: "female_head.png",
+                flip: 
+                If(
+                    StrEq(key: "arm_action", val: "throw"),
+                    // False,
+                    // True,
+                    Gt(
+                        Var("throw_vx"),
+                        Plain(0)
+                    ),
+                    StrEq(key: "facing", val: "right"),
+                ),
                 offset: (Plain(0.0), Plain(-80.0)),
                 pivot_offset: (Plain(-0.1), Plain(0.0)),
                 scale: Plain(1.0),
@@ -67,6 +82,7 @@ skeletons: {
             StrMatch("arm_action", {
                 "none": Plain(Bone(
                     sprite: "female_arm.png",
+                    flip: StrEq(key: "facing", val: "right"),
                     offset: (Mul(Shared("vx_sin"), Plain(-0.1)), Plain(-20)),
                     pivot_offset: (Plain(0.0), Plain(-0.3)),
                     scale: Plain(1.0),
@@ -74,10 +90,20 @@ skeletons: {
                 )),
                 "throw": Plain(Bone(
                     sprite: "female_arm.png",
+                    flip: StrEq(key: "facing", val: "right"),
                     offset: (Plain(0.0), Plain(-20)),
                     pivot_offset: (Plain(0.0), Plain(-0.3)),
                     scale: Plain(1.0),
-                    rotation: Mul(Div(Var("throw_theta"), PI), Plain(180)),
+                    rotation: 
+                    If(
+                        Gt(Var("throw_vx"), Plain(0)),
+                        Add(
+                            Mul(Div(Var("throw_theta"), PI), Plain(180)),
+                            Plain(180)
+                        )
+                        ,
+                        Mul(Div(Var("throw_theta"), PI), Plain(180)),
+                    )
                 ))
             }),
             // IfStrEq(key: "action", value: "walk", yes: , no: None),
