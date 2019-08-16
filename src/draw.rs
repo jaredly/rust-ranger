@@ -80,6 +80,7 @@ impl<'a> System<'a> for Draw {
         WriteExpect<'a, raylib::RaylibHandle>,
         ReadExpect<'a, PhysicsWorld<f32>>,
         ReadStorage<'a, Collider>,
+        ReadStorage<'a, Body>,
         ReadStorage<'a, Drawable>,
         ReadExpect<'a, crate::sprites::SpriteSheet>,
         ReadStorage<'a, crate::skeletons::component::Skeleton>,
@@ -88,7 +89,7 @@ impl<'a> System<'a> for Draw {
 
     fn run(
         &mut self,
-        (mut rl, physics, colliders, drawables, sheet, skeletons, skeleton_map): Self::SystemData,
+        (mut rl, physics, colliders, bodies, drawables, sheet, skeletons, skeleton_map): Self::SystemData,
     ) {
         use raylib::core::drawing::RaylibDraw;
 
@@ -135,12 +136,18 @@ impl<'a> System<'a> for Draw {
             }
         }
 
-        for (collider, skeleton) in (&colliders, &skeletons).join() {
+        for (collider, skeleton, body) in (&colliders, &skeletons, &bodies).join() {
             if let Some(collider) = physics.collider(collider.0) {
+                let v = physics
+                    .rigid_body(body.0)
+                    .unwrap()
+                    .part(0)
+                    .unwrap()
+                    .velocity();
                 let p = collider.position() * Point2::new(0.0, 0.0) * WORLD_SCALE;
                 let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
                 let sk = skeleton_map.0.get(&skeleton.name).unwrap();
-                sk.draw(&skeleton, &mut rd, &sheet, p, r, WORLD_SCALE);
+                sk.draw(&skeleton, &mut rd, &sheet, v, p, r, WORLD_SCALE);
                 // draw_shape(&mut rd, *collider.position(), collider.shape());
             }
         }

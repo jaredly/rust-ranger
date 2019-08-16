@@ -215,18 +215,19 @@ impl<'a> System<'a> for PlayerSys {
         // Entities<'a>,
         ReadExpect<'a, raylib::RaylibHandle>,
         WriteExpect<'a, PhysicsWorld<f32>>,
+        WriteStorage<'a, skeletons::component::Skeleton>,
         ReadStorage<'a, Body>,
         ReadStorage<'a, Player>,
     );
 
-    fn run(&mut self, (rl, mut physics, body, player): Self::SystemData) {
+    fn run(&mut self, (rl, mut physics, mut skeletons, body, player): Self::SystemData) {
         use raylib::consts::KeyboardKey::*;
 
         let speed = 0.5;
         let jump_speed = speed * 10.0;
         let max_speed = 3.0;
 
-        for (body, player) in (&body, &player).join() {
+        for (body, player, skeleton) in (&body, &player, &mut skeletons).join() {
             let v = {
                 let body = physics.rigid_body_mut(body.0).unwrap();
                 let part = body.part(0).unwrap();
@@ -239,9 +240,11 @@ impl<'a> System<'a> for PlayerSys {
                 push.y += max_jump;
             }
             if rl.is_key_down(KEY_D) && player.can_go_right(&physics, &body.0) {
+                skeleton.face(skeletons::component::Facing::Right);
                 push.x += speed;
             }
             if rl.is_key_down(KEY_A) && player.can_go_left(&physics, &body.0) {
+                skeleton.face(skeletons::component::Facing::Left);
                 push.x -= speed;
             }
             if rl.is_key_down(KEY_S) {
