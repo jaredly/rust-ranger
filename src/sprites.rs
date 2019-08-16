@@ -11,6 +11,26 @@ pub struct Coords {
 
 use sxd_xpath::nodeset::Node;
 
+trait Attr {
+    fn attr<T: std::str::FromStr>(&self, attr: &str) -> T;
+    fn attr_opt<T: std::str::FromStr>(&self, attr: &str, default: T) -> T;
+}
+
+impl Attr for sxd_document::dom::Element<'_> {
+    fn attr_opt<T: std::str::FromStr>(&self, attr: &str, default: T) -> T {
+        match self.attribute_value(attr).map(|x| x.parse::<T>()) {
+            Some(Ok(v)) => v,
+            _ => default,
+        }
+    }
+    fn attr<T: std::str::FromStr>(&self, attr: &str) -> T {
+        match self.attribute_value(attr).unwrap().parse::<T>() {
+            Ok(v) => v,
+            Err(_) => panic!("Unable to parse"),
+        }
+    }
+}
+
 impl Coords {
     fn from(node: &sxd_xpath::nodeset::Node, texture: &str) -> Option<Self> {
         match node {
@@ -19,34 +39,12 @@ impl Coords {
                     return None;
                 }
                 let name: String = element.attribute_value("name").unwrap().into();
-                let x = element
-                    .attribute_value("x")
-                    .unwrap()
-                    .parse::<usize>()
-                    .unwrap();
-                let y = element
-                    .attribute_value("y")
-                    .unwrap()
-                    .parse::<usize>()
-                    .unwrap();
-                let width = element
-                    .attribute_value("width")
-                    .unwrap()
-                    .parse::<usize>()
-                    .unwrap();
-                let height = element
-                    .attribute_value("height")
-                    .unwrap()
-                    .parse::<usize>()
-                    .unwrap();
-                let px = element
-                    .attribute_value("pX")
-                    .map(|v| v.parse::<f32>().unwrap())
-                    .unwrap_or(0.5);
-                let py = element
-                    .attribute_value("pY")
-                    .map(|v| v.parse::<f32>().unwrap())
-                    .unwrap_or(0.5);
+                let x = element.attr::<usize>("x");
+                let y = element.attr::<usize>("y");
+                let width = element.attr::<usize>("width");
+                let height = element.attr::<usize>("height");
+                let px = element.attr_opt::<f32>("pX", 0.5);
+                let py = element.attr_opt::<f32>("pY", 0.5);
                 Some(Coords {
                     name,
                     x,

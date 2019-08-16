@@ -89,15 +89,11 @@ impl<'a> System<'a> for ArrowSys {
                             // create an arrow
 
                             let vec = (start - end) / crate::draw::WORLD_SCALE * 3.0;
-                            let v = nphysics2d::algebra::Velocity2::new(vec, 0.0);
-                            // let off = vec.normalize();
-                            let pos = Vector2::new(pos.x, pos.y);
+                            let vel = nphysics2d::algebra::Velocity2::new(vec, 0.0);
                             let rb = RigidBodyDesc::new()
-                                .translation(pos)
-                                .set_velocity(v)
+                                .translation(pos.vector)
+                                .set_velocity(vel)
                                 .build();
-                            // use nphysics2d::object::Body;
-                            // rb.enable_gravity(false);
                             let rb_handle = physics_world.bodies.insert(rb);
 
                             // Build the collider.

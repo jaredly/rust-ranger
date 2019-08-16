@@ -14,6 +14,8 @@ hibitset = { version = "0.5.2", features = ["parallel"] }
 nphysics2d = "0.12"
 ncollide2d = "0.20.1"
 nalgebra = "0.18"
+ron = "0.5.1"
+serde = "*"
 
 sxd-document = "0.3.2"
 sxd-xpath = "0.4.2"
