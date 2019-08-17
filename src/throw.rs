@@ -49,6 +49,8 @@ pub struct ArrowLauncher(pub Option<Vector2<f32>>, pub DefaultColliderHandle);
 
 pub struct ArrowSys;
 
+static MIN_THROW: f32 = 10.0;
+
 impl<'a> System<'a> for ArrowSys {
     type SystemData = (
         Entities<'a>,
@@ -88,6 +90,11 @@ impl<'a> System<'a> for ArrowSys {
                     Some(start) => {
                         let vec = rl.get_mouse_position();
                         let end = Vector2::new(vec.x, vec.y);
+                        if (start - end).norm_squared().sqrt() < MIN_THROW {
+                            // not far enough
+                            arrow.0 = None;
+                            return;
+                        }
                         if let Some(collider) = physics_world.collider(collider_entity.0) {
                             let mut pos = collider.position().translation;
                             pos.vector.y -= 0.2;
@@ -113,7 +120,7 @@ impl<'a> System<'a> for ArrowSys {
                             let co = ColliderDesc::new(ball_shape.clone())
                                 .density(1.0)
                                 .material(mh)
-                                // .sensor(true)
+                                .ccd_enabled(true)
                                 .collision_groups(crate::groups::collide_all_but_player())
                                 .build(BodyPartHandle(rb_handle, 0));
                             let co_handle = physics_world.colliders.insert(co);
@@ -140,6 +147,11 @@ impl<'a> System<'a> for ArrowSys {
             } else if let Some(initial) = arrow.0 {
                 let vec = rl.get_mouse_position();
                 let end = Vector2::new(vec.x, vec.y);
+                if (initial - end).norm_squared().sqrt() < MIN_THROW {
+                    // not far enough
+                    skeleton.arm_action = crate::skeletons::component::ArmAction::None;
+                    return;
+                }
                 skeleton.arm_action = crate::skeletons::component::ArmAction::Throw(initial - end);
             } else {
                 skeleton.arm_action = crate::skeletons::component::ArmAction::None;

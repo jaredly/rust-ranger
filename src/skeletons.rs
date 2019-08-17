@@ -132,15 +132,27 @@ pub mod component {
 //     }
 // }
 use crate::scripting;
-use scripting::{Animated, Fns, Shared, Simple};
+use scripting::{Animated, Bool, Fns, Shared, Simple};
+
+fn if_facing_right() -> Bool<f32> {
+    Bool::StrEq {
+        key: "facing".into(),
+        val: "right".into(),
+    }
+}
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Bone {
     pub sprite: String,
+    #[serde(default = "Animated::origin")]
     pub offset: (Animated<f32>, Animated<f32>),
+    #[serde(default = "Animated::origin")]
     pub pivot_offset: (Animated<f32>, Animated<f32>),
-    pub flip: scripting::Bool<f32>,
+    #[serde(default = "if_facing_right")]
+    pub flip: Bool<f32>,
+    #[serde(default = "Animated::one")]
     pub scale: Animated<f32>,
+    #[serde(default = "Animated::zero")]
     pub rotation: Animated<f32>,
 }
 
@@ -153,7 +165,9 @@ pub enum Shape {
 #[derive(Debug, Deserialize)]
 pub struct Skeleton {
     pub shape: Shape,
+    #[serde(default = "Animated::one")]
     pub scale: Animated<f32>,
+    #[serde(default = "Animated::origin")]
     pub offset: (Animated<f32>, Animated<f32>),
     pub bones: Vec<Simple<Bone>>,
 }

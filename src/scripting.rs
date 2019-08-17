@@ -91,6 +91,12 @@ pub enum Bool<T: Animatable + na::base::Scalar> {
 }
 
 impl Bool<f32> {
+    pub fn f() -> Self {
+        Bool::False
+    }
+    pub fn t() -> Self {
+        Bool::True
+    }
     pub fn eval(&self, ctx: &Context, args: &Vec<(String, f32)>) -> Result<bool, EvalErr> {
         Ok(match self {
             Bool::True => true,
@@ -224,6 +230,15 @@ pub struct Context<'a> {
 }
 
 impl Animated<f32> {
+    pub fn zero() -> Animated<f32> {
+        Animated::Plain(1.0)
+    }
+    pub fn one() -> Animated<f32> {
+        Animated::Plain(1.0)
+    }
+    pub fn origin() -> (Animated<f32>, Animated<f32>) {
+        (Animated::Plain(0.0), Animated::Plain(0.0))
+    }
     pub fn eval(&self, ctx: &Context, args: &Vec<(String, f32)>) -> Result<f32, EvalErr> {
         Ok(match self {
             Animated::Call(name, call_args) => match ctx.fns.get(name) {
