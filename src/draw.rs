@@ -132,7 +132,7 @@ impl<'a> System<'a> for Draw {
                     }
                 }
 
-                // draw_shape(&mut rd, *collider.position(), collider.shape());
+                draw_shape(&mut rd, *collider.position(), collider.shape());
             }
         }
 
@@ -150,7 +150,7 @@ impl<'a> System<'a> for Draw {
                     Ok(()) => (),
                     Err(err) => println!("Failed to draw! Scripting error {:?}", err),
                 };
-                // draw_shape(&mut rd, *collider.position(), collider.shape());
+                draw_shape(&mut rd, *collider.position(), collider.shape());
             }
         }
 

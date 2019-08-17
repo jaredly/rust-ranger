@@ -28,6 +28,12 @@ use basics::*;
 use draw::Drawable;
 use throw::ArrowSys;
 
+// Can I just define a block as a normal item, but have it have a flag like "static" or something
+#[derive(Component)]
+struct Block;
+
+fn make_blocks() {}
+
 struct PhysicsMove;
 
 impl<'a> System<'a> for PhysicsMove {
@@ -81,6 +87,34 @@ impl<'a> System<'a> for GravitySys {
             gravities.remove(entity);
         }
     }
+}
+
+static BLOCK_SIZE: f32 = 0.4;
+
+fn add_block(
+    world: &mut World,
+    physics_world: &mut PhysicsWorld<f32>,
+    ground_handle: DefaultBodyHandle,
+    x: f32,
+    y: f32,
+) {
+    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(
+        BLOCK_SIZE / 2.0,
+        BLOCK_SIZE / 2.0,
+    )));
+    let ground_collider = ColliderDesc::new(ground_shape)
+        .translation(Vector2::new(x, y))
+        .collision_groups(groups::member_all_but_player())
+        .build(BodyPartHandle(ground_handle, 0));
+    let ground_collider = physics_world.colliders.insert(ground_collider);
+    world
+        .create_entity()
+        .with(Collider(ground_collider))
+        .with(Drawable::Sprite {
+            name: "brick_grey.png".into(),
+            scale: 0.4,
+        })
+        .build();
 }
 
 fn add_ground(
@@ -217,6 +251,16 @@ fn main() {
 
     // Add ground to system
     let ground_handle = physics_world.bodies.insert(Ground::new());
+
+    for i in 0..10 {
+        add_block(
+            &mut world,
+            &mut physics_world,
+            ground_handle,
+            phys_w / 10.0 * i as f32,
+            phys_h - BLOCK_SIZE * 2.0,
+        );
+    }
 
     add_ground(
         &mut world,
