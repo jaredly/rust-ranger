@@ -174,20 +174,24 @@ impl<'a> System<'a> for PlayerSys {
             let mut push = Vector2::new(0.0, 0.0);
             if rl.is_key_down(KEY_W) && player.can_jump(&physics, &body.0) && v.y > -jump_speed {
                 let max_jump = -jump_speed - v.y;
+                skeleton.set_action(skeletons::component::Action::Jump);
                 push.y += max_jump;
             }
             if rl.is_key_down(KEY_D) && player.can_go_right(&physics, &body.0) {
                 skeleton.face(skeletons::component::Facing::Right);
+                skeleton.set_action(skeletons::component::Action::Walk);
                 push.x += speed;
             }
             if rl.is_key_down(KEY_A) && player.can_go_left(&physics, &body.0) {
                 skeleton.face(skeletons::component::Facing::Left);
+                skeleton.set_action(skeletons::component::Action::Walk);
                 push.x -= speed;
             }
-            if rl.is_key_down(KEY_S) {
-                push.y += speed;
-            }
+            // if rl.is_key_down(KEY_S) {
+            //     push.y += speed;
+            // }
             if push.x == 0.0 && push.y == 0.0 {
+                // skeleton.set_action(skeletons::component::Action::Stand);
                 continue;
             }
 

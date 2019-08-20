@@ -33,7 +33,7 @@ fn make_blocks(
     phys_w: f32,
     phys_h: f32,
 ) {
-    let w = phys_w / BLOCK_SIZE * 3.0;
+    let w = phys_w / BLOCK_SIZE * 100.0;
 
     for y in 1..8 {
         for i in 0..w as usize {

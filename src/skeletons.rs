@@ -53,6 +53,7 @@ pub mod component {
         pub name: String,
         pub facing: Facing,
         pub action: Action,
+        pub action_timer: Option<(Action, f32)>,
         pub arm_action: ArmAction,
         pub timer: f32,
     }
@@ -63,6 +64,7 @@ pub mod component {
                 name: name.to_owned(),
                 facing: Facing::Left,
                 action: Action::Stand,
+                action_timer: None,
                 arm_action: ArmAction::None,
                 timer: 0.0,
             }
@@ -70,6 +72,13 @@ pub mod component {
 
         pub fn face(&mut self, facing: Facing) {
             self.facing = facing;
+        }
+
+        pub fn set_action(&mut self, action: Action) {
+            if action != self.action {
+                self.action = action;
+                self.timer = 0.0;
+            }
         }
 
         // pub fn action_name(&self) -> String {
@@ -97,6 +106,7 @@ pub mod component {
         );
 
         fn run(&mut self, (tick, physics_world, bodies, mut skeletons): Self::SystemData) {
+            let tick = tick.0.as_micros() as f32 / 1000.0;
             for (body, skeleton) in (&bodies, &mut skeletons).join() {
                 let v = physics_world
                     .rigid_body(body.0)
@@ -105,13 +115,25 @@ pub mod component {
                     .unwrap()
                     .velocity();
                 // skeleton.face(skeleton.facing.for_velocity(&v));
-                let new_action = Action::for_velocity(&v);
-                if new_action != skeleton.action {
-                    skeleton.action = new_action;
-                    skeleton.timer = 0.0;
-                } else {
-                    skeleton.timer += tick.0.as_micros() as f32 / 1000.0;
-                }
+                // let new_action = Action::for_velocity(&v);
+                // if new_action != skeleton.action {
+                //     match skeleton.action_timer {
+                //         Some((n, t)) if n == new_action => {
+                //             if t > 50.0 {
+                //                 skeleton.action = new_action;
+                //                 skeleton.timer = 0.0;
+                //                 skeleton.action_timer = None;
+                //                 continue;
+                //             } else {
+                //                 skeleton.action_timer = Some((n, t + tick));
+                //             }
+                //         }
+                //         _ => skeleton.action_timer = Some((new_action, 0.0)),
+                //     }
+                // } else {
+                //     skeleton.action_timer = None;
+                // }
+                skeleton.timer += tick;
             }
         }
     }

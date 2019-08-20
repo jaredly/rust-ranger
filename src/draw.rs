@@ -99,69 +99,68 @@ impl<'a> System<'a> for Draw {
     ) {
         use raylib::core::drawing::RaylibDraw;
 
-        // {
-        let mut rd = rl.begin_drawing(&self.thread);
-        rd.clear_background(raylib::color::Color::WHITE);
-        let mut rd = rd.begin_mode_2D(zoom_camera.0);
+        let mut rd0 = rl.begin_drawing(&self.thread);
+        rd0.clear_background(raylib::color::Color::WHITE);
+        {
+            let mut rd = rd0.begin_mode_2D(zoom_camera.0);
 
-        let offset = -camera.pos;
+            let offset = -camera.pos;
 
-        for (collider, drawable) in (&colliders, &drawables).join() {
-            if let Some(collider) = physics.collider(collider.0) {
-                let p = collider.position() * Point2::new(0.0, 0.0);
-                let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
+            for (collider, drawable) in (&colliders, &drawables).join() {
+                if let Some(collider) = physics.collider(collider.0) {
+                    let p = collider.position() * Point2::new(0.0, 0.0);
+                    let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
 
-                match drawable {
-                    Drawable::Sprite { name, scale } => {
-                        sheet.draw(
-                            &mut rd,
-                            &name,
-                            (p.x + offset.x, p.y + offset.y),
-                            (0.0, 0.0),
-                            r,
-                            *scale,
-                            false,
-                        );
-                    }
-                    Drawable::Rect {
-                        color,
-                        width,
-                        height,
-                    } => {
-                        rd.draw_rectangle_v(
-                            raylib::math::Vector2::from((
-                                (p.x - width / 2.0) + offset.x,
-                                (p.y - height / 2.0) + offset.y,
-                            )),
-                            raylib::math::Vector2::from((*width, *height)),
+                    match drawable {
+                        Drawable::Sprite { name, scale } => {
+                            sheet.draw(
+                                &mut rd,
+                                &name,
+                                (p.x + offset.x, p.y + offset.y),
+                                (0.0, 0.0),
+                                r,
+                                *scale,
+                                false,
+                            );
+                        }
+                        Drawable::Rect {
                             color,
-                        );
+                            width,
+                            height,
+                        } => {
+                            rd.draw_rectangle_v(
+                                raylib::math::Vector2::from((
+                                    (p.x - width / 2.0) + offset.x,
+                                    (p.y - height / 2.0) + offset.y,
+                                )),
+                                raylib::math::Vector2::from((*width, *height)),
+                                color,
+                            );
+                        }
                     }
+
+                    // draw_shape(&mut rd, *collider.position(), collider.shape());
                 }
+            }
 
-                // draw_shape(&mut rd, *collider.position(), collider.shape());
+            for (collider, skeleton, body) in (&colliders, &skeletons, &bodies).join() {
+                if let Some(collider) = physics.collider(collider.0) {
+                    let v = physics
+                        .rigid_body(body.0)
+                        .unwrap()
+                        .part(0)
+                        .unwrap()
+                        .velocity();
+                    let p = collider.position().translation.vector + offset;
+                    let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
+                    match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p.into(), r, 1.0) {
+                        Ok(()) => (),
+                        Err(err) => println!("Failed to draw! Scripting error {:?}", err),
+                    };
+                    // draw_shape(&mut rd, *collider.position(), collider.shape());
+                }
             }
         }
-
-        for (collider, skeleton, body) in (&colliders, &skeletons, &bodies).join() {
-            if let Some(collider) = physics.collider(collider.0) {
-                let v = physics
-                    .rigid_body(body.0)
-                    .unwrap()
-                    .part(0)
-                    .unwrap()
-                    .velocity();
-                let p = collider.position().translation.vector + offset;
-                let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
-                match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p.into(), r, 1.0) {
-                    Ok(()) => (),
-                    Err(err) => println!("Failed to draw! Scripting error {:?}", err),
-                };
-                // draw_shape(&mut rd, *collider.position(), collider.shape());
-            }
-        }
-
-        rd.draw_fps(5, 5);
-        // }
+        rd0.draw_fps(5, 5);
     }
 }
