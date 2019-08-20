@@ -13,8 +13,8 @@ Skeletons(
             ),
             Abs(Vx),
         ),
-        "leg_pos": Plain(60),
-        "body_offset": Mul(Abs(Shared("vx_sin")), Plain(4)),
+        "leg_pos": Plain(0.6),
+        "body_offset": Mul(Abs(Shared("vx_sin")), Plain(0.04)),
     },
     shared_bones: {},
     skeletons: {
@@ -27,7 +27,7 @@ Skeletons(
                     Bone(
                         sprite: "female_arm.png",
                         pivot_offset: (Plain(0), Plain(-0.3)),
-                        offset: (Mul(Shared("vx_sin"), Plain(1)), Plain(-20)),
+                        offset: (Mul(Shared("vx_sin"), Plain(0.01)), Plain(-0.2)),
                         flip: StrEq(key: "facing", val: "right"),
                         rotation: Mul(Shared("vx_sin"), Plain(-10)),
                     ),
@@ -36,7 +36,7 @@ Skeletons(
                     Bone(
                         sprite: "female_leg.png",
                         offset: (
-                            Mul(Shared("vx_sin"), Plain(-5)),
+                            Mul(Shared("vx_sin"), Plain(-0.05)),
                             Add(Shared("leg_pos"), Mul(Plain(-1), Shared("body_offset"))),
                         ),
                         pivot_offset: (Plain(0), Plain(-0.3)),
@@ -48,7 +48,7 @@ Skeletons(
                         sprite: "female_leg.png",
                         flip: StrEq(key: "facing", val: "right"),
                         offset: (
-                            Mul(Shared("vx_sin"), Plain(5)),
+                            Mul(Shared("vx_sin"), Plain(0.05)),
                             Add(Shared("leg_pos"), Mul(Plain(-1), Shared("body_offset"))),
                         ),
                         pivot_offset: (Plain(0), Plain(-0.3)),
@@ -77,7 +77,7 @@ Gt(
                             ),
                             StrEq(key: "facing", val: "right"),
                         ),
-                        offset: (Plain(0), Plain(-80)),
+                        offset: (Plain(0), Plain(-0.8)),
                         pivot_offset: (Plain(-0.1), Plain(0)),
                         rotation: Plain(0),
                     ),
@@ -89,7 +89,7 @@ Gt(
                             Bone(
                                 sprite: "female_arm.png",
                                 flip: StrEq(key: "facing", val: "right"),
-                                offset: (Mul(Shared("vx_sin"), Plain(-0.1)), Plain(-20)),
+                                offset: (Mul(Shared("vx_sin"), Plain(-0.01)), Plain(-0.02)),
                                 pivot_offset: (Plain(0), Plain(-0.3)),
                                 rotation: Mul(Shared("vx_sin"), Plain(10)),
                             ),
@@ -98,7 +98,7 @@ Gt(
                             Bone(
                                 sprite: "female_arm.png",
                                 flip: StrEq(key: "facing", val: "right"),
-                                offset: (Plain(0), Plain(-20)),
+                                offset: (Plain(0), Plain(-0.2)),
                                 pivot_offset: (Plain(0), Plain(-0.3)),
                                 rotation: If(
                                     Gt(Var("throw_vx"), Plain(0)),

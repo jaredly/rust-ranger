@@ -55,6 +55,7 @@ impl<'a> System<'a> for ArrowSys {
     type SystemData = (
         Entities<'a>,
         ReadExpect<'a, raylib::RaylibHandle>,
+        Read<'a, crate::ZoomCamera>,
         WriteExpect<'a, PhysicsWorld<f32>>,
         WriteStorage<'a, ArrowLauncher>,
         WriteStorage<'a, crate::skeletons::component::Skeleton>,
@@ -69,6 +70,7 @@ impl<'a> System<'a> for ArrowSys {
         (
             entities,
             rl,
+            zoom_camera,
             mut physics_world,
             mut arrow,
             mut skeletons,
@@ -102,7 +104,7 @@ impl<'a> System<'a> for ArrowSys {
 
                             let size = 0.05;
 
-                            let vec = (start - end) / crate::draw::WORLD_SCALE * 3.0;
+                            let vec = (start - end) / zoom_camera.0.zoom * 3.0;
                             let vel = nphysics2d::algebra::Velocity2::new(vec, 0.0);
                             let rb = RigidBodyDesc::new()
                                 .translation(pos.vector)

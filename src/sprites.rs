@@ -130,7 +130,7 @@ impl SpriteSheet {
 
     pub fn draw(
         &self,
-        rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
+        rd: &mut crate::draw::DrawHandle,
         sprite: &str,
         dest: (f32, f32),
         pivot_offset: (f32, f32),

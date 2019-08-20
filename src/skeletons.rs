@@ -191,7 +191,7 @@ pub mod draw {
         pub fn draw(
             &self,
             state: &component::Skeleton,
-            rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
+            rd: &mut crate::draw::DrawHandle,
             sheet: &crate::sprites::SpriteSheet,
             velocity: nphysics2d::math::Velocity<f32>,
             position: na::Point2<f32>,
@@ -223,7 +223,7 @@ pub mod draw {
             shared: &Shared,
             shared_bones: &HashMap<String, Simple<Bone>>,
             fns: &Fns,
-            rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
+            rd: &mut crate::draw::DrawHandle,
             sheet: &crate::sprites::SpriteSheet,
             velocity: nphysics2d::math::Velocity<f32>,
             position: na::Point2<f32>,

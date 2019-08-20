@@ -4,14 +4,8 @@ extern crate specs_derive;
 use specs::prelude::*;
 
 use nalgebra::Vector2;
-use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
-use nphysics2d::object::{
-    BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
-};
-// extern crate ketos;
-// #[macro_use]
-// extern crate ketos_derive;
-//
+use ncollide2d::shape::{Ball, Cuboid, ShapeHandle};
+use nphysics2d::object::{BodyPartHandle, ColliderDesc, DefaultBodyHandle, Ground, RigidBodyDesc};
 extern crate nalgebra as na;
 
 const BALL_RADIUS: f32 = 0.1;
@@ -32,7 +26,27 @@ use throw::ArrowSys;
 #[derive(Component)]
 struct Block;
 
-fn make_blocks() {}
+fn make_blocks(
+    world: &mut World,
+    physics_world: &mut PhysicsWorld<f32>,
+    ground_handle: DefaultBodyHandle,
+    phys_w: f32,
+    phys_h: f32,
+) {
+    let w = phys_w / BLOCK_SIZE * 3.0;
+
+    for y in 1..3 {
+        for i in 0..w as usize {
+            add_block(
+                world,
+                physics_world,
+                ground_handle,
+                BLOCK_SIZE * i as f32, // * 1.01,
+                phys_h - BLOCK_SIZE * y as f32,
+            );
+        }
+    }
+}
 
 struct PhysicsMove;
 
@@ -117,36 +131,57 @@ fn add_block(
         .build();
 }
 
-fn add_ground(
-    world: &mut World,
-    physics_world: &mut PhysicsWorld<f32>,
-    ground_handle: DefaultBodyHandle,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
-) {
-    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(w / 2.0, h / 2.0)));
-    let ground_collider = ColliderDesc::new(ground_shape)
-        .translation(Vector2::new(x, y))
-        .collision_groups(groups::member_all_but_player())
-        .build(BodyPartHandle(ground_handle, 0));
-    let ground_collider = physics_world.colliders.insert(ground_collider);
-    world
-        .create_entity()
-        .with(Collider(ground_collider))
-        .with(Drawable::Rect {
-            color: raylib::color::Color::BLACK,
-            width: w,
-            height: h,
+pub struct ZoomCamera(pub raylib::camera::Camera2D);
+impl Default for ZoomCamera {
+    fn default() -> ZoomCamera {
+        ZoomCamera(raylib::camera::Camera2D {
+            target: raylib::math::Vector2::new(0.0, 0.0),
+            offset: raylib::math::Vector2::new(0.0, 0.0),
+            rotation: 0.0,
+            zoom: 100.0,
         })
-        .build();
+    }
+}
+
+pub struct Camera {
+    pos: Vector2<f32>,
+}
+impl Default for Camera {
+    fn default() -> Camera {
+        Camera {
+            pos: Vector2::new(0.0, 0.0),
+        }
+    }
+}
+
+struct CameraFollowSys;
+impl<'a> System<'a> for CameraFollowSys {
+    type SystemData = (
+        Write<'a, Camera>,
+        ReadExpect<'a, PhysicsWorld<f32>>,
+        ReadStorage<'a, player::Player>,
+        ReadStorage<'a, Collider>,
+    );
+
+    fn run(&mut self, (mut camera, physics, players, colliders): Self::SystemData) {
+        for (_player, collider) in (&players, &colliders).join() {
+            let collider = physics.collider(collider.0).unwrap();
+            let p = collider.position().translation;
+            // println!("Ok moving camera {} {}", p.x, p.y);
+            // camera.0.offset = raylib::math::Vector2::new(
+            //     -p.x * camera.0.zoom * 2.01 + 500.0,
+            //     -p.y * camera.0.zoom * 2.025 + 500.0,
+            // );
+            camera.pos = Vector2::new(p.x - 2.5, p.y - 2.5);
+            // camera.0.target = raylib::math::Vector2::new(p.x * 2.0 - 5.0, p.y * 2.0 - 5.0);
+        }
+    }
 }
 
 fn main() {
     // screen
-    let screen_w = 640;
-    let screen_h = 480;
+    let screen_w = 500;
+    let screen_h = 500;
 
     let (mut rl, thread) = raylib::init()
         .size(screen_w, screen_h)
@@ -192,6 +227,7 @@ fn main() {
         )
         .with(PhysicsMove, "p_move", &["player_move"])
         .with(throw::ThrownSys, "sensor_until", &["p_move"])
+        .with(CameraFollowSys, "camera_follow", &["p_move"])
         .with(ArrowSys, "arrows", &["sensor_until"])
         .with(GravitySys, "gravity_on_collide", &["p_move"])
         .with_thread_local(draw::Draw { thread })
@@ -203,8 +239,8 @@ fn main() {
 
     let ball_shape = ShapeHandle::new(Ball::new(BALL_RADIUS));
 
-    let phys_w = screen_w as f32 / draw::WORLD_SCALE;
-    let phys_h = screen_h as f32 / draw::WORLD_SCALE;
+    let phys_w = screen_w as f32 / 100.0;
+    let phys_h = screen_h as f32 / 100.0;
 
     // three rings of apples
     let ball_handles: Vec<_> = (0..90)
@@ -252,84 +288,11 @@ fn main() {
     // Add ground to system
     let ground_handle = physics_world.bodies.insert(Ground::new());
 
-    for i in 0..10 {
-        add_block(
-            &mut world,
-            &mut physics_world,
-            ground_handle,
-            phys_w / 10.0 * i as f32,
-            phys_h - BLOCK_SIZE * 2.0,
-        );
-    }
-
-    add_ground(
-        &mut world,
-        &mut physics_world,
-        ground_handle,
-        phys_w / 6.0 * 5.0,
-        phys_h / 4.0 * 3.0,
-        phys_w / 3.0,
-        0.10,
-    );
-
-    add_ground(
-        &mut world,
-        &mut physics_world,
-        ground_handle,
-        phys_w / 2.0,
-        phys_h / 2.0,
-        phys_w / 3.0,
-        0.10,
-    );
-
-    add_ground(
-        &mut world,
-        &mut physics_world,
-        ground_handle,
-        phys_w / 6.0,
-        phys_h / 4.0,
-        phys_w / 3.0,
-        0.10,
-    );
-
-    // bottom
-    add_ground(
-        &mut world,
-        &mut physics_world,
-        ground_handle,
-        phys_w / 2.0,
-        phys_h,
-        phys_w,
-        0.10,
-    );
-    // top
-    add_ground(
-        &mut world,
-        &mut physics_world,
-        ground_handle,
-        phys_w / 2.0,
-        0.0,
-        phys_w,
-        0.10,
-    );
-    // l
-    add_ground(
-        &mut world,
-        &mut physics_world,
-        ground_handle,
-        0.0,
-        phys_h / 2.0,
-        0.1,
-        phys_h,
-    );
-    // r
-    add_ground(
+    make_blocks(
         &mut world,
         &mut physics_world,
         ground_handle,
         phys_w,
-        phys_h / 2.0,
-        0.1,
         phys_h,
     );
 

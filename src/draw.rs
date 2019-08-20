@@ -6,6 +6,11 @@ extern crate nalgebra as na;
 
 use crate::basics::*;
 
+pub type DrawHandle<'a, 'b> =
+    raylib::drawing::RaylibMode2D<'a, raylib::drawing::RaylibDrawHandle<'b, raylib::RaylibHandle>>;
+
+// pub type DrawHandle<'a> = raylib::drawing::RaylibDrawHandle<'a, raylib::RaylibHandle>;
+
 #[derive(Component)]
 pub enum Drawable {
     Sprite {
@@ -23,16 +28,12 @@ pub struct Draw {
     pub thread: raylib::RaylibThread,
 }
 
-pub const WORLD_SCALE: f32 = 100.0;
+pub const WORLD_SCALE: f32 = 1.0;
 
 use na::Isometry2;
 use ncollide2d::shape::{self, Shape};
 #[allow(dead_code)]
-fn draw_shape(
-    rd: &mut raylib::drawing::RaylibDrawHandle<raylib::RaylibHandle>,
-    offset: Isometry2<f32>,
-    shape: &dyn Shape<f32>,
-) {
+fn draw_shape(rd: &mut DrawHandle, offset: Isometry2<f32>, shape: &dyn Shape<f32>) {
     let fill = raylib::color::Color::new(255, 0, 0, 100);
     use raylib::core::drawing::RaylibDraw;
     if let Some(s) = shape.as_shape::<shape::Ball<f32>>() {
@@ -78,6 +79,8 @@ fn draw_shape(
 impl<'a> System<'a> for Draw {
     type SystemData = (
         WriteExpect<'a, raylib::RaylibHandle>,
+        Read<'a, crate::ZoomCamera>,
+        Read<'a, crate::Camera>,
         ReadExpect<'a, PhysicsWorld<f32>>,
         ReadStorage<'a, Collider>,
         ReadStorage<'a, Body>,
@@ -89,12 +92,27 @@ impl<'a> System<'a> for Draw {
 
     fn run(
         &mut self,
-        (mut rl, physics, colliders, bodies, drawables, sheet, skeletons, skeleton_map): Self::SystemData,
+        (
+            mut rl,
+            zoom_camera,
+            camera,
+            physics,
+            colliders,
+            bodies,
+            drawables,
+            sheet,
+            skeletons,
+            skeleton_map,
+        ): Self::SystemData,
     ) {
         use raylib::core::drawing::RaylibDraw;
 
+        // {
         let mut rd = rl.begin_drawing(&self.thread);
         rd.clear_background(raylib::color::Color::WHITE);
+        let mut rd = rd.begin_mode_2D(zoom_camera.0);
+
+        let offset = -camera.pos;
 
         for (collider, drawable) in (&colliders, &drawables).join() {
             if let Some(collider) = physics.collider(collider.0) {
@@ -106,10 +124,10 @@ impl<'a> System<'a> for Draw {
                         sheet.draw(
                             &mut rd,
                             &name,
-                            (p.x * WORLD_SCALE, p.y * WORLD_SCALE),
+                            (p.x + offset.x, p.y + offset.y),
                             (0.0, 0.0),
                             r,
-                            scale * WORLD_SCALE,
+                            *scale,
                             false,
                         );
                     }
@@ -120,19 +138,16 @@ impl<'a> System<'a> for Draw {
                     } => {
                         rd.draw_rectangle_v(
                             raylib::math::Vector2::from((
-                                (p.x - width / 2.0) * WORLD_SCALE,
-                                (p.y - height / 2.0) * WORLD_SCALE,
+                                (p.x - width / 2.0) + offset.x,
+                                (p.y - height / 2.0) + offset.y,
                             )),
-                            raylib::math::Vector2::from((
-                                width * WORLD_SCALE,
-                                height * WORLD_SCALE,
-                            )),
+                            raylib::math::Vector2::from((*width, *height)),
                             color,
                         );
                     }
                 }
 
-                draw_shape(&mut rd, *collider.position(), collider.shape());
+                // draw_shape(&mut rd, *collider.position(), collider.shape());
             }
         }
 
@@ -144,16 +159,17 @@ impl<'a> System<'a> for Draw {
                     .part(0)
                     .unwrap()
                     .velocity();
-                let p = collider.position() * Point2::new(0.0, 0.0) * WORLD_SCALE;
+                let p = collider.position().translation.vector + offset;
                 let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
-                match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p, r, WORLD_SCALE) {
+                match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p.into(), r, WORLD_SCALE) {
                     Ok(()) => (),
                     Err(err) => println!("Failed to draw! Scripting error {:?}", err),
                 };
-                draw_shape(&mut rd, *collider.position(), collider.shape());
+                // draw_shape(&mut rd, *collider.position(), collider.shape());
             }
         }
 
         rd.draw_fps(5, 5);
+        // }
     }
 }
