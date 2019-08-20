@@ -23,8 +23,8 @@ use draw::Drawable;
 use throw::ArrowSys;
 
 // Can I just define a block as a normal item, but have it have a flag like "static" or something
-#[derive(Component)]
-struct Block;
+// #[derive(Component)]
+// struct Block;
 
 fn make_blocks(
     world: &mut World,
@@ -35,14 +35,14 @@ fn make_blocks(
 ) {
     let w = phys_w / BLOCK_SIZE * 3.0;
 
-    for y in 1..3 {
+    for y in 1..8 {
         for i in 0..w as usize {
             add_block(
                 world,
                 physics_world,
                 ground_handle,
                 BLOCK_SIZE * i as f32, // * 1.01,
-                phys_h - BLOCK_SIZE * y as f32,
+                phys_h - BLOCK_SIZE * 3.0 + BLOCK_SIZE * y as f32,
             );
         }
     }
@@ -167,13 +167,7 @@ impl<'a> System<'a> for CameraFollowSys {
         for (_player, collider) in (&players, &colliders).join() {
             let collider = physics.collider(collider.0).unwrap();
             let p = collider.position().translation;
-            // println!("Ok moving camera {} {}", p.x, p.y);
-            // camera.0.offset = raylib::math::Vector2::new(
-            //     -p.x * camera.0.zoom * 2.01 + 500.0,
-            //     -p.y * camera.0.zoom * 2.025 + 500.0,
-            // );
             camera.pos = Vector2::new(p.x - 2.5, p.y - 2.5);
-            // camera.0.target = raylib::math::Vector2::new(p.x * 2.0 - 5.0, p.y * 2.0 - 5.0);
         }
     }
 }
