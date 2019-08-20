@@ -86,7 +86,7 @@ pub mod component {
     }
 
     pub struct SkeletonSys;
-    use crate::basics::{Body, Collider};
+    use crate::basics::Body;
 
     impl<'a> System<'a> for SkeletonSys {
         type SystemData = (

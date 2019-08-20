@@ -56,7 +56,7 @@ fn draw_shape(rd: &mut DrawHandle, offset: Isometry2<f32>, shape: &dyn Shape<f32
         let x = offset.translation.x - s.radius();
         let y = offset.translation.y - s.half_height() - s.radius();
         rd.draw_rectangle_rounded(
-            raylib::math::Rectangle::new(x, y, s.radius() * 2.0, (s.height() + s.radius() * 2.0)),
+            raylib::math::Rectangle::new(x, y, s.radius() * 2.0, s.height() + s.radius() * 2.0),
             s.radius(),
             10,
             fill,

@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::{collections::HashMap, fs::File};
+use std::collections::HashMap;
 
 pub trait Animatable {
     fn sin(center: Self, frequency: f32, amplitude: Self, offset: f32) -> Self;
@@ -91,19 +91,19 @@ pub enum Bool<T: Animatable + na::base::Scalar> {
 }
 
 impl Bool<f32> {
-    pub fn f() -> Self {
-        Bool::False
-    }
-    pub fn t() -> Self {
-        Bool::True
-    }
+    // pub fn f() -> Self {
+    //     Bool::False
+    // }
+    // pub fn t() -> Self {
+    //     Bool::True
+    // }
     pub fn eval(&self, ctx: &Context, args: &Vec<(String, f32)>) -> Result<bool, EvalErr> {
         Ok(match self {
             Bool::True => true,
             Bool::False => false,
             Bool::StrEq { key, val } => ctx.strings.get(key) == Some(val),
             Bool::If(a, b, c) => {
-                if (a.eval(ctx, args)?) {
+                if a.eval(ctx, args)? {
                     b.eval(ctx, args)?
                 } else {
                     c.eval(ctx, args)?
@@ -136,7 +136,7 @@ pub enum Simple<T: Clone> {
     StrMatch(String, HashMap<String, Simple<T>>),
 }
 
-pub type SimpleShared<T: Clone> = HashMap<String, Simple<T>>;
+pub type SimpleShared<T> = HashMap<String, Simple<T>>;
 
 pub struct SimpleContext<'a, T: Clone> {
     pub shared: &'a SimpleShared<T>,

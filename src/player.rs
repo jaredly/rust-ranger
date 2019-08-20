@@ -3,16 +3,14 @@ use specs::prelude::*;
 use nalgebra::Vector2;
 use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
 use nphysics2d::object::{
-    BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, Ground, RigidBodyDesc,
+    BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, RigidBodyDesc,
 };
 
 use crate::basics::*;
-use crate::draw;
-use crate::draw::Drawable;
+
 use crate::groups;
 use crate::skeletons;
 use crate::throw;
-use crate::throw::ArrowSys;
 
 #[derive(Component)]
 pub struct Player {
