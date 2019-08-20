@@ -28,7 +28,7 @@ pub struct Draw {
     pub thread: raylib::RaylibThread,
 }
 
-pub const WORLD_SCALE: f32 = 1.0;
+// pub const WORLD_SCALE: f32 = 1.0;
 
 use na::Isometry2;
 use ncollide2d::shape::{self, Shape};
@@ -38,34 +38,26 @@ fn draw_shape(rd: &mut DrawHandle, offset: Isometry2<f32>, shape: &dyn Shape<f32
     use raylib::core::drawing::RaylibDraw;
     if let Some(s) = shape.as_shape::<shape::Ball<f32>>() {
         rd.draw_circle_v(
-            raylib::math::Vector2::new(
-                offset.translation.x * WORLD_SCALE,
-                offset.translation.y * WORLD_SCALE,
-            ),
-            s.radius() * WORLD_SCALE,
+            raylib::math::Vector2::new(offset.translation.x, offset.translation.y),
+            s.radius(),
             fill,
         );
     } else if let Some(s) = shape.as_shape::<shape::Cuboid<f32>>() {
         let size = s.half_extents();
         rd.draw_rectangle_v(
             raylib::math::Vector2::new(
-                (offset.translation.x - size.x) * WORLD_SCALE,
-                (offset.translation.y - size.y) * WORLD_SCALE,
+                offset.translation.x - size.x,
+                offset.translation.y - size.y,
             ),
-            raylib::math::Vector2::new(size.x * 2.0 * WORLD_SCALE, size.y * 2.0 * WORLD_SCALE),
+            raylib::math::Vector2::new(size.x * 2.0, size.y * 2.0),
             fill,
         );
     } else if let Some(s) = shape.as_shape::<shape::Capsule<f32>>() {
         let x = offset.translation.x - s.radius();
         let y = offset.translation.y - s.half_height() - s.radius();
         rd.draw_rectangle_rounded(
-            raylib::math::Rectangle::new(
-                x * WORLD_SCALE,
-                y * WORLD_SCALE,
-                s.radius() * 2.0 * WORLD_SCALE,
-                (s.height() + s.radius() * 2.0) * WORLD_SCALE,
-            ),
-            s.radius() * WORLD_SCALE,
+            raylib::math::Rectangle::new(x, y, s.radius() * 2.0, (s.height() + s.radius() * 2.0)),
+            s.radius(),
             10,
             fill,
         );
@@ -161,7 +153,7 @@ impl<'a> System<'a> for Draw {
                     .velocity();
                 let p = collider.position().translation.vector + offset;
                 let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
-                match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p.into(), r, WORLD_SCALE) {
+                match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p.into(), r, 1.0) {
                     Ok(()) => (),
                     Err(err) => println!("Failed to draw! Scripting error {:?}", err),
                 };
