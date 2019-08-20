@@ -32,38 +32,94 @@ pub struct Draw {
 
 use na::Isometry2;
 use ncollide2d::shape::{self, Shape};
+
 #[allow(dead_code)]
-fn draw_shape(rd: &mut DrawHandle, offset: Isometry2<f32>, shape: &dyn Shape<f32>) {
-    let fill = raylib::color::Color::new(255, 0, 0, 100);
+fn draw_shape(
+    rd: &mut DrawHandle,
+    offset: Isometry2<f32>,
+    shape: &dyn Shape<f32>,
+    margin: f32,
+    fill: raylib::color::Color,
+) {
+    // let fill = raylib::color::Color::new(255, 0, 0, 255);
     use raylib::core::drawing::RaylibDraw;
     if let Some(s) = shape.as_shape::<shape::Ball<f32>>() {
         rd.draw_circle_v(
             raylib::math::Vector2::new(offset.translation.x, offset.translation.y),
-            s.radius(),
+            s.radius() + margin,
             fill,
         );
     } else if let Some(s) = shape.as_shape::<shape::Cuboid<f32>>() {
         let size = s.half_extents();
         rd.draw_rectangle_v(
             raylib::math::Vector2::new(
+                offset.translation.x - size.x - margin,
+                offset.translation.y - size.y - margin,
+            ),
+            raylib::math::Vector2::new(size.x * 2.0 + margin * 2.0, size.y * 2.0 + margin * 2.0),
+            fill,
+        );
+    } else if let Some(s) = shape.as_shape::<shape::Capsule<f32>>() {
+        let x = offset.translation.x - s.radius() - margin;
+        let y = offset.translation.y - s.half_height() - s.radius() - margin;
+        rd.draw_rectangle_rounded(
+            raylib::math::Rectangle::new(
+                x,
+                y,
+                s.radius() * 2.0 + margin * 2.0,
+                s.height() + s.radius() * 2.0 + margin * 2.0,
+            ),
+            s.radius() * 2.0 + margin * 2.0,
+            30,
+            fill,
+        );
+    } else if let Some(s) = shape.as_shape::<shape::Compound<f32>>() {
+        for &(t, ref s) in s.shapes().iter() {
+            draw_shape(rd, offset * t, s.as_ref(), margin, fill);
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn outline_shape(rd: &mut DrawHandle, offset: Isometry2<f32>, shape: &dyn Shape<f32>) {
+    let fill = raylib::color::Color::new(255, 0, 255, 100);
+    let width = 0.05;
+    use raylib::core::drawing::RaylibDraw;
+    if let Some(s) = shape.as_shape::<shape::Ball<f32>>() {
+        rd.draw_ring(
+            raylib::math::Vector2::new(offset.translation.x, offset.translation.y),
+            s.radius() - width,
+            s.radius(),
+            0,
+            360,
+            10,
+            fill,
+        );
+    } else if let Some(s) = shape.as_shape::<shape::Cuboid<f32>>() {
+        let size = s.half_extents();
+        rd.draw_rectangle_lines_ex(
+            raylib::math::Rectangle::new(
                 offset.translation.x - size.x,
                 offset.translation.y - size.y,
+                size.x * 2.0,
+                size.y * 2.0,
             ),
-            raylib::math::Vector2::new(size.x * 2.0, size.y * 2.0),
+            width as i32,
             fill,
         );
     } else if let Some(s) = shape.as_shape::<shape::Capsule<f32>>() {
         let x = offset.translation.x - s.radius();
         let y = offset.translation.y - s.half_height() - s.radius();
-        rd.draw_rectangle_rounded(
+        rd.draw_rectangle_rounded_lines(
             raylib::math::Rectangle::new(x, y, s.radius() * 2.0, s.height() + s.radius() * 2.0),
             s.radius(),
             10,
+            width as i32,
             fill,
         );
     } else if let Some(s) = shape.as_shape::<shape::Compound<f32>>() {
         for &(t, ref s) in s.shapes().iter() {
-            draw_shape(rd, offset * t, s.as_ref());
+            outline_shape(rd, offset * t, s.as_ref());
         }
     }
 }
@@ -80,6 +136,7 @@ impl<'a> System<'a> for Draw {
         ReadExpect<'a, crate::sprites::SpriteSheet>,
         ReadStorage<'a, crate::skeletons::component::Skeleton>,
         ReadExpect<'a, crate::skeletons::Skeletons>,
+        ReadStorage<'a, crate::player::Player>,
     );
 
     fn run(
@@ -95,6 +152,7 @@ impl<'a> System<'a> for Draw {
             sheet,
             skeletons,
             skeleton_map,
+            player,
         ): Self::SystemData,
     ) {
         use raylib::core::drawing::RaylibDraw;
@@ -105,6 +163,51 @@ impl<'a> System<'a> for Draw {
             let mut rd = rd0.begin_mode_2D(zoom_camera.0);
 
             let offset = -camera.pos;
+
+            for (player, player_collider) in (&player, &colliders).join() {
+                let collider = physics.collider(player.pickup).unwrap();
+                let p = collider.position();
+                draw_shape(
+                    &mut rd,
+                    Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+                    collider.shape(),
+                    0.0,
+                    raylib::color::Color::new(255, 100, 225, 255),
+                );
+
+                let collider = physics.collider(player_collider.0).unwrap();
+                let p = collider.position();
+                draw_shape(
+                    &mut rd,
+                    Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+                    collider.shape(),
+                    0.0,
+                    raylib::color::Color::new(100, 100, 225, 255),
+                );
+
+                // if let Some(collider) = physics.collider(player.pickup);
+                for (handle, collider) in physics
+                    .geom
+                    .colliders_in_proximity_of(&physics.colliders, player.pickup)
+                    .unwrap()
+                {
+                    if collider.is_sensor() || handle == player_collider.0 {
+                        continue;
+                    }
+                    let body = physics.rigid_body(collider.body()).unwrap();
+                    if body.is_ground() {
+                        continue;
+                    }
+                    let p = collider.position();
+                    draw_shape(
+                        &mut rd,
+                        Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+                        collider.shape(),
+                        0.1,
+                        raylib::color::Color::new(255, 255, 100, 255),
+                    );
+                }
+            }
 
             for (collider, drawable) in (&colliders, &drawables).join() {
                 if let Some(collider) = physics.collider(collider.0) {
@@ -139,7 +242,7 @@ impl<'a> System<'a> for Draw {
                         }
                     }
 
-                    // draw_shape(&mut rd, *collider.position(), collider.shape());
+                    // draw_shape(&mut rd, *collider.position(), collider.shape(), 0.0, raylib::color::Color::RED);
                 }
             }
 
@@ -157,7 +260,7 @@ impl<'a> System<'a> for Draw {
                         Ok(()) => (),
                         Err(err) => println!("Failed to draw! Scripting error {:?}", err),
                     };
-                    // draw_shape(&mut rd, *collider.position(), collider.shape());
+                    // draw_shape(&mut rd, *collider.position(), collider.shape(), 0.0, raylib::color::Color::RED);
                 }
             }
         }

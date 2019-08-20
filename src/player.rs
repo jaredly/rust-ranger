@@ -17,6 +17,7 @@ pub struct Player {
     down: DefaultColliderHandle,
     left: DefaultColliderHandle,
     right: DefaultColliderHandle,
+    pub pickup: DefaultColliderHandle,
 }
 
 impl Player {
@@ -59,6 +60,18 @@ impl Player {
                 .translation(Vector2::new(offset, 0.0))
                 .build(BodyPartHandle(rb, 0)),
         );
+
+        let pickup_margin = 0.1;
+        let pickup_sensor = physics_world.colliders.insert(
+            ColliderDesc::new(ShapeHandle::new(Capsule::new(
+                height - pickup_margin,
+                width + pickup_margin * 4.0,
+            )))
+            .sensor(true)
+            .collision_groups(groups::player())
+            .build(BodyPartHandle(rb, 0)),
+        );
+
         let cb = physics_world.colliders.insert(collider);
         let jcb = physics_world.colliders.insert(jump_sensor);
         let sensor_handle = physics_world.colliders.insert(sensor);
@@ -71,6 +84,7 @@ impl Player {
                 down: jcb,
                 left: left_sensor,
                 right: right_sensor,
+                pickup: pickup_sensor,
             })
             .with(Collider(cb))
             // .with(Drawable::Sprite {

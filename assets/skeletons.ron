@@ -3,7 +3,7 @@ Skeletons(
     fns: {
     },
     shared: {
-        "run_freq": Plain(1000),
+        "run_freq": Plain(500),
         "vx_sin": 
         If(StrEq(key: "action", val: "jump"),
         Min(
