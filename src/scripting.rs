@@ -86,6 +86,7 @@ pub enum Bool<T: Animatable + na::base::Scalar> {
     Gt(Animated<T>, Animated<T>),
     Lt(Animated<T>, Animated<T>),
     Eq(Animated<T>, Animated<T>),
+    VarExists(String),
     StrEq { key: String, val: String },
     Within(Animated<T>, Animated<T>, Animated<T>),
 }
@@ -109,6 +110,7 @@ impl Bool<f32> {
                     c.eval(ctx, args)?
                 }
             }
+            Bool::VarExists(key) => ctx.floats.contains_key(key),
             Bool::Or(a, b) => a.eval(ctx, args)? || b.eval(ctx, args)?,
             Bool::And(a, b) => a.eval(ctx, args)? && b.eval(ctx, args)?,
             Bool::Gt(a, b) => a.eval(ctx, args)? > b.eval(ctx, args)?,

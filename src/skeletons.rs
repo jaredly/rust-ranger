@@ -54,6 +54,7 @@ pub mod component {
         pub facing: Facing,
         pub action: Action,
         pub action_timer: Option<(Action, f32)>,
+        pub pointing: Option<na::Vector2<f32>>,
         pub arm_action: ArmAction,
         pub timer: f32,
     }
@@ -65,6 +66,7 @@ pub mod component {
                 facing: Facing::Left,
                 action: Action::Stand,
                 action_timer: None,
+                pointing: None,
                 arm_action: ArmAction::None,
                 timer: 0.0,
             }
@@ -251,6 +253,7 @@ pub mod draw {
             let args = vec![];
             let mut floats = HashMap::new();
             let mut strings = HashMap::new();
+
             strings.insert(
                 "arm_action".into(),
                 match state.arm_action {
@@ -271,6 +274,14 @@ pub mod draw {
                     }
                 },
             );
+
+            if let Some(v) = state.pointing {
+                floats.insert("point_vx".into(), v.x);
+                floats.insert("point_vy".into(), v.y);
+                floats.insert("point_mag".into(), v.norm_squared().sqrt());
+                floats.insert("point_theta".into(), v.y.atan2(v.x));
+            }
+
             strings.insert(
                 "facing".into(),
                 match state.facing {

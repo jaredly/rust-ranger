@@ -108,7 +108,7 @@ impl Player {
         &self,
         physics: &PhysicsWorld<f32>,
         player_collider: DefaultColliderHandle,
-    ) -> Option<(DefaultColliderHandle, Entity)> {
+    ) -> Option<(DefaultColliderHandle, Entity, na::Vector2<f32>)> {
         let player_pos = physics.collider(player_collider).unwrap().position();
         let mut closest = None;
         for (handle, collider) in physics
@@ -125,13 +125,12 @@ impl Player {
             }
             if let Some(data) = collider.user_data() {
                 if let Some(entity) = data.downcast_ref::<Entity>() {
-                    let dist = (player_pos.translation.vector
-                        - collider.position().translation.vector)
-                        .norm_squared()
-                        .sqrt();
+                    let to_vec =
+                        player_pos.translation.vector - collider.position().translation.vector;
+                    let dist = (to_vec).norm_squared().sqrt();
                     match closest {
                         Some((_, d)) if d < dist => (),
-                        _ => closest = Some(((handle, *entity), dist)),
+                        _ => closest = Some(((handle, *entity, to_vec), dist)),
                     }
                 } else {
                     // println!("Not an entity {:?}", data.type_id())
@@ -219,6 +218,7 @@ impl<'a> System<'a> for PickupSys {
         ReadExpect<'a, raylib::RaylibHandle>,
         WriteExpect<'a, PhysicsWorld<f32>>,
         WriteStorage<'a, Player>,
+        WriteStorage<'a, skeletons::component::Skeleton>,
         // stuff to remove
         WriteStorage<'a, Body>,
         WriteStorage<'a, throw::Thrown>,
@@ -234,6 +234,7 @@ impl<'a> System<'a> for PickupSys {
             rl,
             mut physics_world,
             mut players,
+            mut skeletons,
             mut bodies,
             mut throwns,
             mut colliders,
@@ -242,20 +243,36 @@ impl<'a> System<'a> for PickupSys {
     ) {
         use raylib::consts::KeyboardKey::*;
         let mut to_remove = None;
-        if let Some((player, player_collider)) = (&mut players, &colliders).join().next() {
+        if let Some((player, skeleton, player_collider)) =
+            (&mut players, &mut skeletons, &colliders).join().next()
+        {
             if rl.is_key_down(KEY_C) {
                 if player.pickup_cooldown > 0.0 {
                     let tick = tick.0.as_micros() as f32 / 1000.0;
                     player.pickup_cooldown -= tick;
-                } else if let Some((collider_handle, entity)) =
+
+                    // point to the next thing
+                    if player.pickup_cooldown < 50.0 {
+                        if let Some((collider_handle, entity, to_vec)) =
+                            player.closest_pickupable_entity(&physics_world, player_collider.0)
+                        {
+                            skeleton.pointing = Some(to_vec);
+                            //
+                        }
+                    }
+                } else if let Some((collider_handle, entity, to_vec)) =
                     player.closest_pickupable_entity(&physics_world, player_collider.0)
                 {
                     to_remove = Some((collider_handle, entity));
+                    skeleton.pointing = Some(to_vec);
                     player.pickup_cooldown = 150.0;
-                    //
+                //
+                } else {
+                    skeleton.pointing = None;
                 }
             } else {
                 player.pickup_cooldown = 0.0;
+                skeleton.pointing = None;
             }
         }
         if let Some((collider_handle, entity)) = to_remove {

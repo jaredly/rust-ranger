@@ -127,6 +127,7 @@ fn outline_shape(rd: &mut DrawHandle, offset: Isometry2<f32>, shape: &dyn Shape<
 impl<'a> System<'a> for Draw {
     type SystemData = (
         WriteExpect<'a, raylib::RaylibHandle>,
+        Entities<'a>,
         Read<'a, crate::ZoomCamera>,
         Read<'a, crate::Camera>,
         ReadExpect<'a, PhysicsWorld<f32>>,
@@ -143,6 +144,7 @@ impl<'a> System<'a> for Draw {
         &mut self,
         (
             mut rl,
+            entities,
             zoom_camera,
             camera,
             physics,
@@ -156,6 +158,8 @@ impl<'a> System<'a> for Draw {
         ): Self::SystemData,
     ) {
         use raylib::core::drawing::RaylibDraw;
+
+        let pickup_key = rl.is_key_down(raylib::consts::KeyboardKey::KEY_C);
 
         let mut rd0 = rl.begin_drawing(&self.thread);
         rd0.clear_background(raylib::color::Color::WHITE);
@@ -208,7 +212,7 @@ impl<'a> System<'a> for Draw {
                 //     );
                 // }
 
-                if let Some((collider_handle, _entity)) =
+                if let Some((collider_handle, _entity, _to_vec)) =
                     player.closest_pickupable_entity(&physics, player_collider.0)
                 {
                     let collider = physics.collider(collider_handle).unwrap();
@@ -260,7 +264,25 @@ impl<'a> System<'a> for Draw {
                 }
             }
 
-            for (collider, skeleton, body) in (&colliders, &skeletons, &bodies).join() {
+            for (entity, collider, skeleton, body) in
+                (&entities, &colliders, &skeletons, &bodies).join()
+            {
+                // let pointing = if let Some(player) = player.get(entity) {
+                //     if pickup_key {
+                //         if let Some((collider_handle, entity, to_vec)) =
+                //             player.closest_pickupable_entity(&physics, collider.0)
+                //         {
+                //             Some(to_vec)
+                //         } else {
+                //             None
+                //         }
+                //     } else {
+                //         None
+                //     }
+                // } else {
+                //     None
+                // };
+
                 if let Some(collider) = physics.collider(collider.0) {
                     let v = physics
                         .rigid_body(body.0)
@@ -270,7 +292,16 @@ impl<'a> System<'a> for Draw {
                         .velocity();
                     let p = collider.position().translation.vector + offset;
                     let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
-                    match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p.into(), r, 1.0) {
+                    match skeleton_map.draw(
+                        &skeleton,
+                        &mut rd,
+                        &sheet,
+                        v,
+                        // pointing,
+                        p.into(),
+                        r,
+                        1.0,
+                    ) {
                         Ok(()) => (),
                         Err(err) => println!("Failed to draw! Scripting error {:?}", err),
                     };

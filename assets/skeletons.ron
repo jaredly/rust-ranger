@@ -95,6 +95,18 @@ Gt(
                         rotation: Plain(0),
                     ),
                 ),
+                If(VarExists("point_theta"),
+                            Plain(Bone(
+                                sprite: "female_arm.png",
+                                flip: StrEq(key: "facing", val: "right"),
+                                offset: (Plain(0.0), Plain(-0.02)),
+                                pivot_offset: (Plain(0), Plain(-0.3)),
+                                rotation: 
+                                Add(
+                                Mul(Div(Var("point_theta"), PI), Plain(180)),
+                                Plain(90),
+                                )
+                            )),
                 StrMatch(
                     "arm_action",
                     {
@@ -122,6 +134,7 @@ Gt(
                         ),
                     },
                 )                    // IfStrEq(key: "action", value: "walk", yes: , no: None),
+                )
 ,
             ],
         ),        /**
