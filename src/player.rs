@@ -172,26 +172,42 @@ impl<'a> System<'a> for PlayerSys {
             };
 
             let mut push = Vector2::new(0.0, 0.0);
-            if rl.is_key_down(KEY_W) && player.can_jump(&physics, &body.0) && v.y > -jump_speed {
-                let max_jump = -jump_speed - v.y;
-                skeleton.set_action(skeletons::component::Action::Jump);
-                push.y += max_jump;
+            fn on_ground(player: &Player, physics: &PhysicsWorld<f32>, body: &Body) -> bool {
+                player.can_jump(&physics, &body.0)
+            };
+            if skeleton.action == skeletons::component::Action::Jump
+                && v.y > 0.0
+                && on_ground(&player, &physics, &body)
+            {
+                println!("Reset to standing");
+                skeleton.set_action(skeletons::component::Action::Stand);
             }
             if rl.is_key_down(KEY_D) && player.can_go_right(&physics, &body.0) {
                 skeleton.face(skeletons::component::Facing::Right);
-                skeleton.set_action(skeletons::component::Action::Walk);
                 push.x += speed;
+                if skeleton.is_standing() && on_ground(&player, &physics, &body) {
+                    println!("Walk");
+                    skeleton.set_action(skeletons::component::Action::Walk);
+                }
             }
             if rl.is_key_down(KEY_A) && player.can_go_left(&physics, &body.0) {
                 skeleton.face(skeletons::component::Facing::Left);
-                skeleton.set_action(skeletons::component::Action::Walk);
+                if skeleton.is_standing() && on_ground(&player, &physics, &body) {
+                    println!("Walk");
+                    skeleton.set_action(skeletons::component::Action::Walk);
+                }
                 push.x -= speed;
+            }
+            if rl.is_key_down(KEY_W) && on_ground(&player, &physics, &body) && v.y > -jump_speed {
+                let max_jump = -jump_speed - v.y;
+                println!("Set to jumping");
+                skeleton.set_action(skeletons::component::Action::Jump);
+                push.y += max_jump;
             }
             // if rl.is_key_down(KEY_S) {
             //     push.y += speed;
             // }
             if push.x == 0.0 && push.y == 0.0 {
-                // skeleton.set_action(skeletons::component::Action::Stand);
                 continue;
             }
 

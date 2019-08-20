@@ -70,6 +70,10 @@ pub mod component {
             }
         }
 
+        pub fn is_standing(&self) -> bool {
+            self.action == Action::Stand
+        }
+
         pub fn face(&mut self, facing: Facing) {
             self.facing = facing;
         }
@@ -80,18 +84,6 @@ pub mod component {
                 self.timer = 0.0;
             }
         }
-
-        // pub fn action_name(&self) -> String {
-        //     format!(
-        //         "{}_{}",
-        //         self.name,
-        //         match self.action {
-        //             Action::Walk => "walking",
-        //             Action::Stand => "standing",
-        //             Action::Jump => "jumping",
-        //         }
-        //     )
-        // }
     }
 
     pub struct SkeletonSys;
@@ -108,12 +100,12 @@ pub mod component {
         fn run(&mut self, (tick, physics_world, bodies, mut skeletons): Self::SystemData) {
             let tick = tick.0.as_micros() as f32 / 1000.0;
             for (body, skeleton) in (&bodies, &mut skeletons).join() {
-                let v = physics_world
-                    .rigid_body(body.0)
-                    .unwrap()
-                    .part(0)
-                    .unwrap()
-                    .velocity();
+                // let v = physics_world
+                //     .rigid_body(body.0)
+                //     .unwrap()
+                //     .part(0)
+                //     .unwrap()
+                //     .velocity();
                 // skeleton.face(skeleton.facing.for_velocity(&v));
                 // let new_action = Action::for_velocity(&v);
                 // if new_action != skeleton.action {

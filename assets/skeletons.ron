@@ -4,7 +4,16 @@ Skeletons(
     },
     shared: {
         "run_freq": Plain(1000),
-        "vx_sin": Mul(Sin(Mul(TAU, Div(Time, Shared("run_freq")))), Abs(Vx)),
+        "vx_sin": 
+        If(StrEq(key: "action", val: "jump"),
+        Min(
+            Div(Time, Plain(50)),
+            Plain(4.0)
+        ),
+        // Mul(Sin(Mul(TAU, Div(Time, Shared("run_freq")))), Abs(Vx)),
+        Mul(Sin(Mul(TAU, Div(Time, Shared("run_freq")))), Abs(Vx))
+        )
+        ,
         "vx_sin_half": Mul(Sin(Mul(TAU, Div(Time, Div(Shared("run_freq"), Plain(2))))), Abs(Vx)),
         "vx_cos_half": Mul(
             Mul(
@@ -20,7 +29,11 @@ Skeletons(
     skeletons: {
         "female": Skeleton(
             shape: Capsule(width: 0.1, height: 0.1),
-            scale: Plain(0.3),
+            scale: 
+        // If(StrEq(key: "action", val: "jump"),
+        //     Plain(0.5),
+            Plain(0.3),
+        // ),
             offset: (Plain(0), Shared("body_offset")),
             bones: [
                 Plain(

@@ -313,6 +313,7 @@ fn main() {
                 let mut skeletons = world.write_resource::<skeletons::Skeletons>();
                 match skeletons::read(skel_file) {
                     Ok(skel) => {
+                        println!("Reload skeletons");
                         *skeletons = skel;
                         skel_change = skel_new;
                     }
