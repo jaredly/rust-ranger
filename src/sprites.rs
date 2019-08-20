@@ -32,32 +32,59 @@ impl Coords {
     fn from(node: &sxd_xpath::nodeset::Node, texture: &str) -> Option<Self> {
         match node {
             Node::Element(element) => {
-                if element.name().local_part() != "SubTexture" {
-                    return None;
+                match element.name().local_part() {
+                    "sprite" => {
+                        let name: String = element.attribute_value("n").unwrap().into();
+                        let x = element.attr::<usize>("x");
+                        let y = element.attr::<usize>("y");
+                        let width = element.attr::<usize>("w");
+                        let height = element.attr::<usize>("h");
+                        let px = element.attr_opt::<f32>("pX", 0.5);
+                        let py = element.attr_opt::<f32>("pY", 0.5);
+                        Some(Coords {
+                            name,
+                            rect: raylib::math::Rectangle::new(
+                                x as f32,
+                                y as f32,
+                                width as f32,
+                                height as f32,
+                            ),
+                            // x,
+                            // y,
+                            // width,
+                            // height,
+                            px,
+                            py,
+                            texture: texture.to_owned(),
+                        })
+                    }
+                    "SubTexture" => {
+                        let name: String = element.attribute_value("name").unwrap().into();
+                        let x = element.attr::<usize>("x");
+                        let y = element.attr::<usize>("y");
+                        let width = element.attr::<usize>("width");
+                        let height = element.attr::<usize>("height");
+                        let px = element.attr_opt::<f32>("pX", 0.5);
+                        let py = element.attr_opt::<f32>("pY", 0.5);
+                        Some(Coords {
+                            name,
+                            rect: raylib::math::Rectangle::new(
+                                x as f32,
+                                y as f32,
+                                width as f32,
+                                height as f32,
+                            ),
+                            // x,
+                            // y,
+                            // width,
+                            // height,
+                            px,
+                            py,
+                            texture: texture.to_owned(),
+                        })
+                    }
+                    _ => None,
                 }
-                let name: String = element.attribute_value("name").unwrap().into();
-                let x = element.attr::<usize>("x");
-                let y = element.attr::<usize>("y");
-                let width = element.attr::<usize>("width");
-                let height = element.attr::<usize>("height");
-                let px = element.attr_opt::<f32>("pX", 0.5);
-                let py = element.attr_opt::<f32>("pY", 0.5);
-                Some(Coords {
-                    name,
-                    rect: raylib::math::Rectangle::new(
-                        x as f32,
-                        y as f32,
-                        width as f32,
-                        height as f32,
-                    ),
-                    // x,
-                    // y,
-                    // width,
-                    // height,
-                    px,
-                    py,
-                    texture: texture.to_owned(),
-                })
             }
             _ => None,
         }
@@ -79,14 +106,26 @@ use sxd_xpath::{evaluate_xpath, Value};
 fn get_coords(root: Package, texture: &str) -> Vec<Coords> {
     let doc = root.as_document();
     let result = evaluate_xpath(&doc, "/*/SubTexture");
-    match result {
+    let mut sprites: Vec<Coords> = match result {
         Ok(Value::Nodeset(nodes)) => nodes
             .document_order()
             .iter()
             .filter_map(|node| Coords::from(node, texture))
             .collect(),
         _ => panic!("Invalid xml file"),
+    };
+    let result = evaluate_xpath(&doc, "/*/sprite");
+    match result {
+        Ok(Value::Nodeset(nodes)) => sprites.append(
+            &mut nodes
+                .document_order()
+                .iter()
+                .filter_map(|node| Coords::from(node, texture))
+                .collect::<Vec<Coords>>(),
+        ),
+        _ => panic!("Invalid xml file"),
     }
+    sprites
     // let mut current = root.first_child().expect("No children");
     // loop {
     //   if current.name() == "SubTexture"

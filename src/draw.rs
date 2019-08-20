@@ -260,7 +260,13 @@ impl<'a> System<'a> for Draw {
                         }
                     }
 
-                    // draw_shape(&mut rd, *collider.position(), collider.shape(), 0.0, raylib::color::Color::RED);
+                    // draw_shape(
+                    //     &mut rd,
+                    //     *collider.position() + offset,
+                    //     collider.shape(),
+                    //     0.0,
+                    //     raylib::color::Color::new(255, 0, 0, 100),
+                    // );
                 }
             }
 

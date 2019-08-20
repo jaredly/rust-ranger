@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate specs_derive;
+#[macro_use]
+extern crate lazy_static;
 
 use specs::prelude::*;
 
@@ -12,6 +14,7 @@ pub static WORLD_WIDTH: f32 = 100.0;
 pub const BALL_RADIUS: f32 = 0.1;
 
 mod basics;
+mod config;
 mod draw;
 mod groups;
 mod player;
@@ -183,7 +186,7 @@ impl Default for ZoomCamera {
             target: raylib::math::Vector2::new(0.0, 0.0),
             offset: raylib::math::Vector2::new(0.0, 0.0),
             rotation: 0.0,
-            zoom: 100.0,
+            zoom: config::with(|config| config.zoom),
         })
     }
 }
@@ -203,27 +206,45 @@ struct CameraFollowSys;
 impl<'a> System<'a> for CameraFollowSys {
     type SystemData = (
         Write<'a, Camera>,
+        Read<'a, config::Config>,
+        Read<'a, ZoomCamera>,
         ReadExpect<'a, PhysicsWorld<f32>>,
         ReadStorage<'a, player::Player>,
         ReadStorage<'a, Collider>,
     );
 
-    fn run(&mut self, (mut camera, physics, players, colliders): Self::SystemData) {
+    fn run(
+        &mut self,
+        (mut camera, config, zoom_camera, physics, players, colliders): Self::SystemData,
+    ) {
+        let view_width = config.screen_size as f32 / zoom_camera.0.zoom;
+        let offset = config.screen_size as f32 / zoom_camera.0.zoom / 2.0;
+        let margin = offset / 6.0;
         for (_player, collider) in (&players, &colliders).join() {
             let collider = physics.collider(collider.0).unwrap();
             let p = collider.position().translation;
-            camera.pos = Vector2::new(p.x - 2.5, p.y - 2.5);
+            camera.pos.x = camera
+                .pos
+                .x
+                .max(p.x - offset + margin - offset)
+                .min(p.x - offset - margin + offset);
+            camera.pos.y = camera
+                .pos
+                .y
+                .max(p.y - offset + margin - offset)
+                .min(p.y - offset - margin + offset);
+            // camera.pos = Vector2::new(p.x - offset, p.y - offset);
         }
     }
 }
 
 fn main() {
     // screen
-    let screen_w = 500;
-    let screen_h = 500;
+    let screen_w = config::with(|c| c.screen_size);
+    let screen_h = config::with(|c| c.screen_size);
 
     let (mut rl, thread) = raylib::init()
-        .size(screen_w, screen_h)
+        .size(screen_w as i32, screen_h as i32)
         .title("Examples")
         .build();
     rl.set_target_fps(60);
@@ -254,6 +275,7 @@ fn main() {
         "assets/spritesheet_tiles.png",
         "assets/spritesheet_tiles.xml",
     );
+    sprites.add(&mut rl, &thread, "assets/extras.png", "assets/extras.xml");
 
     let mut world = World::new();
 
@@ -270,6 +292,7 @@ fn main() {
         .with(player::PickupSys, "pickup", &["p_move"])
         .with(ArrowSys, "arrows", &["sensor_until"])
         .with(GravitySys, "gravity_on_collide", &["p_move"])
+        .with(throw::FletchingSys, "fletching", &["p_move"])
         .with_thread_local(draw::Draw { thread })
         .build();
 
@@ -279,8 +302,9 @@ fn main() {
 
     let ball_shape = ShapeHandle::new(Ball::new(BALL_RADIUS));
 
-    let phys_w = screen_w as f32 / 100.0;
-    let phys_h = screen_h as f32 / 100.0;
+    let zoom = ZoomCamera::default().0.zoom;
+    let phys_w = screen_w as f32 / zoom;
+    let phys_h = screen_h as f32 / zoom;
 
     // three rings of apples
     for i in 0..90 {
@@ -356,6 +380,12 @@ fn main() {
     world.add_resource(sprites);
     world.add_resource(rl);
 
+    world.add_resource(config::Config::default());
+    let mut config_change = std::fs::metadata(config::CONFIG_FILE)
+        .unwrap()
+        .modified()
+        .unwrap();
+
     let skel_file = "./assets/skeletons.ron";
 
     let skeletons = skeletons::read(skel_file).unwrap();
@@ -370,16 +400,37 @@ fn main() {
             let now = std::time::Instant::now();
             *tick = basics::Tick(now - last);
             last = now;
-            let skel_new = std::fs::metadata(skel_file).unwrap().modified().unwrap();
-            if skel_new > skel_change {
-                let mut skeletons = world.write_resource::<skeletons::Skeletons>();
-                match skeletons::read(skel_file) {
-                    Ok(skel) => {
-                        println!("Reload skeletons");
-                        *skeletons = skel;
-                        skel_change = skel_new;
+            {
+                let config_new = std::fs::metadata(config::CONFIG_FILE)
+                    .unwrap()
+                    .modified()
+                    .unwrap();
+                if config_new > config_change {
+                    let mut config = world.write_resource::<config::Config>();
+                    match config::read(config::CONFIG_FILE) {
+                        Ok(conf) => {
+                            println!("Reload config");
+                            *config = conf.clone();
+                            config::with(|config| *config = conf);
+                            config_change = config_new;
+                        }
+                        Err(_) => (),
                     }
-                    Err(_) => (),
+                }
+            }
+
+            {
+                let skel_new = std::fs::metadata(skel_file).unwrap().modified().unwrap();
+                if skel_new > skel_change {
+                    let mut skeletons = world.write_resource::<skeletons::Skeletons>();
+                    match skeletons::read(skel_file) {
+                        Ok(skel) => {
+                            println!("Reload skeletons");
+                            *skeletons = skel;
+                            skel_change = skel_new;
+                        }
+                        Err(_) => (),
+                    }
                 }
             }
         }
