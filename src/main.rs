@@ -8,7 +8,8 @@ use ncollide2d::shape::{Ball, Cuboid, ShapeHandle};
 use nphysics2d::object::{BodyPartHandle, ColliderDesc, DefaultBodyHandle, Ground, RigidBodyDesc};
 extern crate nalgebra as na;
 
-const BALL_RADIUS: f32 = 0.1;
+pub static WORLD_WIDTH: f32 = 100.0;
+pub const BALL_RADIUS: f32 = 0.1;
 
 mod basics;
 mod draw;
@@ -33,7 +34,7 @@ fn make_blocks(
     phys_w: f32,
     phys_h: f32,
 ) {
-    let w = phys_w / BLOCK_SIZE * 100.0;
+    let w = WORLD_WIDTH / BLOCK_SIZE;
 
     for y in 1..8 {
         for i in 0..w as usize {
@@ -128,6 +129,36 @@ fn add_block(
             name: "brick_grey.png".into(),
             scale: 0.4,
         })
+        .build();
+}
+
+fn add_wall(
+    world: &mut World,
+    physics_world: &mut PhysicsWorld<f32>,
+    ground_handle: DefaultBodyHandle,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+) {
+    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(w / 2.0, h / 2.0)));
+    let ground_collider = ColliderDesc::new(ground_shape)
+        .translation(Vector2::new(x, y))
+        .collision_groups(groups::member_all_but_player())
+        .build(BodyPartHandle(ground_handle, 0));
+    let ground_collider = physics_world.colliders.insert(ground_collider);
+    world
+        .create_entity()
+        .with(Collider(ground_collider))
+        .with(Drawable::Rect {
+            color: raylib::color::Color::BLACK,
+            width: w,
+            height: h,
+        })
+        // .with(Drawable::Sprite {
+        //     name: "brick_grey.png".into(),
+        //     scale: 0.4,
+        // })
         .build();
 }
 
@@ -281,6 +312,25 @@ fn main() {
 
     // Add ground to system
     let ground_handle = physics_world.bodies.insert(Ground::new());
+
+    add_wall(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        -0.3,
+        -100.0,
+        0.1,
+        300.0,
+    );
+    add_wall(
+        &mut world,
+        &mut physics_world,
+        ground_handle,
+        WORLD_WIDTH,
+        -100.0,
+        0.1,
+        300.0,
+    );
 
     make_blocks(
         &mut world,
