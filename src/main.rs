@@ -84,6 +84,18 @@ impl<'a> System<'a> for GravitySys {
         for (entity, _, body, collider) in (&entities, &gravities, &bodies, &colliders).join() {
             let mut remove = false;
             if physics_world
+                .rigid_body(body.0)
+                .unwrap()
+                .part(0)
+                .unwrap()
+                .velocity()
+                .linear
+                .norm_squared()
+                > 0.0
+            {
+                remove = true;
+            }
+            if physics_world
                 .geom
                 .colliders_in_contact_with(&physics_world.colliders, collider.0)
                 .unwrap()
@@ -117,13 +129,14 @@ fn add_block(
         BLOCK_SIZE / 2.0,
         BLOCK_SIZE / 2.0,
     )));
+    let builder = world.create_entity();
     let ground_collider = ColliderDesc::new(ground_shape)
+        .user_data(builder.entity)
         .translation(Vector2::new(x, y))
         .collision_groups(groups::member_all_but_player())
         .build(BodyPartHandle(ground_handle, 0));
     let ground_collider = physics_world.colliders.insert(ground_collider);
-    world
-        .create_entity()
+    builder
         .with(Collider(ground_collider))
         .with(Drawable::Sprite {
             name: "brick_grey.png".into(),
@@ -141,14 +154,15 @@ fn add_wall(
     w: f32,
     h: f32,
 ) {
+    let builder = world.create_entity();
     let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(w / 2.0, h / 2.0)));
     let ground_collider = ColliderDesc::new(ground_shape)
+        .user_data(builder.entity)
         .translation(Vector2::new(x, y))
         .collision_groups(groups::member_all_but_player())
         .build(BodyPartHandle(ground_handle, 0));
     let ground_collider = physics_world.colliders.insert(ground_collider);
-    world
-        .create_entity()
+    builder
         .with(Collider(ground_collider))
         .with(Drawable::Rect {
             color: raylib::color::Color::BLACK,
@@ -253,6 +267,7 @@ fn main() {
         .with(PhysicsMove, "p_move", &["player_move"])
         .with(throw::ThrownSys, "sensor_until", &["p_move"])
         .with(CameraFollowSys, "camera_follow", &["p_move"])
+        .with(player::PickupSys, "pickup", &["p_move"])
         .with(ArrowSys, "arrows", &["sensor_until"])
         .with(GravitySys, "gravity_on_collide", &["p_move"])
         .with_thread_local(draw::Draw { thread })
@@ -268,38 +283,35 @@ fn main() {
     let phys_h = screen_h as f32 / 100.0;
 
     // three rings of apples
-    let ball_handles: Vec<_> = (0..90)
-        .map(|i| {
-            let level = (i / 30) as f32;
-            let radius = phys_h / 6.0 * (2.0 + level);
-            let i = i % 30;
-            let cx = phys_w / 2.0;
-            let cy = phys_h / 2.0;
-            let theta = i as f32 / 30.0 * std::f32::consts::PI * 2.0;
-            let x = theta.cos() * radius + cx;
-            let y = theta.sin() * radius + cy;
+    for i in 0..90 {
+        let level = (i / 30) as f32;
+        let radius = phys_h / 6.0 * (2.0 + level);
+        let i = i % 30;
+        let cx = phys_w / 2.0;
+        let cy = phys_h / 2.0;
+        let theta = i as f32 / 30.0 * std::f32::consts::PI * 2.0;
+        let x = theta.cos() * radius + cx;
+        let y = theta.sin() * radius + cy;
 
-            // Build the rigid body.
-            let mut rb = RigidBodyDesc::new().translation(Vector2::new(x, y)).build();
-            use nphysics2d::object::Body;
-            rb.enable_gravity(false);
-            let rb_handle = physics_world.bodies.insert(rb);
+        // Build the rigid body.
+        let mut rb = RigidBodyDesc::new().translation(Vector2::new(x, y)).build();
+        use nphysics2d::object::Body;
+        rb.enable_gravity(false);
+        let rb_handle = physics_world.bodies.insert(rb);
 
-            // Build the collider.
-            let co = ColliderDesc::new(ball_shape.clone())
-                .density(1.0)
-                .collision_groups(groups::member_all_but_player())
-                .build(BodyPartHandle(rb_handle, 0));
-            let co_handle = physics_world.colliders.insert(co);
+        let builder = world.create_entity();
 
-            (rb_handle, co_handle)
-        })
-        .collect();
-    for (body, collider) in ball_handles {
-        world
-            .create_entity()
-            .with(Body(body))
-            .with(Collider(collider))
+        // Build the collider.
+        let co = ColliderDesc::new(ball_shape.clone())
+            .density(1.0)
+            .user_data(builder.entity)
+            .collision_groups(groups::member_all_but_player())
+            .build(BodyPartHandle(rb_handle, 0));
+        let co_handle = physics_world.colliders.insert(co);
+
+        builder
+            .with(Body(rb_handle))
+            .with(Collider(co_handle))
             .with(GravityOnCollide)
             .with(Drawable::Sprite {
                 name: "apple.png".to_owned(),

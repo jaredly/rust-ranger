@@ -165,46 +165,60 @@ impl<'a> System<'a> for Draw {
             let offset = -camera.pos;
 
             for (player, player_collider) in (&player, &colliders).join() {
-                let collider = physics.collider(player.pickup).unwrap();
-                let p = collider.position();
-                draw_shape(
-                    &mut rd,
-                    Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
-                    collider.shape(),
-                    0.0,
-                    raylib::color::Color::new(255, 100, 225, 255),
-                );
+                // let collider = physics.collider(player.pickup).unwrap();
+                // let p = collider.position();
+                // draw_shape(
+                //     &mut rd,
+                //     Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+                //     collider.shape(),
+                //     0.0,
+                //     raylib::color::Color::new(255, 100, 225, 255),
+                // );
 
-                let collider = physics.collider(player_collider.0).unwrap();
-                let p = collider.position();
-                draw_shape(
-                    &mut rd,
-                    Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
-                    collider.shape(),
-                    0.0,
-                    raylib::color::Color::new(100, 100, 225, 255),
-                );
+                // let collider = physics.collider(player_collider.0).unwrap();
+                // let p = collider.position();
+                // draw_shape(
+                //     &mut rd,
+                //     Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+                //     collider.shape(),
+                //     0.0,
+                //     raylib::color::Color::new(100, 100, 225, 255),
+                // );
 
                 // if let Some(collider) = physics.collider(player.pickup);
-                for (handle, collider) in physics
-                    .geom
-                    .colliders_in_proximity_of(&physics.colliders, player.pickup)
-                    .unwrap()
+                // for (handle, collider) in physics
+                //     .geom
+                //     .colliders_in_proximity_of(&physics.colliders, player.pickup)
+                //     .unwrap()
+                // {
+                //     if collider.is_sensor() || handle == player_collider.0 {
+                //         continue;
+                //     }
+                //     let body = physics.rigid_body(collider.body()).unwrap();
+                //     if body.is_ground() {
+                //         continue;
+                //     }
+                //     let p = collider.position();
+                //     draw_shape(
+                //         &mut rd,
+                //         Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+                //         collider.shape(),
+                //         0.1,
+                //         raylib::color::Color::new(255, 255, 100, 255),
+                //     );
+                // }
+
+                if let Some((collider_handle, _entity)) =
+                    player.closest_pickupable_entity(&physics, player_collider.0)
                 {
-                    if collider.is_sensor() || handle == player_collider.0 {
-                        continue;
-                    }
-                    let body = physics.rigid_body(collider.body()).unwrap();
-                    if body.is_ground() {
-                        continue;
-                    }
+                    let collider = physics.collider(collider_handle).unwrap();
                     let p = collider.position();
                     draw_shape(
                         &mut rd,
                         Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
                         collider.shape(),
-                        0.1,
-                        raylib::color::Color::new(255, 255, 100, 255),
+                        0.04,
+                        raylib::color::Color::new(255, 255, 100, 200),
                     );
                 }
             }

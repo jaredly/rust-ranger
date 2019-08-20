@@ -119,15 +119,17 @@ impl<'a> System<'a> for ArrowSys {
                                 nphysics2d::material::MaterialCombineMode::Multiply;
                             let mh = nphysics2d::material::MaterialHandle::new(material);
 
+                            let entity = entities.create();
+
                             let co = ColliderDesc::new(ball_shape.clone())
                                 .density(1.0)
+                                .user_data(entity)
                                 .material(mh)
                                 .ccd_enabled(true)
                                 .collision_groups(crate::groups::collide_all_but_player())
                                 .build(BodyPartHandle(rb_handle, 0));
                             let co_handle = physics_world.colliders.insert(co);
 
-                            let entity = entities.create();
                             sensors
                                 .insert(entity, Thrown(arrow.1, crate::groups::PLAYER_GROUP))
                                 .unwrap();

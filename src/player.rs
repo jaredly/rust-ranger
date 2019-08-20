@@ -18,6 +18,7 @@ pub struct Player {
     left: DefaultColliderHandle,
     right: DefaultColliderHandle,
     pub pickup: DefaultColliderHandle,
+    pickup_cooldown: f32,
 }
 
 impl Player {
@@ -29,26 +30,33 @@ impl Player {
         let height = 0.3;
         let width = 0.1;
         let offset = 0.07;
+
+        let builder = world.create_entity();
+
         let mut body = RigidBodyDesc::new().translation(position).build();
         body.set_rotations_kinematic(true);
         let rb = physics_world.bodies.insert(body);
         let collider = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .density(1.0)
+            .user_data(builder.entity)
             .collision_groups(groups::player())
             .build(BodyPartHandle(rb, 0));
         // this is the only one that's not in the player group
         let sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .sensor(true)
+            .user_data(builder.entity)
             .collision_groups(groups::member_all_but_player())
             .build(BodyPartHandle(rb, 0));
         let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
             .sensor(true)
+            .user_data(builder.entity)
             .collision_groups(groups::player())
             .translation(Vector2::new(0.0, offset))
             .build(BodyPartHandle(rb, 0));
         let left_sensor = physics_world.colliders.insert(
             ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
                 .sensor(true)
+                .user_data(builder.entity)
                 .collision_groups(groups::player())
                 .translation(Vector2::new(-offset, 0.0))
                 .build(BodyPartHandle(rb, 0)),
@@ -56,6 +64,7 @@ impl Player {
         let right_sensor = physics_world.colliders.insert(
             ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
                 .sensor(true)
+                .user_data(builder.entity)
                 .collision_groups(groups::player())
                 .translation(Vector2::new(offset, 0.0))
                 .build(BodyPartHandle(rb, 0)),
@@ -68,6 +77,7 @@ impl Player {
                 width + pickup_margin * 4.0,
             )))
             .sensor(true)
+            .user_data(builder.entity)
             .collision_groups(groups::player())
             .build(BodyPartHandle(rb, 0)),
         );
@@ -75,8 +85,7 @@ impl Player {
         let cb = physics_world.colliders.insert(collider);
         let jcb = physics_world.colliders.insert(jump_sensor);
         let sensor_handle = physics_world.colliders.insert(sensor);
-        world
-            .create_entity()
+        builder
             .with(Body(rb))
             .with(throw::ArrowLauncher(None, sensor_handle))
             .with(skeletons::component::Skeleton::new("female"))
@@ -85,6 +94,7 @@ impl Player {
                 left: left_sensor,
                 right: right_sensor,
                 pickup: pickup_sensor,
+                pickup_cooldown: 0.0,
             })
             .with(Collider(cb))
             // .with(Drawable::Sprite {
@@ -92,6 +102,48 @@ impl Player {
             //     scale: 0.4,
             // })
             .build();
+    }
+
+    pub fn closest_pickupable_entity(
+        &self,
+        physics: &PhysicsWorld<f32>,
+        player_collider: DefaultColliderHandle,
+    ) -> Option<(DefaultColliderHandle, Entity)> {
+        let player_pos = physics.collider(player_collider).unwrap().position();
+        let mut closest = None;
+        for (handle, collider) in physics
+            .geom
+            .colliders_in_proximity_of(&physics.colliders, self.pickup)
+            .unwrap()
+        {
+            if collider.is_sensor() || handle == player_collider {
+                continue;
+            }
+            let body = physics.rigid_body(collider.body()).unwrap();
+            if body.is_ground() {
+                continue;
+            }
+            if let Some(data) = collider.user_data() {
+                if let Some(entity) = data.downcast_ref::<Entity>() {
+                    let dist = (player_pos.translation.vector
+                        - collider.position().translation.vector)
+                        .norm_squared()
+                        .sqrt();
+                    match closest {
+                        Some((_, d)) if d < dist => (),
+                        _ => closest = Some(((handle, *entity), dist)),
+                    }
+                } else {
+                    // println!("Not an entity {:?}", data.type_id())
+                }
+            } else {
+                // println!("No data")
+            }
+        }
+        match closest {
+            None => None,
+            Some((res, _)) => Some(res),
+        }
     }
 
     fn can_go_left(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
@@ -156,6 +208,69 @@ impl Player {
             return true;
         }
         false
+    }
+}
+
+pub struct PickupSys;
+impl<'a> System<'a> for PickupSys {
+    type SystemData = (
+        Read<'a, Tick>,
+        Entities<'a>,
+        ReadExpect<'a, raylib::RaylibHandle>,
+        WriteExpect<'a, PhysicsWorld<f32>>,
+        WriteStorage<'a, Player>,
+        // stuff to remove
+        WriteStorage<'a, Body>,
+        WriteStorage<'a, throw::Thrown>,
+        WriteStorage<'a, Collider>,
+        WriteStorage<'a, crate::draw::Drawable>,
+    );
+
+    fn run(
+        &mut self,
+        (
+            tick,
+            entities,
+            rl,
+            mut physics_world,
+            mut players,
+            mut bodies,
+            mut throwns,
+            mut colliders,
+            mut drawables,
+        ): Self::SystemData,
+    ) {
+        use raylib::consts::KeyboardKey::*;
+        let mut to_remove = None;
+        if let Some((player, player_collider)) = (&mut players, &colliders).join().next() {
+            if rl.is_key_down(KEY_C) {
+                if player.pickup_cooldown > 0.0 {
+                    let tick = tick.0.as_micros() as f32 / 1000.0;
+                    player.pickup_cooldown -= tick;
+                } else if let Some((collider_handle, entity)) =
+                    player.closest_pickupable_entity(&physics_world, player_collider.0)
+                {
+                    to_remove = Some((collider_handle, entity));
+                    player.pickup_cooldown = 150.0;
+                    //
+                }
+            } else {
+                player.pickup_cooldown = 0.0;
+            }
+        }
+        if let Some((collider_handle, entity)) = to_remove {
+            let Body(body_handle) = bodies.get(entity).unwrap();
+            physics_world.bodies.remove(*body_handle);
+            bodies.remove(entity);
+
+            physics_world.colliders.remove(collider_handle);
+            colliders.remove(entity);
+
+            drawables.remove(entity);
+            throwns.remove(entity);
+
+            entities.delete(entity);
+        }
     }
 }
 
