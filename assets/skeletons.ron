@@ -82,6 +82,35 @@ Skeletons(
                     ),
                 ),
                 If(
+                    StrEq(key: "arm_action", val: "throw"),
+                    Plain(
+                        Bone(
+                            sprite: "arrow_thinner.png",
+                            flip: True,
+                            // offset: (
+                            //     If(Gt(Var("throw_vx"), Plain(0)), Plain(0.2), Plain(-0.2)),
+                            //     Plain(-0.2),
+                            // ),
+                            offset: (
+                                Mul(Plain(0.3), Cos(Var("throw_theta"))),
+                                Add(Plain(-0.2), Mul(Plain(0.3), Sin(Var("throw_theta")))),
+                            ),
+                            // pivot_offset: (Plain(0), Plain(0.0)),
+                            pivot_offset: (Plain(0), Add(Plain(0.5), Mul(Plain(-0.02), Var("throw_mag")))),
+                            scale: Plain(1.5),
+                            rotation: If(
+                                Gt(Var("throw_vx"), Plain(0)),
+                                Add(
+                                    Add(Mul(Div(Var("throw_theta"), PI), Plain(180)), Plain(180)),
+                                    Plain(-90),
+                                ),
+                                Add(Plain(90), Mul(Div(Var("throw_theta"), PI), Plain(180))),
+                            ),
+                        ),
+                    ),
+                    None,
+                ),
+                If(
                     VarExists("point_theta"),
                     Plain(
                         Bone(
