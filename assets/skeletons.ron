@@ -125,12 +125,7 @@ Skeletons(
                                     sprite: "female_arm.png",
                                     flip: StrEq(key: "facing", val: "right"),
                                     offset: (Plain(0), Plain(-0.2)),
-                                    pivot_offset: (Plain(0), 
-                                    Add(
-                                        Plain(-0.3),
-                                        Mul(Plain(0.02), Var("throw_mag"))
-                                    )
-                                    ),
+                                    pivot_offset: (Plain(0), Add(Plain(-0.3), Mul(Plain(0.02), Var("throw_mag")))),
                                     rotation: If(
                                         Gt(Var("throw_vx"), Plain(0)),
                                         Add(
@@ -139,7 +134,7 @@ Skeletons(
                                         ),
                                         Add(
                                             Mul(Div(Var("throw_theta"), PI), Plain(180)),
-                                            Plain(-90)
+                                            Plain(-90),
                                         ),
                                     ),
                                 ),
