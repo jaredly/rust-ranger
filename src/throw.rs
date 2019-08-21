@@ -165,7 +165,13 @@ impl<'a> System<'a> for ArrowSys {
                                 scale: 0.5,
                             };
 
-                            let vec = (start - end) / zoom_camera.0.zoom * 3.0;
+                            let mut vec = (start - end) * crate::config::with(|config|config.throw_mul);
+                            let amt = vec.norm_squared().sqrt();
+                            let max = crate::config::with(|config|config.throw_max);
+                            if amt > max {
+                                vec.x *= max / amt;
+                                vec.y *= max / amt;
+                            }
                             let vel = nphysics2d::algebra::Velocity2::new(vec, 0.0);
                             let rb = RigidBodyDesc::new()
                                 .translation(pos.vector)

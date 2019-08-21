@@ -210,6 +210,7 @@ impl Player {
     }
 }
 
+
 pub struct PickupSys;
 impl<'a> System<'a> for PickupSys {
     type SystemData = (
@@ -243,6 +244,11 @@ impl<'a> System<'a> for PickupSys {
     ) {
         use raylib::consts::KeyboardKey::*;
         let mut to_remove = None;
+        fn empty_vec(left: bool) -> Vector2<f32> {
+            let a = crate::config::with(|config|config.pickup_empty_angle);
+            let a = a / 180.0 * std::f32::consts::PI + if left {std::f32::consts::PI} else {0.0};
+            Vector2::new(a.cos(), a.sin())
+        }
         if let Some((player, skeleton, player_collider)) =
             (&mut players, &mut skeletons, &colliders).join().next()
         {
@@ -252,12 +258,17 @@ impl<'a> System<'a> for PickupSys {
                     player.pickup_cooldown -= tick;
 
                     // point to the next thing
-                    if player.pickup_cooldown < 50.0 {
+                    if player.pickup_cooldown < crate::config::with(|config|config.pickup_switch) {
                         if let Some((collider_handle, entity, to_vec)) =
                             player.closest_pickupable_entity(&physics_world, player_collider.0)
                         {
+                            // skeleton.pointing = Some(to_vec);
+                            to_remove = Some((collider_handle, entity));
                             skeleton.pointing = Some(to_vec);
+                            player.pickup_cooldown = crate::config::with(|config|config.pickup_cooldown);
                             //
+                        } else {
+                            skeleton.pointing = Some(empty_vec(skeleton.facing == skeletons::component::Facing::Left))
                         }
                     }
                 } else if let Some((collider_handle, entity, to_vec)) =
@@ -265,10 +276,10 @@ impl<'a> System<'a> for PickupSys {
                 {
                     to_remove = Some((collider_handle, entity));
                     skeleton.pointing = Some(to_vec);
-                    player.pickup_cooldown = 150.0;
+                    player.pickup_cooldown = crate::config::with(|config|config.pickup_cooldown);
                 //
                 } else {
-                    skeleton.pointing = None;
+                    skeleton.pointing = Some(empty_vec(skeleton.facing == skeletons::component::Facing::Left))
                 }
             } else {
                 player.pickup_cooldown = 0.0;

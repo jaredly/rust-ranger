@@ -10,11 +10,16 @@ pub struct Config {
     pub screen_size: usize,
     pub zoom: f32,
     pub arrowhead_density: f32,
+    pub throw_mul: f32,
+    pub throw_max: f32,
     pub arrowhead_size: f32,
     pub fletching_torque: f32,
     pub fletching_max_torque: f32,
     pub fletching_min: f32,
     pub fletching_min_vel: f32,
+    pub pickup_cooldown: f32,
+    pub pickup_switch: f32,
+    pub pickup_empty_angle: f32,
 }
 
 impl Default for Config {

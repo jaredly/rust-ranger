@@ -73,12 +73,7 @@ Skeletons(
                         sprite: "female_head.png",
                         flip: If(
                             StrEq(key: "arm_action", val: "throw"),
-                                                            // False,
-                                // True,
-Gt(
-                                Var("throw_vx"),
-                                Plain(0),
-                            ),
+                            Gt(Var("throw_vx"), Plain(0)),
                             StrEq(key: "facing", val: "right"),
                         ),
                         offset: (Plain(0), Plain(-0.8)),
@@ -126,9 +121,28 @@ Gt(
                                 ),
                             ),
                         },
-                    )                        // IfStrEq(key: "action", value: "walk", yes: , no: None),
-,
+                    ),
                 ),
+                    If(
+                        StrEq(key: "arm_action", val: "throw"),
+                        Plain(Bone(
+                            sprite: "bow.png",
+                            flip: StrEq(key: "facing", val: "right"),
+                            offset: (Plain(0), Plain(0.0)),
+                            pivot_offset: (Plain(0), Plain(0.0)),
+                            scale: Plain(1.5),
+                            rotation: If(
+                                Gt(Var("throw_vx"), Plain(0)),
+                                Add(
+
+                                Add(Mul(Div(Var("throw_theta"), PI), Plain(180)), Plain(180)),
+                                Plain(45),
+                                ),
+                                Add(Plain(-135), Mul(Div(Var("throw_theta"), PI), Plain(180))),
+                            ),
+                        )),
+                        None,
+                    ),
             ],
         ),        /**
 Ok what would a good system look like here?

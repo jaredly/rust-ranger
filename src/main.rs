@@ -344,7 +344,11 @@ fn main() {
             .build();
     }
 
-    player::Player::create_entity(&mut world, &mut physics_world, Vector2::new(3.0, 1.0));
+    player::Player::create_entity(
+        &mut world,
+        &mut physics_world,
+        Vector2::new(3.0, phys_h * 0.8),
+    );
 
     // Add ground to system
     let ground_handle = physics_world.bodies.insert(Ground::new());
