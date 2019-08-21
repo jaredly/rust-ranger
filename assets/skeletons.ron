@@ -104,7 +104,7 @@ Skeletons(
                                     rotation: Mul(Shared("vx_sin"), Plain(10)),
                                 ),
                             ),
-                            "throw": Plain(
+                            "throw_arm": Plain(
                                 Bone(
                                     sprite: "female_arm.png",
                                     flip: StrEq(key: "facing", val: "right"),
@@ -120,29 +120,61 @@ Skeletons(
                                     ),
                                 ),
                             ),
+                            "throw": Plain(
+                                Bone(
+                                    sprite: "female_arm.png",
+                                    flip: StrEq(key: "facing", val: "right"),
+                                    offset: (Plain(0), Plain(-0.2)),
+                                    pivot_offset: (Plain(0), 
+                                    Add(
+                                        Plain(-0.3),
+                                        Mul(Plain(0.02), Var("throw_mag"))
+                                    )
+                                    ),
+                                    rotation: If(
+                                        Gt(Var("throw_vx"), Plain(0)),
+                                        Add(
+                                            Mul(Div(Var("throw_theta"), PI), Plain(180)),
+                                            Plain(270),
+                                        ),
+                                        Add(
+                                            Mul(Div(Var("throw_theta"), PI), Plain(180)),
+                                            Plain(-90)
+                                        ),
+                                    ),
+                                ),
+                            ),
                         },
                     ),
                 ),
-                    If(
-                        StrEq(key: "arm_action", val: "throw"),
-                        Plain(Bone(
+                If(
+                    StrEq(key: "arm_action", val: "throw"),
+                    Plain(
+                        Bone(
                             sprite: "bow.png",
-                            flip: StrEq(key: "facing", val: "right"),
-                            offset: (Plain(0), Plain(0.0)),
+                            flip: True,
+                            // offset: (
+                            //     If(Gt(Var("throw_vx"), Plain(0)), Plain(0.2), Plain(-0.2)),
+                            //     Plain(-0.2),
+                            // ),
+                            offset: (
+                                Mul(Plain(0.3), Cos(Var("throw_theta"))),
+                                Add(Plain(-0.2), Mul(Plain(0.3), Sin(Var("throw_theta")))),
+                            ),
                             pivot_offset: (Plain(0), Plain(0.0)),
                             scale: Plain(1.5),
                             rotation: If(
                                 Gt(Var("throw_vx"), Plain(0)),
                                 Add(
-
-                                Add(Mul(Div(Var("throw_theta"), PI), Plain(180)), Plain(180)),
-                                Plain(45),
+                                    Add(Mul(Div(Var("throw_theta"), PI), Plain(180)), Plain(180)),
+                                    Plain(40),
                                 ),
                                 Add(Plain(-135), Mul(Div(Var("throw_theta"), PI), Plain(180))),
                             ),
-                        )),
-                        None,
+                        ),
                     ),
+                    None,
+                ),
             ],
         ),        /**
 Ok what would a good system look like here?

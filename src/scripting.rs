@@ -299,7 +299,7 @@ impl Animated<f32> {
                 None => Err(EvalErr::MissingShared(key.clone()))?,
             },
             Animated::Sin(a) => a.eval(ctx, args)?.sin(),
-            Animated::Cos(a) => a.eval(ctx, args)?.sin(),
+            Animated::Cos(a) => a.eval(ctx, args)?.cos(),
         })
     }
 }
