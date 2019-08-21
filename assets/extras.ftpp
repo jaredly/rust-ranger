@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "version": "0.6.0"
+  },
+  "savePath": "/Users/jared/clone/games/raylib-physics-example/assets",
+  "images": [
+    {
+      "name": "arrow_fletched.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/arrow_fletched.png",
+      "folder": ""
+    },
+    {
+      "name": "arrow_iron.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/arrow_iron.png",
+      "folder": ""
+    },
+    {
+      "name": "arrow_stone.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/arrow_stone.png",
+      "folder": ""
+    },
+    {
+      "name": "arrow_thinner.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/arrow_thinner.png",
+      "folder": ""
+    },
+    {
+      "name": "arrow_thinner2.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/arrow_thinner2.png",
+      "folder": ""
+    },
+    {
+      "name": "arrow_wood.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/arrow_wood.png",
+      "folder": ""
+    },
+    {
+      "name": "dirt_top.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/dirt_top.png",
+      "folder": ""
+    },
+    {
+      "name": "grass_top.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/grass_top.png",
+      "folder": ""
+    },
+    {
+      "name": "grass_top_2.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/grass_top_2.png",
+      "folder": ""
+    },
+    {
+      "name": "ice_top.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/ice_top.png",
+      "folder": ""
+    },
+    {
+      "name": "sand_top.png",
+      "path": "/Users/jared/clone/games/lost-ranger/assets/Spritesheets/items/sand_top.png",
+      "folder": ""
+    }
+  ],
+  "folders": [],
+  "packOptions": {
+    "textureName": "extras",
+    "textureFormat": "png",
+    "removeFileExtension": false,
+    "prependFolderName": true,
+    "base64Export": false,
+    "tinify": false,
+    "tinifyKey": "",
+    "scale": 1,
+    "filter": "none",
+    "exporter": "XML",
+    "fileName": "pack-result",
+    "savePath": "/Users/jared/clone/games/raylib-physics-example/assets",
+    "width": 2048,
+    "height": 2048,
+    "fixedSize": false,
+    "powerOfTwo": false,
+    "padding": 0,
+    "extrude": 0,
+    "allowRotation": true,
+    "allowTrim": true,
+    "trimMode": "trim",
+    "alphaThreshold": "0",
+    "detectIdentical": true,
+    "packer": "MaxRectsPacker",
+    "packerMethod": "Smart"
+  }
+}

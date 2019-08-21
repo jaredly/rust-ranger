@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Created with Free texture packer v0.6.0 http://free-tex-packer.com
+Format:
+n  => name
+x  => x pos
+y  => y pos
+w  => width
+h  => height
+pX => x pos of the pivot point
+pY => y pos of the pivot point
+oX => x-corner offset
+oY => y-corner offset
+oW => original width
+oH => original height
+r => 'y' if sprite is rotated-->
+<TextureAtlas imagePath="extras.png" width="259" height="233" scale="1" format="RGBA8888">
+  <sprite n="arrow_wood.png" x="0" y="0" w="20" h="140" pX="0.5" pY="0.5"/>
+  <sprite n="arrow_fletched.png" x="20" y="0" w="24" h="139" pX="0.5" pY="0.5" oX="0" oY="0" oW="24" oH="140"/>
+  <sprite n="arrow_stone.png" x="44" y="0" w="20" h="139" pX="0.5" pY="0.5" oX="0" oY="0" oW="20" oH="140"/>
+  <sprite n="arrow_iron.png" x="64" y="0" w="20" h="139" pX="0.5" pY="0.5" oX="0" oY="0" oW="20" oH="140"/>
+  <sprite n="arrow_thinner2.png" x="84" y="0" w="23" h="129" pX="0.5" pY="0.5" oX="1" oY="0" oW="24" oH="130"/>
+  <sprite n="arrow_thinner.png" x="107" y="0" w="24" h="128" pX="0.5" pY="0.5"/>
+  <sprite n="dirt_top.png" x="131" y="0" w="128" h="52" pX="0.5" pY="0.5"/>
+  <sprite n="grass_top.png" x="131" y="52" w="128" h="52" pX="0.5" pY="0.5"/>
+  <sprite n="grass_top_2.png" x="107" y="128" w="128" h="52" pX="0.5" pY="0.5"/>
+  <sprite n="ice_top.png" x="0" y="180" w="128" h="53" pX="0.5" pY="0.5" oX="0" oY="0" oW="128" oH="54"/>
+  <sprite n="sand_top.png" x="128" y="180" w="128" h="53" pX="0.5" pY="0.5" oX="0" oY="0" oW="128" oH="54"/>
+</TextureAtlas>
