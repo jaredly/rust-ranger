@@ -1,9 +1,10 @@
 use pest::Parser;
 use pest_derive::*;
-use serde_json;
+use pest::iterators::{Pair, Pairs};
 use unescape;
 
-use pest::iterators::{Pair, Pairs};
+use crate::scope::Scope;
+
 
 #[grammar = "../grammar.pest"]
 #[derive(Parser)]
@@ -36,13 +37,6 @@ pub enum Expr {
     Lt(Box<Expr>, Box<Expr>),
     Gt(Box<Expr>, Box<Expr>),
     // todo fncall, etc.
-}
-
-pub struct Scope(std::collections::HashMap<String, Expr>);
-impl Scope {
-    pub fn empty() -> Self {
-        Scope(std::collections::HashMap::new())
-    }
 }
 
 pub enum EvalError {
@@ -92,8 +86,8 @@ impl Expr {
             Expr::Option(item) => Ok(Expr::Option(Box::new(
                 item.map(|v| v.eval(scope)).transpose()?,
             ))),
-            Expr::Ident(name) => scope.0
-                .get(&name)
+            Expr::Ident(name) => scope
+                .get_raw(&name)
                 .map(|v| v.clone().eval(scope))
                 .ok_or(EvalError::MissingReference(name.to_string()))?,
             Expr::Struct(name, items) => {
@@ -133,25 +127,8 @@ impl Expr {
                 _ => Err(EvalError::InvalidType)
             }
 
-            Expr::Eq(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
-                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a == b)),
-                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a == b)),
-                (Expr::String(a), Expr::String(b)) => Ok(Expr::Bool(a == b)),
-                (Expr::Bool(a), Expr::Bool(b)) => Ok(Expr::Bool(a == b)),
-                (Expr::Char(a), Expr::Char(b)) => Ok(Expr::Bool(a == b)),
-                (Expr::Array(a), Expr::Array(b)) => Ok(Expr::Bool(a == b)),
-                _ => Err(EvalError::InvalidType)
-            }
-
-            Expr::Neq(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
-                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a != b)),
-                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a != b)),
-                (Expr::String(a), Expr::String(b)) => Ok(Expr::Bool(a != b)),
-                (Expr::Bool(a), Expr::Bool(b)) => Ok(Expr::Bool(a != b)),
-                (Expr::Char(a), Expr::Char(b)) => Ok(Expr::Bool(a != b)),
-                (Expr::Array(a), Expr::Array(b)) => Ok(Expr::Bool(a != b)),
-                _ => Err(EvalError::InvalidType)
-            }
+            Expr::Eq(a, b) => Ok(Expr::Bool(a.eval(scope)? == b.eval(scope)?)),
+            Expr::Neq(a, b) => Ok(Expr::Bool(a.eval(scope)? != b.eval(scope)?)),
 
             Expr::Lt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a < b)),
@@ -164,8 +141,6 @@ impl Expr {
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a > b)),
                 _ => Err(EvalError::InvalidType)
             }
-
-            _ => unimplemented!(),
         }
     }
 }

@@ -1,18 +1,15 @@
 #![allow(dead_code)]
 
-
-
-
-
-#[macro_use]
-
-
 mod ast;
 mod de;
+mod ser;
+mod scope;
 mod error;
 
-pub use ast::{process, Expr, Scope};
+pub use scope::Scope;
+pub use ast::{process, Expr};
 pub use de::from_expr;
+pub use ser::to_expr;
 pub use error::Error;
 
 #[cfg(test)]

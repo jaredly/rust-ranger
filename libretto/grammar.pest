@@ -1,10 +1,49 @@
 
-file = _{WHITESPACE* ~ value ~ WHITESPACE* ~ EOI}
+file = _{SOI ~ value ~ EOI}
+
+statement = {
+    let_binding |
+    value ~ ";" |
+    fndefn
+}
+block = { "{" ~ statement ~ (";" ~ value)* ~ "}" }
+
+let_binding = {"let" ~ ident ~ "=" ~ value ~ ";"}
+
 value = {op_item ~ binop_post*}
 binop_post = {binop ~ op_item}
-op_item = _{"(" ~ value ~ ")" | struct_ | option | named_tuple | json | const_ | ident | upper_ident | unit}
+
+op_item = _{
+    unit
+    | "(" ~ value ~ ")"
+    | block
+
+    | fncall
+    | lambda
+
+    // Typed containers
+    | struct_
+    | option
+    | named_tuple
+
+    // Untyped containers
+    | object
+    | array
+
+    // atoms
+    | const_
+    | ident
+    | upper_ident
+}
 binop = { "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">" }
 option = {"None" | "Some" ~ "(" ~ value ~ ")"}
+
+fncall = { ident ~ "(" ~ comma_values? ~ ")" }
+lambda = { "|" ~ args ~ "|" ~ op_item }
+fndefn = { "fn" ~ ident ~ "(" ~ args ~ ")" ~ block }
+
+args = { (ident ~ ("," ~ ident)* ~ ","?)? }
+
 
 unit = {"()"}
 
@@ -18,8 +57,7 @@ named_tuple = {
 }
 
 object = {
-    "{" ~ "}" |
-    "{" ~ comma_pairs ~ "}"
+    "{" ~ comma_pairs? ~ "}"
 }
 comma_pairs = _{pair ~ ("," ~ pair)* ~ ","?}
 pair = { (string | ident) ~ ":" ~ value }
@@ -52,7 +90,7 @@ block_comment_inner = { (!"*/" ~ ANY)* }
 
 
 
-ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+ident = @{ (ASCII_ALPHA_LOWER | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 upper_ident = @{ ASCII_ALPHA_UPPER ~ (ASCII_ALPHANUMERIC | "_")* }
 
 const_ = {float | signed_int | bool | char | string}
