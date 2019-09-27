@@ -1,0 +1,7 @@
+{
+    "arrow": Arrow(
+        throw: Some(ThrowConfig(fletched: true, launcher: Some("bow"))),
+        
+
+    )
+}

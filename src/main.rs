@@ -3,6 +3,12 @@ extern crate specs_derive;
 #[macro_use]
 extern crate lazy_static;
 
+// For scripting
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
+
+
 use specs::prelude::*;
 
 use nalgebra::Vector2;
@@ -13,6 +19,7 @@ extern crate nalgebra as na;
 pub static WORLD_WIDTH: f32 = 100.0;
 pub const BALL_RADIUS: f32 = 0.1;
 
+// mod new_scripting;
 mod basics;
 mod config;
 mod draw;
