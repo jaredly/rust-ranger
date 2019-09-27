@@ -5,7 +5,7 @@ use unescape;
 use serde_json;
 
 mod ast;
-// mod de;
+mod de;
 
 #[cfg(test)]
 mod tests {
