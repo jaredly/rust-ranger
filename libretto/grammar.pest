@@ -2,20 +2,33 @@
 file = _{WHITESPACE* ~ value ~ WHITESPACE* ~ EOI}
 value = {op_item ~ binop_post*}
 binop_post = {binop ~ op_item}
-op_item = _{"(" ~ value ~ ")" | json | const_ | option | ident}
+op_item = _{"(" ~ value ~ ")" | struct_ | option | named_tuple | json | const_ | ident | upper_ident | unit}
 binop = { "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">" }
 option = {"None" | "Some" ~ "(" ~ value ~ ")"}
 
+unit = {"()"}
+
+// TODO maybe punning?
+struct_ = {
+    upper_ident ~ "{" ~ comma_pairs ~ "}"
+}
+
+named_tuple = {
+    upper_ident ~ "(" ~ comma_values ~ ")"
+}
+
 object = {
     "{" ~ "}" |
-    "{" ~ pair ~ ("," ~ pair)* ~ ","? ~ "}"
+    "{" ~ comma_pairs ~ "}"
 }
+comma_pairs = _{pair ~ ("," ~ pair)* ~ ","?}
 pair = { (string | ident) ~ ":" ~ value }
 
 array = {
     "[" ~ "]" |
-    "[" ~ value ~ ("," ~ value)* ~ ","? ~ "]"
+    "[" ~ comma_values ~ "]"
 }
+comma_values = _{value ~ ("," ~ value)* ~ ","?}
 
 json = _{object | array}
 
@@ -40,6 +53,7 @@ block_comment_inner = { (!"*/" ~ ANY)* }
 
 
 ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+upper_ident = @{ ASCII_ALPHA_UPPER ~ (ASCII_ALPHANUMERIC | "_")* }
 
 const_ = {float | signed_int | bool | char | string}
 
