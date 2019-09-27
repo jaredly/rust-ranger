@@ -9,10 +9,11 @@ block = {statement* ~ value}
 // scope = { "arg" ~ ident ~ ":" ~ typ ~ ";" }
 
 statement = {fn_defn | assignment}
+
 value = {op_item ~ (binop ~ op_item)*}
 op_item = _{lambda | fn_call | option | ident | const_ | json}
+binop = { "*" | "+" | "-" | "/" | "**" }
 option = {"None" | "Some" ~ "(" ~ value ~ ")"}
-binop = { "*" | "+" | "-" | "/" }
 // bin = { value ~ binop ~ value }
 
 pattern = {"None" | "Some" ~ "(" ~ pattern ~ ")" | const_}
@@ -123,36 +124,3 @@ string_std_inner = { ("\\\"" | !"\"" ~ ANY)* }
 
 string_raw = { "r" ~ PUSH("#"*) ~ "\"" ~ string_raw_inner ~ "\"" ~ POP }
 string_raw_inner = { (!("\"" ~ PEEK) ~ ANY)* }
-
-
-/// UNUSED
-
-// collections
-ron_unused = { const_ | list | map | tuple_type | fields_type | unit_type }
-list = {
-    "[" ~
-    (value ~ ("," ~ value)* ~ ","?)? ~
-    "]"
-}
-
-map = {
-    "{" ~
-    (map_entry ~ ("," ~ map_entry)* ~ ","?)? ~
-    "}"
-}
-map_entry = { value ~ ":" ~ value }
-
-
-unit_type = { ident }
-tuple_type = {
-    ident? ~ "(" ~
-    (value ~ ("," ~ value)* ~ ","?)? ~
-    ")"
-}
-
-fields_type = {
-    ident? ~ "(" ~
-    (field ~ ("," ~ field)* ~ ","?)? ~
-    ")"
-}
-field = { ident ~ ":" ~ value }

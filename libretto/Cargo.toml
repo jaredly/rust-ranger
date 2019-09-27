@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 pest = "*"
 pest_derive = "*"
+ron = "0.5.1"
+serde = "*"
+serde_json = "*"

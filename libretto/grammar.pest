@@ -1,0 +1,72 @@
+
+value = {op_item ~ binop_post*}
+binop_post = {binop ~ op_item}
+op_item = _{json | const_ | option | ident}
+binop = { "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">" }
+option = {"None" | "Some" ~ "(" ~ value ~ ")"}
+
+object = {
+    "{" ~ "}" |
+    "{" ~ pair ~ ("," ~ pair)* ~ "}"
+}
+pair = { (string | ident) ~ ":" ~ value }
+
+array = {
+    "[" ~ "]" |
+    "[" ~ value ~ ("," ~ value)* ~ "]"
+}
+
+json = _{object | array}
+
+
+
+
+
+
+
+
+
+// implicit
+WHITESPACE = _{ " " | "\n" | "\t" | "\r" }
+COMMENT = _{ line_comment | block_comment }
+line_comment = { "//" ~ line_comment_inner ~ (NEWLINE | &EOI) }
+line_comment_inner = { (!NEWLINE ~ ANY)* }
+block_comment = { "/*" ~ (block_comment | block_comment_inner)  ~ "*/" }
+block_comment_inner = { (!"*/" ~ ANY)* }
+
+
+
+
+
+ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+const_ = {float | signed_int | bool | char | string}
+
+// booleans
+bool = { "true" | "false" }
+
+// numbers
+sign = { "+" | "-" }
+
+signed_int = @{ sign? ~ unsigned_int }
+unsigned_int = { with_base | ASCII_DIGIT+ }
+with_base = { "0" ~ ("x" | "b" | "o") ~ ASCII_HEX_DIGIT+ }
+
+float = @{ float_std | float_frac }
+float_std = { sign? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* ~ float_exp? }
+float_frac = { "." ~ ASCII_DIGIT+ ~ float_exp? }
+float_exp = { ("e" | "E") ~ ASCII_DIGIT+ }
+
+// chars
+char = ${ "'" ~ char_inner ~ "'" }
+char_inner = { "\\'" | (!"'" ~ ANY)* }
+
+// strings
+string = ${ string_std | string_raw }
+
+string_std = { "\"" ~ string_std_inner ~ "\"" }
+string_std_inner = { ("\\\"" | !"\"" ~ ANY)* }
+
+string_raw = { "r" ~ PUSH("#"*) ~ "\"" ~ string_raw_inner ~ "\"" ~ POP }
+string_raw_inner = { (!("\"" ~ PEEK) ~ ANY)* }
+
