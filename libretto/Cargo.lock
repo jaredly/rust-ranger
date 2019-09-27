@@ -77,6 +77,7 @@ dependencies = [
  "ron 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unescape 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -219,6 +220,11 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "unescape"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "unicode-xid"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -251,4 +257,5 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum syn 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "66850e97125af79138385e9b88339cbcd037e3f28ceab8c5ad98e64f0f1f80bf"
 "checksum typenum 1.11.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6d2783fe2d6b8c1101136184eb41be8b1ad379e4657050b8aaff0c79ee7575f9"
 "checksum ucd-trie 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "8f00ed7be0c1ff1e24f46c3d2af4859f7e863672ba3a6e92e7cff702bf9f06c2"
+"checksum unescape 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ccb97dac3243214f8d8507998906ca3e2e0b900bf9bf4870477f125b82e68f6e"
 "checksum unicode-xid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "826e7639553986605ec5979c7dd957c7895e93eabed50ab2ffa7f6128a75097c"
