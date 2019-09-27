@@ -1,9 +1,9 @@
-use std::ops::{AddAssign, MulAssign, Neg};
+
 
 use serde::Deserialize;
 use serde::forward_to_deserialize_any;
 use serde::de::{
-    self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess,
+    self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess,
     VariantAccess, Visitor,
 };
 use crate::error::{Error, Result};
@@ -33,7 +33,7 @@ pub fn from_expr<'a, T>(s: &'a ast::Expr) -> Result<T>
 where
     T: Deserialize<'a>,
 {
-    let mut deserializer = Deserializer::from_expr(s);
+    let deserializer = Deserializer::from_expr(s);
     T::deserialize(deserializer)
 }
 
@@ -135,7 +135,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let Expr::Struct(sname, items) = self.input {
+        if let Expr::Struct(sname, _items) = self.input {
             if sname != name {
                 Err(Error::WrongName(name.to_owned(), sname.to_owned()))
             } else {
@@ -151,7 +151,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     // Deserialization of compound types like sequences and maps happens by
     // passing the visitor an "Access" object that gives it the ability to
     // iterate through the data contained in the sequence.
-    fn deserialize_seq<V>(mut self, visitor: V) -> Result<V::Value>
+    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -214,7 +214,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     // Much like `deserialize_seq` but calls the visitors `visit_map` method
     // with a `MapAccess` implementation, rather than the visitor's `visit_seq`
     // method with a `SeqAccess` implementation.
-    fn deserialize_map<V>(mut self, visitor: V) -> Result<V::Value>
+    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -409,7 +409,7 @@ impl<'a> MapAccess<'a> for Pairs<'a> {
         if self.index == self.contents.len() - 1 {
             return Ok(None)
         }
-        let (key, v) = &self.contents[self.index];
+        let (key, _v) = &self.contents[self.index];
         // self.index += 1;
         // Deserialize a map key.
         seed.deserialize(KeyDeserializer::from_str(key)).map(Some)

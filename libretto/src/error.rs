@@ -1,8 +1,7 @@
 
-use serde::Deserialize;
+
 use serde::de::{
-    self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess,
-    VariantAccess, Visitor,
+    self,
 };
 use std::error::{Error as StdError};
 
@@ -53,8 +52,8 @@ impl StdError for Error {
           Error::ExpectedNamedTuple => "Expected a named tuple",
           // Error::Message(ref message) => &message,
           Error::Message(ref message) => message,
-          Error::WrongName(found, expected) => "Wrong struct name",
-          Error::WrongTupleLength(expected, found) => "Wrong namedtuple length",
+          Error::WrongName(_found, _expected) => "Wrong struct name",
+          Error::WrongTupleLength(_expected, _found) => "Wrong namedtuple length",
           // Error::WrongName(found, expected) => &format!("Wrong Struct name: Expected '{}', found '{}'", expected, found),
           // Error::WrongTupleLength(expected, found) => &format!("Wrong naamedtuple length: '{}', found '{}'", expected, found),
           Error::Syntax => "Unknown syntax error"
