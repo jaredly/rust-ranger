@@ -20,7 +20,8 @@ mod ast {
 
         Array(Vec<Expr>),
         Object(Vec<(String, Expr)>),
-        Option(Option<Box<Expr>>),
+        Option(Box<Option<Expr>>),
+        Ident(String),
 
         Plus(Box<Expr>, Box<Expr>),
         Minus(Box<Expr>, Box<Expr>),
@@ -62,21 +63,43 @@ mod ast {
             Rule::float => Expr::Float(pair.as_str().parse::<f32>().unwrap()),
             Rule::signed_int => Expr::Int(pair.as_str().parse::<i32>().unwrap()),
             Rule::bool => Expr::Bool(pair.as_str().parse::<bool>().unwrap()),
-            Rule::char => Expr::Char(pair.as_str().parse::<char>().unwrap()),
+            Rule::char => {
+                let str = pair.as_str();
+                Expr::Char(unescape::unescape(&str[1..str.len()-1]).unwrap().parse::<char>().unwrap())
+            },
             Rule::string => Expr::String(unescape(pair.as_str())),
-            _ => unimplemented!(),
+            _ => {
+                panic!(format!("Unreachable const {}, {:?}", pair.as_str(), pair.as_rule()));
+            }
         }
     }
 
     pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
         match pair.as_rule() {
-            Rule::object => unimplemented!(),
+            Rule::object => Expr::Object(pair.into_inner().map(|pair| match pair.as_rule() {
+                Rule::pair => {
+                    let mut children = pair.into_inner();
+                    let key = children.next().unwrap();
+                    let v = children.next().unwrap();
+                    (
+                        match key.as_rule() {
+                            Rule::string => unescape(key.as_str()),
+                            Rule::ident => key.as_str().to_string(),
+                            _ => unreachable!()
+                        },
+                        parse_expr(v)
+                    )
+                }
+                _ => unreachable!()
+
+            }).collect()),
             Rule::array => Expr::Array(pair.into_inner().map(parse_expr).collect()),
             Rule::const_ => parse_const(pair.into_inner().next().unwrap()),
-            Rule::option => unimplemented!(),
-            Rule::ident => unimplemented!(),
+            Rule::option => Expr::Option(Box::new(pair.into_inner().next().map(parse_expr))),
+            Rule::ident => Expr::Ident(pair.as_str().to_string()),
+            Rule::value => parse_expr(pair),
             _ => {
-                panic!(format!("{}, {:?}", pair.as_str(), pair.as_rule()));
+                panic!(format!("Unreachable op item {}, {:?}", pair.as_str(), pair.as_rule()));
             }
         }
     }
@@ -238,11 +261,11 @@ mod ast {
         make_op_tree((first, rest))
     }
 
-    pub fn parse_value(pair: Pair<Rule>) -> Expr {
-        unimplemented!("Ok");
-    }
+    // pub fn parse_value(pair: Pair<Rule>) -> Expr {
+    //     unimplemented!("Ok");
+    // }
     pub fn process(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
-        match MainParser::parse(Rule::value, text) {
+        match MainParser::parse(Rule::file, text) {
             Ok(v) => Ok(ast::parse(v)),
             Err(e) => Err(e),
         }
@@ -291,20 +314,21 @@ mod tests {
         );
 
         assert_eq!(
-            ast::process(r##"["o\nne", r#"t"w\no"#]"##),
+            ast::process(r##"["o\nne", r#"t"w\no"#, 'a', '\n', "😅"]"##),
             Ok(Expr::Array(
                 vec![
                     Expr::String("o\nne".to_string()),
-                    Expr::String("t\"w\\no".to_string())
+                    Expr::String("t\"w\\no".to_string()),
+                    Expr::Char('a'),
+                    Expr::Char('\n'),
+                    Expr::String("😅".to_string()),
                 ]
             ))
         );
-
-
     }
 
     #[test]
-    fn it_works() {
+    fn many_ops() {
         assert_eq!(
             ast::process("1 - 2 * 3 + 5 == 4"),
             Ok(Expr::Eq(
@@ -321,5 +345,19 @@ mod tests {
                 Box::new(Expr::Int(4))
             ))
         );
+    }
+
+    #[test]
+    fn complex() {
+        ast::process(r###"
+{
+    one: 1,
+    "two": 2,
+    three_four: [3, 3 + 1],
+    five: None,
+    six: Some(6 - (3 - 2)),
+    "7": true != false
+}
+        "###).unwrap();
     }
 }

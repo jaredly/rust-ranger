@@ -1,19 +1,20 @@
 
+file = _{WHITESPACE* ~ value ~ WHITESPACE* ~ EOI}
 value = {op_item ~ binop_post*}
 binop_post = {binop ~ op_item}
-op_item = _{json | const_ | option | ident}
+op_item = _{"(" ~ value ~ ")" | json | const_ | option | ident}
 binop = { "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">" }
 option = {"None" | "Some" ~ "(" ~ value ~ ")"}
 
 object = {
     "{" ~ "}" |
-    "{" ~ pair ~ ("," ~ pair)* ~ "}"
+    "{" ~ pair ~ ("," ~ pair)* ~ ","? ~ "}"
 }
 pair = { (string | ident) ~ ":" ~ value }
 
 array = {
     "[" ~ "]" |
-    "[" ~ value ~ ("," ~ value)* ~ "]"
+    "[" ~ value ~ ("," ~ value)* ~ ","? ~ "]"
 }
 
 json = _{object | array}
