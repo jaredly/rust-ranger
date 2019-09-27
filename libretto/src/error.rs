@@ -18,6 +18,7 @@ pub enum Error {
     Message(String),
     WrongName(String, String),
     WrongTupleLength(usize, usize),
+    Unevaluated,
     Syntax
 }
 pub type Result<T> = std::result::Result<T, Error>;
@@ -46,6 +47,7 @@ impl StdError for Error {
           Error::ExpectedStruct => "Expected a struct",
           Error::ExpectedUnit => "Expected a unit",
           Error::ExpectedMap => "Expected a map",
+          Error::Unevaluated => "Unevaluated",
           Error::ExpectedArray => "Expected an array",
           Error::ExpectedEnum => "Expected an enum",
           Error::ExpectedSequence => "Expected a sequence",

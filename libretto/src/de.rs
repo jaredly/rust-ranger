@@ -70,7 +70,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
                 None => visitor.visit_none(),
                 Some(s) => visitor.visit_some(Deserializer::from_expr(&s)),
             },
-            _ => Err(Error::Syntax)
+            _ => Err(Error::Unevaluated)
         }
     }
 
@@ -406,7 +406,7 @@ impl<'a> MapAccess<'a> for Pairs<'a> {
     where
         K: DeserializeSeed<'a>,
     {
-        if self.index == self.contents.len() - 1 {
+        if self.index == self.contents.len() {
             return Ok(None)
         }
         let (key, _v) = &self.contents[self.index];
@@ -427,6 +427,7 @@ impl<'a> MapAccess<'a> for Pairs<'a> {
         // }
         // Deserialize a map value.
         let (_key, v) = &self.contents[self.index];
+        self.index += 1;
         seed.deserialize(Deserializer::from_expr(&v))
     }
 }

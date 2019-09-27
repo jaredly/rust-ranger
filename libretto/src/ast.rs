@@ -1,7 +1,7 @@
 use pest::Parser;
 use pest_derive::*;
-use unescape;
 use serde_json;
+use unescape;
 
 use pest::iterators::{Pair, Pairs};
 
@@ -30,6 +30,7 @@ pub enum Expr {
     Minus(Box<Expr>, Box<Expr>),
     Times(Box<Expr>, Box<Expr>),
     Divide(Box<Expr>, Box<Expr>),
+
     Eq(Box<Expr>, Box<Expr>),
     Neq(Box<Expr>, Box<Expr>),
     Lt(Box<Expr>, Box<Expr>),
@@ -37,53 +38,151 @@ pub enum Expr {
     // todo fncall, etc.
 }
 
-type Scope = std::collections::HashMap<String, Expr>;
+pub struct Scope(std::collections::HashMap<String, Expr>);
+impl Scope {
+    pub fn empty() -> Self {
+        Scope(std::collections::HashMap::new())
+    }
+}
 
-enum EvalError {
-    InvalidType
+pub enum EvalError {
+    InvalidType,
+    MissingReference(String),
 }
 
 impl Expr {
-    fn eval(self, scope: &Scope) -> Result<serde_json::Value, EvalError> {
-        use serde_json::Value;
+    pub fn needs_evaluation(&self) -> bool {
         match self {
-            Expr::Float(f) => Ok(Value::Number(serde_json::Number::from_f64(f64::from(f)).unwrap())),
-            Expr::Int(f) => Ok(Value::Number(f.into())),
-            Expr::Bool(f) => Ok(Value::Bool(f)),
-            Expr::String(f) => Ok(Value::String(f)),
-            Expr::Char(c) => Ok(Value::String(c.to_string())),
+            Expr::Float(_) | Expr::Int(_) | Expr::Bool(_) | Expr::String(_) | Expr::Char(_) => {
+                false
+            }
+            Expr::NamedTuple(_, items) | Expr::Array(items) => {
+                items.iter().any(Expr::needs_evaluation)
+            }
+            Expr::Struct(_, items) | Expr::Object(items) => {
+                items.iter().any(|(_, expr)| expr.needs_evaluation())
+            }
+            Expr::Option(inner) => inner
+                .as_ref()
+                .as_ref()
+                .map_or(false, |expr| expr.needs_evaluation()),
+            _ => true,
+        }
+    }
+
+    pub fn eval(self, scope: &Scope) -> Result<Self, EvalError> {
+        match self {
+            Expr::Float(_) | Expr::Int(_) | Expr::Bool(_) | Expr::String(_) | Expr::Char(_) | Expr::Unit => {
+                Ok(self)
+            }
             Expr::Array(items) => {
                 let mut res = vec![];
                 for item in items {
                     res.push(item.eval(scope)?);
                 }
-                Ok(Value::Array(res))
-            },
+                Ok(Expr::Array(res))
+            }
             Expr::Object(items) => {
-                let mut res = serde_json::Map::new();
+                let mut res = vec![];
                 for (key, value) in items {
-                    res.insert(key, value.eval(scope)?);
+                    res.push((key, value.eval(scope)?));
                 }
-                Ok(Value::Object(res))
-            },
-            _ => unimplemented!()
+                Ok(Expr::Object(res))
+            }
+            Expr::Option(item) => Ok(Expr::Option(Box::new(
+                item.map(|v| v.eval(scope)).transpose()?,
+            ))),
+            Expr::Ident(name) => scope.0
+                .get(&name)
+                .map(|v| v.clone().eval(scope))
+                .ok_or(EvalError::MissingReference(name.to_string()))?,
+            Expr::Struct(name, items) => {
+                let mut res = vec![];
+                for (key, value) in items {
+                    res.push((key, value.eval(scope)?));
+                }
+                Ok(Expr::Struct(name, res))
+            }
+            Expr::NamedTuple(name, items) => {
+                let mut res = vec![];
+                for item in items {
+                    res.push(item.eval(scope)?);
+                }
+                Ok(Expr::NamedTuple(name, res))
+            }
+
+            // some computation!
+            Expr::Plus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a + b)),
+                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a + b)),
+                _ => Err(EvalError::InvalidType)
+            }
+            Expr::Minus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a - b)),
+                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a - b)),
+                _ => Err(EvalError::InvalidType)
+            }
+            Expr::Times(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a * b)),
+                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a * b)),
+                _ => Err(EvalError::InvalidType)
+            }
+            Expr::Divide(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a / b)),
+                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a / b)),
+                _ => Err(EvalError::InvalidType)
+            }
+
+            Expr::Eq(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a == b)),
+                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a == b)),
+                (Expr::String(a), Expr::String(b)) => Ok(Expr::Bool(a == b)),
+                (Expr::Bool(a), Expr::Bool(b)) => Ok(Expr::Bool(a == b)),
+                (Expr::Char(a), Expr::Char(b)) => Ok(Expr::Bool(a == b)),
+                (Expr::Array(a), Expr::Array(b)) => Ok(Expr::Bool(a == b)),
+                _ => Err(EvalError::InvalidType)
+            }
+
+            Expr::Neq(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a != b)),
+                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a != b)),
+                (Expr::String(a), Expr::String(b)) => Ok(Expr::Bool(a != b)),
+                (Expr::Bool(a), Expr::Bool(b)) => Ok(Expr::Bool(a != b)),
+                (Expr::Char(a), Expr::Char(b)) => Ok(Expr::Bool(a != b)),
+                (Expr::Array(a), Expr::Array(b)) => Ok(Expr::Bool(a != b)),
+                _ => Err(EvalError::InvalidType)
+            }
+
+            Expr::Lt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a < b)),
+                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a < b)),
+                _ => Err(EvalError::InvalidType)
+            }
+
+            Expr::Gt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+                (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a > b)),
+                (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a > b)),
+                _ => Err(EvalError::InvalidType)
+            }
+
+            _ => unimplemented!(),
         }
     }
 }
 
-enum ParseError {
+pub enum ParseError {
     Invalid,
 }
 
-type ParseResult<T> = Result<T, ParseError>;
+pub type ParseResult<T> = Result<T, ParseError>;
 
 fn unescape_string(string: &str) -> String {
     if &string[0..1] == "\"" {
-        unescape::unescape(&string[1..string.len()-1]).unwrap()
+        unescape::unescape(&string[1..string.len() - 1]).unwrap()
     } else {
         for i in 0..string.len() {
             if &string[i..=i] == "\"" {
-                return string[i+1..string.len() - i].to_string();
+                return string[i + 1..string.len() - i].to_string();
             }
         }
         panic!("Unterminated raw string")
@@ -97,11 +196,20 @@ pub fn parse_const(pair: Pair<Rule>) -> Expr {
         Rule::bool => Expr::Bool(pair.as_str().parse::<bool>().unwrap()),
         Rule::char => {
             let str = pair.as_str();
-            Expr::Char(unescape::unescape(&str[1..str.len()-1]).unwrap().parse::<char>().unwrap())
-        },
+            Expr::Char(
+                unescape::unescape(&str[1..str.len() - 1])
+                    .unwrap()
+                    .parse::<char>()
+                    .unwrap(),
+            )
+        }
         Rule::string => Expr::String(unescape_string(pair.as_str())),
         _ => {
-            panic!(format!("Unreachable const {}, {:?}", pair.as_str(), pair.as_rule()));
+            panic!(format!(
+                "Unreachable const {}, {:?}",
+                pair.as_str(),
+                pair.as_rule()
+            ));
         }
     }
 }
@@ -114,9 +222,9 @@ fn parse_pair(pair: Pair<Rule>) -> (String, Expr) {
         match key.as_rule() {
             Rule::string => unescape_string(key.as_str()),
             Rule::ident => key.as_str().to_string(),
-            _ => unreachable!()
+            _ => unreachable!(),
         },
-        parse_expr(v)
+        parse_expr(v),
     )
 }
 
@@ -141,7 +249,11 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
             Expr::NamedTuple(key, items.map(parse_expr).collect())
         }
         _ => {
-            panic!(format!("Unreachable op item {}, {:?}", pair.as_str(), pair.as_rule()));
+            panic!(format!(
+                "Unreachable op item {}, {:?}",
+                pair.as_str(),
+                pair.as_rule()
+            ));
         }
     }
 }

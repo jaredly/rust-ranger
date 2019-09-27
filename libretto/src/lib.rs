@@ -11,6 +11,10 @@ mod ast;
 mod de;
 mod error;
 
+pub use ast::{process, Expr, Scope};
+pub use de::from_expr;
+pub use error::Error;
+
 #[cfg(test)]
 mod tests {
     use super::*;
