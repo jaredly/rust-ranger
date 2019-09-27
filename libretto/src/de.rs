@@ -117,7 +117,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         if let Expr::NamedTuple(tname, contents) = self.input {
             if name != tname {
                 Err(Error::WrongName(name.to_owned(), tname.to_owned()))
-            } else if contents.len() > 0 {
+            } else if !contents.is_empty() {
                 Err(Error::WrongTupleLength(0, contents.len()))
             } else {
                 visitor.visit_unit()
@@ -484,7 +484,7 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     // should have been the plain string case handled in `deserialize_enum`.
     fn unit_variant(self) -> Result<()> {
         match self.expr {
-            Expr::NamedTuple(_, v) if v.len() == 0 => {
+            Expr::NamedTuple(_, v) if v.is_empty() => {
                 Ok(())
             }
             _ => Err(Error::ExpectedEnum)

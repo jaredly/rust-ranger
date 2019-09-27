@@ -47,7 +47,7 @@ impl Expr {
     fn eval(self, scope: &Scope) -> Result<serde_json::Value, EvalError> {
         use serde_json::Value;
         match self {
-            Expr::Float(f) => Ok(Value::Number(serde_json::Number::from_f64(f as f64).unwrap())),
+            Expr::Float(f) => Ok(Value::Number(serde_json::Number::from_f64(f64::from(f)).unwrap())),
             Expr::Int(f) => Ok(Value::Number(f.into())),
             Expr::Bool(f) => Ok(Value::Bool(f)),
             Expr::String(f) => Ok(Value::String(f)),
@@ -82,7 +82,7 @@ fn unescape_string(string: &str) -> String {
         unescape::unescape(&string[1..string.len()-1]).unwrap()
     } else {
         for i in 0..string.len() {
-            if &string[i..i+1] == "\"" {
+            if &string[i..=i] == "\"" {
                 return string[i+1..string.len() - i].to_string();
             }
         }
@@ -133,12 +133,12 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
         Rule::struct_ => {
             let mut items = pair.into_inner();
             let key = items.next().unwrap().as_str().to_string();
-            Expr::Struct(key, items.into_iter().map(parse_pair).collect())
+            Expr::Struct(key, items.map(parse_pair).collect())
         }
         Rule::named_tuple => {
             let mut items = pair.into_inner();
             let key = items.next().unwrap().as_str().to_string();
-            Expr::NamedTuple(key, items.into_iter().map(parse_expr).collect())
+            Expr::NamedTuple(key, items.map(parse_expr).collect())
         }
         _ => {
             panic!(format!("Unreachable op item {}, {:?}", pair.as_str(), pair.as_rule()));
@@ -180,7 +180,7 @@ make_ops!(make_op_2, make_op_3; "-", Expr::Minus; "+", Expr::Plus);
 make_ops!(make_op_3, make_op_4; "*", Expr::Times; "/", Expr::Divide);
 
 fn make_op_4(input: (Expr, Vec<(&str, Expr)>)) -> Expr {
-    if input.1.len() > 0 {
+    if !input.1.is_empty() {
         panic!("Invalid binop tree, there are none left");
     }
     input.0
@@ -292,7 +292,6 @@ pub fn parse_expr(pair: Pair<Rule>) -> Expr {
     let mut items = pair.into_inner();
     let first = parse_op_item(items.next().unwrap());
     let rest = items
-        .into_iter()
         .map(|rule| {
             let mut items = rule.into_inner();
             let op = items.next().unwrap().as_str();
