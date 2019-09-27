@@ -365,6 +365,38 @@ impl<'a> SeqAccess<'a> for Items<'a> {
     }
 }
 
+pub struct KeyDeserializer<'de> {
+    input: &'de str,
+}
+
+impl<'de> KeyDeserializer<'de> {
+    // By convention, `Deserializer` constructors are named like `from_xyz`.
+    // That way basic use cases are satisfied by something like
+    // `serde_json::from_str(...)` while advanced use cases that require a
+    // deserializer can make one with `serde_json::Deserializer::from_str(...)`.
+    pub fn from_str(input: &'de str) -> Self {
+        KeyDeserializer { input }
+    }
+}
+
+impl<'de, 'a> de::Deserializer<'de> for KeyDeserializer<'de> {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_borrowed_str(self.input)
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option
+        unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum identifier ignored_any
+    }
+}
+
 // `MapAccess` is provided to the `Visitor` to give it the ability to iterate
 // through entries of the map.
 impl<'a> MapAccess<'a> for Pairs<'a> {
@@ -380,14 +412,7 @@ impl<'a> MapAccess<'a> for Pairs<'a> {
         let (key, v) = &self.contents[self.index];
         // self.index += 1;
         // Deserialize a map key.
-        {
-        let expr = Expr::String(key.to_string());
-        {
-            let mut des = Deserializer::from_expr(&expr);
-            let res = seed.deserialize(des).map(Some);
-            res
-        }
-        }
+        seed.deserialize(KeyDeserializer::from_str(key)).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
@@ -436,7 +461,7 @@ impl<'a> EnumAccess<'a> for Enum<'a> {
         match self.expr {
             Expr::NamedTuple(name, _)
             | Expr::Struct(name, _) => {
-                let val = seed.deserialize(Deserializer::from_expr(&Expr::String(name.to_string())))?;
+                let val = seed.deserialize(KeyDeserializer::from_str(name))?;
                 Ok((val, self))
             }
             | _ => Err(Error::ExpectedEnum)
