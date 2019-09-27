@@ -6,7 +6,8 @@ mod ser;
 mod scope;
 mod error;
 
-pub use scope::Scope;
+use im_rc;
+pub use scope::{Scope, LocalScope};
 pub use ast::{process, Expr};
 pub use de::from_expr;
 pub use ser::to_expr;

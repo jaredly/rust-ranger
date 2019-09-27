@@ -34,7 +34,7 @@ fn example_uneval() {
 fn example_eval() {
   let expr = libretto::process(r##" Point {x: 3 + 4, y: 5, name: "awesome"} "##)
     .unwrap()
-    .eval(&libretto::Scope::empty())
+    .eval(&libretto::Scope::empty(), &libretto::LocalScope::empty())
     .ok()
     .unwrap();
   assert_eq!(
@@ -53,7 +53,7 @@ fn example_eval_pass() {
   scope.set("heads", 5).unwrap();
   let expr = libretto::process(r##" Point {x: 3 + 4 + heads, y: 5, name: "awesome"} "##)
     .unwrap()
-    .eval(&scope)
+    .eval(&scope, &libretto::LocalScope::empty())
     .ok()
     .unwrap();
   assert_eq!(

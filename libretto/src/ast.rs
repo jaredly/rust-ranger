@@ -3,7 +3,7 @@ use pest_derive::*;
 use pest::iterators::{Pair, Pairs};
 use unescape;
 
-use crate::scope::Scope;
+use crate::scope::{Scope, LocalScope};
 
 
 #[grammar = "../grammar.pest"]
@@ -64,7 +64,7 @@ impl Expr {
         }
     }
 
-    pub fn eval(self, scope: &Scope) -> Result<Self, EvalError> {
+    pub fn eval(self, scope: &Scope, locals: &LocalScope) -> Result<Self, EvalError> {
         match self {
             Expr::Float(_) | Expr::Int(_) | Expr::Bool(_) | Expr::String(_) | Expr::Char(_) | Expr::Unit => {
                 Ok(self)
@@ -72,71 +72,71 @@ impl Expr {
             Expr::Array(items) => {
                 let mut res = vec![];
                 for item in items {
-                    res.push(item.eval(scope)?);
+                    res.push(item.eval(scope, locals)?);
                 }
                 Ok(Expr::Array(res))
             }
             Expr::Object(items) => {
                 let mut res = vec![];
                 for (key, value) in items {
-                    res.push((key, value.eval(scope)?));
+                    res.push((key, value.eval(scope, locals)?));
                 }
                 Ok(Expr::Object(res))
             }
             Expr::Option(item) => Ok(Expr::Option(Box::new(
-                item.map(|v| v.eval(scope)).transpose()?,
+                item.map(|v| v.eval(scope, locals)).transpose()?,
             ))),
             Expr::Ident(name) => scope
                 .get_raw(&name)
-                .map(|v| v.clone().eval(scope))
+                .map(|v| v.clone().eval(scope, locals))
                 .ok_or(EvalError::MissingReference(name.to_string()))?,
             Expr::Struct(name, items) => {
                 let mut res = vec![];
                 for (key, value) in items {
-                    res.push((key, value.eval(scope)?));
+                    res.push((key, value.eval(scope, locals)?));
                 }
                 Ok(Expr::Struct(name, res))
             }
             Expr::NamedTuple(name, items) => {
                 let mut res = vec![];
                 for item in items {
-                    res.push(item.eval(scope)?);
+                    res.push(item.eval(scope, locals)?);
                 }
                 Ok(Expr::NamedTuple(name, res))
             }
 
             // some computation!
-            Expr::Plus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+            Expr::Plus(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a + b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a + b)),
                 _ => Err(EvalError::InvalidType)
             }
-            Expr::Minus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+            Expr::Minus(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a - b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a - b)),
                 _ => Err(EvalError::InvalidType)
             }
-            Expr::Times(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+            Expr::Times(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a * b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a * b)),
                 _ => Err(EvalError::InvalidType)
             }
-            Expr::Divide(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+            Expr::Divide(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a / b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a / b)),
                 _ => Err(EvalError::InvalidType)
             }
 
-            Expr::Eq(a, b) => Ok(Expr::Bool(a.eval(scope)? == b.eval(scope)?)),
-            Expr::Neq(a, b) => Ok(Expr::Bool(a.eval(scope)? != b.eval(scope)?)),
+            Expr::Eq(a, b) => Ok(Expr::Bool(a.eval(scope, locals)? == b.eval(scope, locals)?)),
+            Expr::Neq(a, b) => Ok(Expr::Bool(a.eval(scope, locals)? != b.eval(scope, locals)?)),
 
-            Expr::Lt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+            Expr::Lt(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a < b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a < b)),
                 _ => Err(EvalError::InvalidType)
             }
 
-            Expr::Gt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
+            Expr::Gt(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a > b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a > b)),
                 _ => Err(EvalError::InvalidType)
