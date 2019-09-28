@@ -18,6 +18,7 @@ pub enum Error {
     WrongTupleLength(usize, usize),
     Unevaluated,
     EvalError(crate::ast::EvalError),
+    ParseError(pest::error::Error<crate::parser::Rule>),
     Syntax
 }
 pub type Result<T> = std::result::Result<T, Error>;
@@ -25,6 +26,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl From<crate::ast::EvalError> for Error {
     fn from(other: crate::ast::EvalError) -> Error {
         Error::EvalError(other)
+    }
+}
+
+impl From<pest::error::Error<crate::parser::Rule>> for Error {
+    fn from(other: pest::error::Error<crate::parser::Rule>) -> Error {
+        Error::ParseError(other)
     }
 }
 
@@ -55,6 +62,7 @@ impl StdError for Error {
     fn description(&self) -> &str {
         match &self {
           Error::EvalError(_) => "Error while evaluating",
+          Error::ParseError(_) => "Invalid syntax",
           Error::ExpectedStruct => "Expected a struct",
           Error::ExpectedUnit => "Expected a unit",
           Error::ExpectedMap => "Expected a map",

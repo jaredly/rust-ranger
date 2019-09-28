@@ -18,10 +18,10 @@ pub fn eval_expr(input: &str) -> Result<Expr, ast::EvalError> {
     process_expr(input).unwrap().eval(&Scope::empty())
 }
 
-pub fn eval_file(input: &str) -> Result<Scope, pest::error::Error<parser::Rule>> {
+pub fn eval_file(input: &str) -> Result<Scope, error::Error> {
     let mut scope = Scope::empty();
     for stmt in process_file(input)? {
-        stmt.eval(&mut scope)
+        stmt.eval(&mut scope)?;
     }
     Ok(scope)
 }

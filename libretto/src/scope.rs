@@ -24,14 +24,17 @@ macro_rules! call_fn {
 }
 
 pub struct Scope<'a> {
-  vbls: HashMap<String, Expr>,
-  fns: HashMap<String, (Args, Expr)>,
-  parent: Option<&'a Scope<'a>>,
+  pub id: usize,
+  pub vbls: HashMap<String, Expr>,
+  pub fns: HashMap<String, (Args, Expr)>,
+  pub parent: Option<&'a Scope<'a>>,
 }
 
 impl<'a> Scope<'a> {
   pub fn empty() -> Self {
+    // println!("New empty scope");
     Scope {
+      id: 0,
       vbls: HashMap::new(),
       fns: HashMap::new(),
       parent: None,
@@ -40,6 +43,7 @@ impl<'a> Scope<'a> {
 
   pub fn from(parent: &'a Scope<'a>) -> Self {
     Scope {
+      id: parent.id+1,
       vbls: HashMap::new(),
       fns: HashMap::new(),
       parent: Some(parent),
@@ -47,6 +51,7 @@ impl<'a> Scope<'a> {
   }
 
   pub fn sub(&'a self) -> Scope<'a> {
+    // println!("New sub scope from {}", self.show());
     Self::from(self)
   }
 
@@ -70,8 +75,23 @@ impl<'a> Scope<'a> {
     match self.fns.get(name) {
       None => match self.parent {
         None => {
-          // println!("{:?}", self.fns);
-          Err(EvalError::MissingReference(name.to_owned()))
+          match name {
+            "log" => {
+              let mut res = vec![];
+              for arg in args {
+                res.push(match arg {
+                  Expr::String(string) => string,
+                  arg => format!("{:?}", arg)
+                });
+              }
+              // println!("{}", res.concat());
+              Ok(Expr::Unit)
+            }
+            _ => {
+              // println!("{:?}", self.fns);
+              Err(EvalError::MissingReference(name.to_owned()))
+            }
+          }
         }
         Some(parent) => parent.call_fn_raw(name, args),
       },
@@ -81,7 +101,7 @@ impl<'a> Scope<'a> {
       Some(f) => {
         let mut sub = self.sub();
         for (aname, aval) in f.0.iter().zip(args) {
-          sub.set_raw(aname, aval);
+          sub.set_raw(aname, aval.eval(&self)?);
         }
         f.1.clone().eval(&sub)
       }
@@ -101,7 +121,16 @@ impl<'a> Scope<'a> {
   //   }
   // }
 
+  pub fn show(&self) -> String {
+    let own = format!("own({}): {:?}", self.id, self.vbls.keys());
+    match self.parent {
+      None => own,
+      Some(parent) => format!("{}, parent: {}", own, parent.show())
+    }
+  }
+
   pub fn get_raw(&self, key: &str) -> Option<&Expr> {
+    // println!("Looking for {} in {} ", key, self.show());
     match self.vbls.get(key) {
       None => match self.parent {
         None => match key {
@@ -128,6 +157,7 @@ impl<'a> Scope<'a> {
   }
 
   pub fn set_raw(&mut self, key: &str, value: Expr) {
+    // println!("Setting {} in {}", key, self.show());
     self.vbls.insert(key.to_owned(), value);
   }
 }

@@ -195,7 +195,8 @@ let res = [
     _ => 0
   }
 ];
-if res.len() != 3 {
+let aa = log(res.len(), res);
+if res.len() != 2 {
   16
 } else {
   res

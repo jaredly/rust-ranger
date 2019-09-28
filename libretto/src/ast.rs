@@ -2,6 +2,20 @@ use crate::scope::Scope;
 
 pub type Args = Vec<String>;
 
+trait TryMap<T> {
+    fn try_map<U, E, F: Fn(T) -> Result<U, E>>(self, f: F) -> Result<Vec<U>, E>;
+}
+
+impl<T> TryMap<T> for Vec<T> {
+    fn try_map<U, E, F: Fn(T) -> Result<U, E>>(self, f: F) -> Result<Vec<U>, E> {
+        let mut res = vec![];
+        for item in self {
+            res.push(f(item)?);
+        }
+        Ok(res)
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
     Let(String, Expr),
@@ -10,17 +24,19 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn eval(self, scope: &mut Scope) {
+    pub fn eval(self, scope: &mut Scope) -> Result<(), EvalError> {
+        // println!(">> Statement eval {:?} with scope: {}", self, scope.show());
         match self {
-            Statement::Let(name, v) => scope.set_raw(&name, v),
+            Statement::Let(name, v) => scope.set_raw(&name, v.eval(&scope)?),
             Statement::Expr(e) => {
-                let _ = e.eval(&scope);
+                e.eval(&scope)?;
             }
             Statement::FnDefn(name, args, body) => {
                 scope.set_fn(&name, args, body)
                 // scope.set_raw(&name, Expr::Lambda(args, Box::new(body)))
             }
-        }
+        };
+        Ok(())
     }
 }
 
@@ -162,13 +178,7 @@ impl Expr {
             | Expr::String(_)
             | Expr::Char(_)
             | Expr::Unit => Ok(self),
-            Expr::Array(items) => {
-                let mut res = vec![];
-                for item in items {
-                    res.push(item.eval(scope)?);
-                }
-                Ok(Expr::Array(res))
-            }
+            Expr::Array(items) => Ok(Expr::Array(items.try_map(|a|a.eval(scope))?)),
             Expr::Object(items) => {
                 let mut res = vec![];
                 for (key, value) in items {
@@ -181,7 +191,7 @@ impl Expr {
             ))),
             Expr::Ident(name) => scope
                 .get_raw(&name)
-                .map(|v| v.clone().eval(scope))
+                .map(|v| Ok(v.clone()))//.eval(scope))
                 .ok_or_else(|| EvalError::MissingReference(name.to_string()))?,
             Expr::Struct(name, items) => {
                 let mut res = vec![];
@@ -237,14 +247,18 @@ impl Expr {
 
             //
             Expr::Block(stmts, last) => {
+                // println!("Block start");
+
                 let mut scope = scope.sub();
                 for stmt in stmts {
-                    stmt.eval(&mut scope);
+                    // println!("Procesing {:?} : scope {:?}", stmt, scope.vbls.keys());
+                    stmt.eval(&mut scope)?;
                 }
+                // println!("Block end");
                 last.eval(&scope)
             }
 
-            Expr::FnCall(name, args) => scope.call_fn_raw(&name, args),
+            Expr::FnCall(name, args) => scope.call_fn_raw(&name, args.try_map(|a: Expr|a.eval(&scope))?),
 
             Expr::Cast(expr, typ) => {
                 let expr = expr.eval(&scope)?;
