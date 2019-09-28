@@ -104,7 +104,8 @@ where
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum EvalError {
-    InvalidType,
+    InvalidType(&'static str),
+    MissingMember(String),
     MissingReference(String),
     FunctionValue,
     FunctionWrongNumberArgs(usize, usize),
@@ -178,22 +179,22 @@ impl Expr {
             Expr::Plus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a + b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a + b)),
-                _ => Err(EvalError::InvalidType),
+                _ => Err(EvalError::InvalidType("Cannot add")),
             },
             Expr::Minus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a - b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a - b)),
-                _ => Err(EvalError::InvalidType),
+                _ => Err(EvalError::InvalidType("Cannot subtract")),
             },
             Expr::Times(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a * b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a * b)),
-                _ => Err(EvalError::InvalidType),
+                _ => Err(EvalError::InvalidType("Cannot multiply")),
             },
             Expr::Divide(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a / b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a / b)),
-                _ => Err(EvalError::InvalidType),
+                _ => Err(EvalError::InvalidType("Cannot divide")),
             },
 
             Expr::Eq(a, b) => Ok(Expr::Bool(a.eval(scope)? == b.eval(scope)?)),
@@ -202,13 +203,13 @@ impl Expr {
             Expr::Lt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a < b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a < b)),
-                _ => Err(EvalError::InvalidType),
+                _ => Err(EvalError::InvalidType("Cannot compare")),
             },
 
             Expr::Gt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a > b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a > b)),
-                _ => Err(EvalError::InvalidType),
+                _ => Err(EvalError::InvalidType("Cannot compare")),
             },
 
             //
@@ -241,15 +242,21 @@ impl Expr {
                                 "abs" if args.is_empty() => Expr::Float(f.abs()),
                                 "to_int" if args.is_empty() => Expr::Int(f as i32),
                                 _ => {
-                                    // println!("{} - {}", name, args);
-                                    return Err(EvalError::InvalidType)
+                                    println!("{} - {:?}", name, args);
+                                    return Err(EvalError::InvalidType("unknown float fn"))
                                 },
                             },
                             Expr::Int(i) => match name.as_ref() {
                                 "to_float" if args.is_empty() => Expr::Float(i as f32),
-                                _ => return Err(EvalError::InvalidType),
+                                _ => {
+                                    println!("int {} - {:?}", name, args);
+                                    return Err(EvalError::InvalidType("Unknown int fn"))
+                                },
                             },
-                            _ => return Err(EvalError::InvalidType),
+                            _ => {
+                                    println!("other {:?} : {} - {:?}", target, name, args);
+                                return Err(EvalError::InvalidType("Can only do fns on floats and ints"))
+                            },
                         }
                     } else {
                         match name.parse::<usize>() {
@@ -257,7 +264,7 @@ impl Expr {
                                 Expr::Array(children) | Expr::NamedTuple(_, children) => {
                                     target = children[index].clone()
                                 }
-                                _ => return Err(EvalError::InvalidType),
+                                _ => return Err(EvalError::InvalidType("Can only get index of array or namedtuple")),
                             },
                             Err(_) => match target {
                                 Expr::Object(children) | Expr::Struct(_, children) => {
@@ -271,10 +278,10 @@ impl Expr {
                                         }
                                     }
                                     if !found {
-                                        return Err(EvalError::InvalidType);
+                                        return Err(EvalError::MissingMember(name));
                                     }
                                 }
-                                _ => return Err(EvalError::InvalidType),
+                                _ => return Err(EvalError::InvalidType("Can only get member of object or struct")),
                             },
                         }
                     }

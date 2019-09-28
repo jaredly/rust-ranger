@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 #[macro_export]
 macro_rules! call_fn {
-  ($scope: ident, $name: expr, $($arg: expr),*) => {
+  ($scope: expr, $name: expr, $($arg: expr),*) => {
     {
       // let args = vec![$( libretto::to_expr(&$arg) ),*];
       // match args.iter().find(Result::is_err) {
