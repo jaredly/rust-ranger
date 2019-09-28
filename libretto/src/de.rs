@@ -360,7 +360,7 @@ impl<'a> SeqAccess<'a> for Items<'a> {
     where
         T: DeserializeSeed<'a>,
     {
-        if self.index == self.contents.len() - 1 {
+        if self.index == self.contents.len() {
             return Ok(None)
         }
         self.index += 1;

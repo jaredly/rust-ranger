@@ -24,7 +24,7 @@ digits = @{ASCII_DIGIT+}
 if_chain = {"if" ~ if_cond ~ block ~ ("else" ~ "if" ~ if_cond ~ block)* ~ ("else" ~ block)? }
 if_cond = {"let" ~ pattern ~ "=" ~ value | value}
 
-pattern = {"_" | const_ | tuple_pattern | struct_pattern | ident}
+pattern = {"_" | const_ | struct_pattern | tuple_pattern | ident}
 tuple_pattern = {upper_ident ~ ("(" ~ (pattern ~ ("," ~ pattern)* )? ~ ")")? }
 struct_pattern = {upper_ident ~ "{" ~ ident ~ (":" ~ pattern)? ~ ("," ~ ident ~ (":" ~ pattern)?)* ~ "}" }
 
@@ -38,6 +38,7 @@ op_item = _{
     | if_chain
     | match_
     | fncall
+
     // TODO figure out scope lifetime rules
     // | lambda
 

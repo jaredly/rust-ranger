@@ -61,7 +61,7 @@ pub enum Expr {
     // Lambda(Args, Box<Expr>),
     FnCall(String, Vec<Expr>),
 
-    IfChain(Box<IfCond>, Box<Expr>, Vec<(IfCond, Expr)>, Option<Box<Expr>>),
+    IfChain(Vec<(IfCond, Expr)>, Option<Box<Expr>>),
     Match(Box<Expr>, Vec<(Pattern, Expr)>),
 }
 
@@ -131,6 +131,7 @@ pub enum EvalError {
     MissingReference(String),
     FunctionValue,
     FunctionWrongNumberArgs(usize, usize),
+    Unmatched,
 }
 
 impl Expr {
@@ -268,6 +269,13 @@ impl Expr {
                 for (name, args) in items {
                     if let Some(args) = args {
                         target = match target {
+                            Expr::Array(items) => match name.as_ref() {
+                                "len" if args.is_empty() => Expr::Int(items.len() as i32),
+                                _ => {
+                                    println!("{} - {:?}", name, args);
+                                    return Err(EvalError::InvalidType("unknown array fn"))
+                                }
+                            },
                             Expr::Float(f) => match name.as_ref() {
                                 "sin" if args.is_empty() => Expr::Float(f.sin()),
                                 "cos" if args.is_empty() => Expr::Float(f.cos()),
@@ -321,6 +329,99 @@ impl Expr {
                 }
                 Ok(target)
             } // Expr::Lambda(args, block) => Err(EvalError::FunctionValue)
+
+            Expr::IfChain(chain, else_) => {
+                for (cond, body) in chain {
+                    match cond {
+                        IfCond::Value(value) => {
+                            match value.eval(&scope)? {
+                                Expr::Bool(true) => return body.eval(&scope),
+                                Expr::Bool(false) => (),
+                                _ => return Err(EvalError::InvalidType("If condition must be a bool"))
+                            }
+                        },
+                        IfCond::IfLet(pattern, value) => {
+                            if let Some(bindings) = match_pattern(pattern, value) {
+                                let mut sub = scope.sub();
+                                for (name, value) in bindings {
+                                    sub.set_raw(&name, value)
+                                }
+                                return body.eval(&sub)
+                            }
+                        }
+                    }
+                }
+                match else_ {
+                    None => Ok(Expr::Unit),
+                    Some(block) => block.eval(&scope)
+                }
+            }
+
+            Expr::Match(value, cases) => {
+                let value = value.eval(&scope)?;
+                for (pattern, body) in cases {
+                    // TODO don't need to clone here, could return the value if unused
+                    if let Some(bindings) = match_pattern(pattern, value.clone()) {
+                        let mut sub = scope.sub();
+                        for (name, value) in bindings {
+                            sub.set_raw(&name, value)
+                        }
+                        return body.eval(&sub)
+                    }
+                }
+                Err(EvalError::Unmatched)
+            }
+        }
+    }
+}
+
+/// TODO this allocates a bunch of empty vectors
+fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
+    match (pattern, value) {
+        (Pattern::Any, _) => Some(vec![]),
+        (Pattern::Ident(name), value) => Some(vec![(name, value)]),
+        (Pattern::Const(Const::Bool(b)), Expr::Bool(bb)) if b == bb => Some(vec![]),
+        (Pattern::Const(Const::Int(b)), Expr::Int(bb)) if b == bb => Some(vec![]),
+        (Pattern::Const(Const::Float(b)), Expr::Float(bb)) if b == bb => Some(vec![]),
+        (Pattern::Const(Const::String(ref b)), Expr::String(ref bb)) if b == bb => Some(vec![]),
+        (Pattern::Const(Const::Char(b)), Expr::Char(bb)) if b == bb => Some(vec![]),
+        (Pattern::Tuple(name, items), Expr::NamedTuple(bname, bitems)) => {
+            if name == bname && items.len() == bitems.len() {
+                let mut bindings = vec![];
+                for (pat, val) in items.iter().zip(bitems) {
+                    if let Some(inner) = match_pattern(pat.clone(), val) {
+                        bindings.extend(inner)
+                    } else {
+                        return None
+                    }
+                }
+                Some(bindings)
+            } else {
+                None
+            }
+        }
+        (Pattern::Struct(name, items), Expr::Struct(bname, bitems)) => {
+            if name != bname {
+                return None
+            }
+            let mut bindings = vec![];
+            for (ident, pat) in items {
+                match bitems.iter().find(|(iname, _)|iname == &ident) {
+                    None => return None,
+                    Some((_, val)) => {
+                        if let Some(inner) = match_pattern(pat, val.clone()) {
+                            bindings.extend(inner);
+                        } else {
+                            return None
+                        }
+                    }
+                }
+            }
+            Some(bindings)
+        }
+        (pattern, value) => {
+            // println!("No match {:?} - {:?}", pattern, value);
+            None
         }
     }
 }

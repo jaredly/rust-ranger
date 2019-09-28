@@ -70,6 +70,7 @@ fn parse_pair(pair: Pair<Rule>) -> (String, Expr) {
 
 fn parse_const_const(pair: Pair<Rule>) -> Const {
     match pair.as_rule() {
+        Rule::const_ => parse_const_const(pair.into_inner().next().unwrap()),
         Rule::float => Const::Float(pair.as_str().parse::<f32>().unwrap()),
         Rule::signed_int => Const::Int(pair.as_str().parse::<i32>().unwrap()),
         Rule::bool => Const::Bool(pair.as_str().parse::<bool>().unwrap()),
@@ -112,9 +113,26 @@ fn parse_pattern(pattern: Pair<Rule>) -> Pattern {
     Rule::struct_pattern => {
       let mut inner = pattern.into_inner();
       let first = inner.next().unwrap();
-      Pattern::Tuple(
+      let mut items = vec![];
+      loop {
+        if let None = inner.peek() {
+          break;
+        }
+        let ident = inner.next().unwrap().as_str().to_owned();
+        let pattern = if let Some(pattern) = inner.peek() {
+          if pattern.as_rule() == Rule::pattern {
+            parse_pattern(inner.next().unwrap())
+          } else {
+            Pattern::Ident(ident.clone())
+          }
+        } else {
+          Pattern::Ident(ident.clone())
+        };
+        items.push((ident, pattern))
+      }
+      Pattern::Struct(
         first.as_str().to_owned(),
-        inner.map(parse_pattern).collect()
+        items
       )
     },
     _ => unreachable!()
@@ -129,7 +147,8 @@ fn parse_if_cond(pair: Pair<Rule>) -> IfCond {
     Rule::pattern => IfCond::IfLet(
       parse_pattern(first),
       parse_expr(cond.next().unwrap())
-    )
+    ),
+    _ => unreachable!()
   }
 
 }
@@ -153,14 +172,14 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
             let mut items = pair.into_inner();
             let first_cond = parse_if_cond(items.next().unwrap());
             let block = parse_expr(items.next().unwrap());
-            let mut middles = vec![];
+            let mut middles = vec![(first_cond, block)];
             loop {
               let first = match items.next() {
                 None => break,
                 Some(pair) => pair
               };
               match first.as_rule() {
-                Rule::block => return Expr::IfChain(Box::new(first_cond), Box::new(block), middles, Some(Box::new(parse_expr(first)))),
+                Rule::block => return Expr::IfChain(middles, Some(Box::new(parse_expr(first)))),
                 Rule::if_cond => middles.push((
                   parse_if_cond(first),
                   parse_expr(items.next().unwrap())
@@ -168,7 +187,7 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                 _ => unreachable!()
               }
             }
-            Expr::IfChain(Box::new(first_cond), Box::new(block), middles, None)
+            Expr::IfChain(middles, None)
         }
 
         Rule::match_ => {
@@ -183,7 +202,7 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
               let body = parse_expr(items.next().unwrap());
               cases.push((pattern, body))
             }
-            Expr::IfChain(Box::new(first_cond), Box::new(block), middles, None)
+            Expr::Match(Box::new(value), cases)
         }
 
         Rule::subject => {
@@ -279,6 +298,9 @@ fn make_op_4(input: (Expr, Vec<(&str, Expr)>)) -> Expr {
 }
 
 pub fn parse_expr(pair: Pair<Rule>) -> Expr {
+    if pair.as_rule() == Rule::block {
+        return parse_block(pair)
+    }
     if pair.as_rule() != Rule::value {
         panic!(
             "Invalid use of parse_expr. Must be a 'value' : {} {:?}",
