@@ -191,7 +191,7 @@ impl Expr {
             ))),
             Expr::Ident(name) => scope
                 .get_raw(&name)
-                .map(|v| Ok(v.clone()))//.eval(scope))
+                .map(|v| Ok(v.clone()))
                 .ok_or_else(|| EvalError::MissingReference(name.to_string()))?,
             Expr::Struct(name, items) => {
                 let mut res = vec![];
@@ -201,11 +201,7 @@ impl Expr {
                 Ok(Expr::Struct(name, res))
             }
             Expr::NamedTuple(name, items) => {
-                let mut res = vec![];
-                for item in items {
-                    res.push(item.eval(scope)?);
-                }
-                Ok(Expr::NamedTuple(name, res))
+                Ok(Expr::NamedTuple(name, items.try_map(|a|a.eval(scope))?))
             }
 
             // some computation!
@@ -258,7 +254,7 @@ impl Expr {
                 last.eval(&scope)
             }
 
-            Expr::FnCall(name, args) => scope.call_fn_raw(&name, args.try_map(|a: Expr|a.eval(&scope))?),
+            Expr::FnCall(name, args) => scope.call_fn_raw(&name, args.try_map(|a|a.eval(&scope))?),
 
             Expr::Cast(expr, typ) => {
                 let expr = expr.eval(&scope)?;
