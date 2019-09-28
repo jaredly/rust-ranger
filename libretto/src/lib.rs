@@ -5,9 +5,11 @@ mod de;
 mod ser;
 mod scope;
 mod error;
+mod parser;
 
 pub use scope::{Scope};
-pub use ast::{process_file, process_expr, Expr};
+pub use ast::{Expr};
+pub use parser::{process_file, process_expr};
 pub use de::from_expr;
 pub use ser::to_expr;
 pub use error::Error;
@@ -16,7 +18,7 @@ pub fn eval_expr(input: &str) -> Result<Expr, ast::EvalError> {
     process_expr(input).unwrap().eval(&Scope::empty())
 }
 
-pub fn eval_file(input: &str) -> Result<Scope, pest::error::Error<ast::Rule>> {
+pub fn eval_file(input: &str) -> Result<Scope, pest::error::Error<parser::Rule>> {
     let mut scope = Scope::empty();
     for stmt in process_file(input)? {
         stmt.eval(&mut scope)
@@ -32,7 +34,7 @@ mod tests {
     #[test]
     fn array() {
         assert_eq!(
-            ast::process_expr("[1,2,3]").unwrap().eval(&Scope::empty()),
+            parser::process_expr("[1,2,3]").unwrap().eval(&Scope::empty()),
             Ok(Expr::Array(vec![
                 Expr::Int(1),
                 Expr::Int(2),
@@ -44,7 +46,7 @@ mod tests {
     #[test]
     fn struct_() {
         assert_eq!(
-            ast::process_expr("Hello { one: 2 }").unwrap().eval(&Scope::empty()),
+            parser::process_expr("Hello { one: 2 }").unwrap().eval(&Scope::empty()),
             Ok(Expr::Struct("Hello".to_string(), vec![
                 ("one".to_string(), Expr::Int(2)),
             ]))
@@ -54,7 +56,7 @@ mod tests {
     #[test]
     fn named_tuple() {
         assert_eq!(
-            ast::process_expr("Hello ( 2, 3 )").unwrap().eval(&Scope::empty()),
+            parser::process_expr("Hello ( 2, 3 )").unwrap().eval(&Scope::empty()),
             Ok(Expr::NamedTuple("Hello".to_string(), vec![
                 Expr::Int(2),
                 Expr::Int(3),
@@ -65,7 +67,7 @@ mod tests {
     #[test]
     fn plus_minus() {
         assert_eq!(
-            ast::process_expr("1 + 2 - 3"),
+            parser::process_expr("1 + 2 - 3"),
             Ok(Expr::Block(vec![], Box::new(Expr::Minus(
                 Box::new(Expr::Plus(
                     Box::new(Expr::Int(1)),
@@ -76,7 +78,7 @@ mod tests {
         );
 
         assert_eq!(
-            ast::process_expr("1 - 2 + 3"),
+            parser::process_expr("1 - 2 + 3"),
             Ok(Expr::Block(vec![], Box::new(Expr::Plus(
                 Box::new(Expr::Minus(
                     Box::new(Expr::Int(1)),
@@ -87,7 +89,7 @@ mod tests {
         );
 
         assert_eq!(
-            ast::process_expr(r##"["o\nne", r#"t"w\no"#, 'a', '\n', "😅"]"##).unwrap().eval(&Scope::empty()),
+            parser::process_expr(r##"["o\nne", r#"t"w\no"#, 'a', '\n', "😅"]"##).unwrap().eval(&Scope::empty()),
             Ok(Expr::Array(
                 vec![
                     Expr::String("o\nne".to_string()),
@@ -103,7 +105,7 @@ mod tests {
     #[test]
     fn struct__() {
         assert_eq!(
-            ast::process_expr(r##" Point {x: 3, y: 5, name: "awesome"} "##),
+            parser::process_expr(r##" Point {x: 3, y: 5, name: "awesome"} "##),
             Ok(Expr::Block(vec![], Box::new(Expr::Struct(
                 "Point".into(),
                 vec![
@@ -118,7 +120,7 @@ mod tests {
     #[test]
     fn many_ops() {
         assert_eq!(
-            ast::process_expr("1 - 2 * 3 + 5 == 4"),
+            parser::process_expr("1 - 2 * 3 + 5 == 4"),
             Ok(Expr::Block(vec![], Box::new(Expr::Eq(
                 Box::new(Expr::Plus(
                     Box::new(Expr::Minus(
@@ -137,7 +139,7 @@ mod tests {
 
     #[test]
     fn complex() {
-        ast::process_expr(r###"
+        parser::process_expr(r###"
 {
     one: 1,
     "two": 2,

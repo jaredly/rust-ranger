@@ -21,11 +21,22 @@ type_ = {"f32" | "i32"}
 subject = { op_item ~ ("." ~ (fncall | ident | digits))* }
 digits = @{ASCII_DIGIT+}
 
+if_chain = {"if" ~ if_cond ~ block ~ ("else" ~ "if" ~ if_cond ~ block)* ~ ("else" ~ block)? }
+if_cond = {"let" ~ pattern ~ "=" ~ value | value}
+
+pattern = {"_" | const_ | tuple_pattern | struct_pattern | ident}
+tuple_pattern = {upper_ident ~ ("(" ~ (pattern ~ ("," ~ pattern)* )? ~ ")")? }
+struct_pattern = {upper_ident ~ "{" ~ ident ~ (":" ~ pattern)? ~ ("," ~ ident ~ (":" ~ pattern)?)* ~ "}" }
+
+match_ = {"match" ~ value ~ "{" ~ pattern ~ "=>" ~ value ~ ("," ~ pattern ~ "=>" ~ value)* ~ "}"}
+
 op_item = _{
     unit
     | "(" ~ value ~ ")"
     | block
 
+    | if_chain
+    | match_
     | fncall
     // TODO figure out scope lifetime rules
     // | lambda
