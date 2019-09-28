@@ -11,8 +11,12 @@ block = { "{" ~ statement* ~ value ~ "}" }
 
 let_binding = {"let" ~ ident ~ "=" ~ value ~ ";"}
 
-value = {subject ~ binop_post*}
-binop_post = {binop ~ subject}
+value = {cast ~ binop_post*}
+binop_post = {binop ~ cast}
+
+cast = { subject ~ ("as" ~ type_)?}
+
+type_ = {"f32" | "i32"}
 
 subject = { op_item ~ ("." ~ (fncall | ident | digits))* }
 digits = @{ASCII_DIGIT+}

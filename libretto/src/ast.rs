@@ -34,6 +34,9 @@ impl Statement {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum Type { F32, I32 }
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Float(f32),
     Int(i32),
@@ -61,6 +64,7 @@ pub enum Expr {
     Gt(Box<Expr>, Box<Expr>),
 
     MemberAccess(Box<Expr>, Vec<(String, Option<Vec<Expr>>)>),
+    Cast(Box<Expr>, Type),
 
     Block(Vec<Statement>, Box<Expr>),
     // Lambda(Args, Box<Expr>),
@@ -223,6 +227,17 @@ impl Expr {
 
             Expr::FnCall(name, args) => scope.call_fn_raw(&name, args),
 
+            Expr::Cast(expr, typ) => {
+                let expr = expr.eval(&scope)?;
+                match (expr, typ) {
+                    (Expr::Float(f), Type::I32) => Ok(Expr::Int(f as i32)),
+                    (Expr::Float(f), Type::F32) => Ok(Expr::Float(f)),
+                    (Expr::Int(i), Type::F32) => Ok(Expr::Float(i as f32)),
+                    (Expr::Int(i), Type::I32) => Ok(Expr::Int(i)),
+                    _ => Err(EvalError::InvalidType("Cannot cast"))
+                }
+            }
+
             // Expr::MemberCall(expr, calls) => {
             //     let mut target = expr.eval(&scope)?;
             //     for (name, args) in calls {
@@ -240,14 +255,14 @@ impl Expr {
                                 "cos" if args.is_empty() => Expr::Float(f.cos()),
                                 "tan" if args.is_empty() => Expr::Float(f.tan()),
                                 "abs" if args.is_empty() => Expr::Float(f.abs()),
-                                "to_int" if args.is_empty() => Expr::Int(f as i32),
+                                // "to_int" if args.is_empty() => Expr::Int(f as i32),
                                 _ => {
                                     println!("{} - {:?}", name, args);
                                     return Err(EvalError::InvalidType("unknown float fn"))
                                 },
                             },
                             Expr::Int(i) => match name.as_ref() {
-                                "to_float" if args.is_empty() => Expr::Float(i as f32),
+                                "to_float" if false => Expr::Float(i as f32),
                                 _ => {
                                     println!("int {} - {:?}", name, args);
                                     return Err(EvalError::InvalidType("Unknown int fn"))
@@ -352,6 +367,18 @@ fn parse_pair(pair: Pair<Rule>) -> (String, Expr) {
 
 pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
     match pair.as_rule() {
+        Rule::cast => {
+            let mut items = pair.into_inner();
+            let first = parse_op_item(items.next().unwrap());
+            match items.next() {
+                None => first,
+                Some(pair) => Expr::Cast(Box::new(first), match pair.as_str() {
+                    "i32" => Type::I32,
+                    "f32" => Type::F32,
+                    _ => unreachable!()
+                })
+            }
+        }
         // Rule::member_call => {
         //     let mut items = pair.into_inner();
         //     let first = parse_op_item(items.next().unwrap());

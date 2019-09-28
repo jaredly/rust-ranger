@@ -101,10 +101,11 @@ fn member_fns() {
   assert_eq!(
     libretto::call_fn!(
       libretto::eval_file(r#"
-      fn go(x) { x.cos() + pi.cos().abs() }
+      fn go(x, y) { x.cos() + pi.cos().abs() + (y as f32) }
       "#).unwrap(),
       "go",
-      std::f32::consts::PI
+      std::f32::consts::PI,
+      23
     )
-    , Ok(0.0))
+    , Ok(23.0))
 }
