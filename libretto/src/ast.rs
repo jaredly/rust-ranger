@@ -266,6 +266,11 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
             let key = items.next().unwrap().as_str().to_string();
             Expr::NamedTuple(key, items.map(parse_expr).collect())
         }
+        Rule::fncall => {
+            let mut items = pair.into_inner();
+            let key = items.next().unwrap().as_str().to_string();
+            Expr::FnCall(key, items.map(parse_expr).collect())
+        }
         _ => {
             panic!(format!(
                 "Unreachable op item {}, {:?}",
@@ -314,7 +319,7 @@ fn make_op_4(input: (Expr, Vec<(&str, Expr)>)) -> Expr {
 
 pub fn parse_expr(pair: Pair<Rule>) -> Expr {
     if pair.as_rule() != Rule::value {
-        panic!("Invalid use of parse_expr. Must be a 'value'");
+        panic!("Invalid use of parse_expr. Must be a 'value' : {} {:?}", pair.as_str(), pair);
     }
     let mut items = pair.into_inner();
     let first = parse_op_item(items.next().unwrap());
@@ -330,6 +335,7 @@ pub fn parse_expr(pair: Pair<Rule>) -> Expr {
 }
 
 pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
+    let pair = pair.into_inner().next().unwrap();
     match pair.as_rule() {
         Rule::let_binding => {
             let mut items = pair.into_inner();
@@ -342,10 +348,16 @@ pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
             let mut items = pair.into_inner();
             let ident = items.next().unwrap().as_str().to_owned();
             let args = items.next().unwrap().into_inner().map(|pair| pair.as_str().to_owned()).collect();
-            let value = parse_expr(items.next().unwrap());
+            let value = parse_block(items.next().unwrap());
             Statement::FnDefn(ident, args, value)
         },
-        _ => unimplemented!()
+        _ => {
+            panic!(format!(
+                "Unreachable stmt {}, {:?}",
+                pair.as_str(),
+                pair.as_rule()
+            ));
+        }
     }
 }
 
@@ -354,6 +366,18 @@ pub fn process_file(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
         Ok(v) => Ok(Expr::Block(v.map(parse_stmt).collect(), Box::new(Expr::Unit))),
         Err(e) => Err(e),
     }
+}
+
+pub fn parse_block(pair: Pair<Rule>) -> Expr {
+    let mut items = vec![];
+    for item in pair.into_inner() {
+        match item.as_rule() {
+            Rule::statement => items.push(parse_stmt(item)),
+            Rule::value => return Expr::Block(items, Box::new(parse_expr(item))),
+            _ => ()
+        }
+    }
+    unreachable!()
 }
 
 pub fn process_expr(text: &str) -> Result<Expr, pest::error::Error<Rule>> {

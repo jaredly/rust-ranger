@@ -61,3 +61,17 @@ fn example_eval_pass() {
     libretto::from_expr::<Point>(&expr)
   );
 }
+
+#[test]
+fn fn_call() {
+  assert_eq!(
+    libretto::from_expr::<usize>(&libretto::eval_expr(r##"
+fn awesome() {
+  5
+}
+fn add10(x) {
+  x + 10
+}
+add10(awesome() * 2)
+"##).unwrap()), Ok(20))
+}

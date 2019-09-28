@@ -45,7 +45,13 @@ impl<'a> Scope<'a> {
 
     pub fn call_fn(&self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
       match self.fns.get(name) {
-        None => Err(EvalError::MissingReference(name.to_owned())),
+        None => match self.parent {
+          None => {
+            // println!("{:?}", self.fns);
+            Err(EvalError::MissingReference(name.to_owned()))
+          },
+          Some(parent) => parent.call_fn(name, args)
+        },
         Some(f) if f.0.len() != args.len() => Err(EvalError::FunctionWrongNumberArgs(f.0.len(), args.len())),
         Some(f) => {
           let mut sub = self.sub();
