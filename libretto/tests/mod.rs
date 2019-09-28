@@ -85,3 +85,13 @@ fn party(x, y, z) {
 "##).unwrap();
   assert_eq!(libretto::call_fn!(scope, "party", 10, 2, 3), Ok(50))
 }
+
+#[test]
+fn file_pointer() {
+  let scope = libretto::eval_file(r##"
+fn party(x, y, z, m) {
+  x * (y + z) + m.x
+}
+"##).unwrap();
+  assert_eq!(libretto::call_fn!(scope, "party", 10, 2, 3, Point {x:1,y:2,name:"ok".into()}), Ok(51))
+}

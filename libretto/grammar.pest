@@ -11,8 +11,11 @@ block = { "{" ~ statement* ~ value ~ "}" }
 
 let_binding = {"let" ~ ident ~ "=" ~ value ~ ";"}
 
-value = {op_item ~ binop_post*}
-binop_post = {binop ~ op_item}
+value = {subject ~ binop_post*}
+binop_post = {binop ~ subject}
+
+subject = { op_item ~ ("." ~ (ident | digits))* }
+digits = @{ASCII_DIGIT+}
 
 op_item = _{
     unit

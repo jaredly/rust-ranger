@@ -5,17 +5,20 @@ use std::collections::HashMap;
 macro_rules! call_fn {
   ($scope: ident, $name: expr, $($arg: expr),*) => {
     {
-      let args = vec![$( libretto::to_expr(&$arg) ),*];
-      match args.iter().find(Result::is_err) {
-        None => match $scope.call_fn_raw($name, args.iter().map(Result::unwrap).collect()) {
-          Ok(expr) => libretto::from_expr(&expr),
-          Err(e) => Err(e)
-        },
-        Some(item) => item.clone()
-      }
-      // let args = vec![$( libretto::to_expr(&$arg).unwrap() ),*];
-      // let result = $scope.call_fn_raw($name, args).unwrap();
-      // libretto::from_expr(&result)
+      // let args = vec![$( libretto::to_expr(&$arg) ),*];
+      // match args.iter().find(Result::is_err) {
+      //   None => match $scope.call_fn_raw($name, args.iter().map(Result::unwrap).collect()) {
+      //     Ok(expr) => libretto::from_expr(&expr),
+      //     Err(e) => Err(e.into())
+      //   },
+      //   Some(item) => item.clone().into()
+      // }
+
+      let args = vec![$( libretto::to_expr(&$arg).unwrap() ),*];
+      match $scope.call_fn_raw($name, args) {
+        Err(e) => Err(e.into()),
+        Ok(result) => libretto::from_expr(&result)
+      } 
     }
   };
 }

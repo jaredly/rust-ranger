@@ -61,6 +61,8 @@ pub enum Expr {
     Lt(Box<Expr>, Box<Expr>),
     Gt(Box<Expr>, Box<Expr>),
 
+    MemberAccess(Box<Expr>, Vec<String>),
+
     Block(Vec<Statement>, Box<Expr>),
     // Lambda(Args, Box<Expr>),
     FnCall(String, Vec<Expr>),
@@ -72,7 +74,7 @@ impl From<bool> for Expr { fn from(i: bool) -> Self { Expr::Bool(i) } }
 impl From<char> for Expr { fn from(i: char) -> Self { Expr::Char(i) } }
 impl From<String> for Expr { fn from(i: String) -> Self { Expr::String(i) } }
 impl<T> From<Vec<T>> for Expr where T: Into<Expr> { fn from(i: Vec<T>) -> Self { Expr::Array(i.into_iter().map(|t|t.into()).collect()) } }
-// impl<T> std::convert::TryFrom<&T> for Expr where T: serde::Serialize { fn from(i: &T) -> Self { crate::ser::to_expr(i) } }
+// impl<T> std::convert::TryFrom<T> for Expr where T: serde::Serialize { fn from(i: T) -> Self { crate::ser::to_expr(&i) } }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum EvalError {
@@ -191,6 +193,36 @@ impl Expr {
 
             Expr::FnCall(name, args) => scope.call_fn_raw(&name, args),
 
+            Expr::MemberAccess(expr, items) => {
+                let mut target = expr.eval(&scope)?;
+                for name in items {
+                    match name.parse::<usize>() {
+                        Ok(index) => match target {
+                            Expr::Array(children) | Expr::NamedTuple(_, children) => target = children[index].clone(),
+                            _ => return Err(EvalError::InvalidType)
+                        },
+                        Err(_) => match target {
+                            Expr::Object(children) | Expr::Struct(_, children) => {
+                                let mut found = false;
+                                target = Expr::Unit;
+                                for (sname, child) in children {
+                                    if sname == name {
+                                        target = child;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if !found {
+                                    return Err(EvalError::InvalidType)
+                                }
+                            },
+                            _ => return Err(EvalError::InvalidType)
+                        }
+                    }
+                }
+                Ok(target)
+            }
+
             // Expr::Lambda(args, block) => Err(EvalError::FunctionValue)
         }
     }
@@ -256,6 +288,16 @@ fn parse_pair(pair: Pair<Rule>) -> (String, Expr) {
 
 pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
     match pair.as_rule() {
+        Rule::subject => {
+            let mut items = pair.into_inner();
+            let first = parse_op_item(items.next().unwrap());
+            let access: Vec<String> = items.into_iter().map(|pair|pair.as_str().to_string()).collect();
+            if access.is_empty() {
+                first
+            } else {
+                Expr::MemberAccess(Box::new(first), access)
+            }
+        }
         Rule::object => Expr::Object(pair.into_inner().map(parse_pair).collect()),
         Rule::array => Expr::Array(pair.into_inner().map(parse_expr).collect()),
         Rule::const_ => parse_const(pair.into_inner().next().unwrap()),
