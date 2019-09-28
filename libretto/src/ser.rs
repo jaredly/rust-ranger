@@ -111,7 +111,7 @@ impl ser::Serializer for Serializer {
     // Serialize a byte array as an array of bytes. Could also use a base64
     // string here. Binary formats will typically represent byte arrays more
     // compactly.
-    fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
+    fn serialize_bytes(self, _v: &[u8]) -> Result<Self::Ok> {
         // use serde::ser::SerializeSeq;
         // let mut seq = self.serialize_seq(Some(v.len()))?;
         // for byte in v {
@@ -213,14 +213,14 @@ impl ser::Serializer for Serializer {
     // represent tuples more efficiently by omitting the length, since tuple
     // means that the corresponding `Deserialize implementation will know the
     // length without needing to look at the serialized data.
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
         Ok(SeqTracker::new())
     }
 
     fn serialize_tuple_struct(
         self,
         name: &'static str,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
         Ok(TupleStructTracker::new(name.to_owned()))
     }
@@ -250,7 +250,7 @@ impl ser::Serializer for Serializer {
     fn serialize_struct(
         self,
         name: &'static str,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeStruct> {
         Ok(StructTracker::new(name.to_owned()))
     }
@@ -505,11 +505,11 @@ fn test_struct() {
         seq: Vec<&'static str>,
     }
 
-    let test = Test {
+    let _test = Test {
         int: 1,
         seq: vec!["a", "b"],
     };
-    let expected = r#"{"int":1,"seq":["a","b"]}"#;
+    let _expected = r#"{"int":1,"seq":["a","b"]}"#;
     // assert_eq!(to_string(&test).unwrap(), expected);
 }
 

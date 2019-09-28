@@ -1,6 +1,6 @@
 use pest::Parser;
 use pest_derive::*;
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::{Pair};
 use unescape;
 
 use crate::scope::{Scope};

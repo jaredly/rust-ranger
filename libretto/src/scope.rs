@@ -1,21 +1,6 @@
 use std::collections::HashMap;
 use crate::ast::{Args, Expr, EvalError};
 
-// pub struct SubScope(Vec<(String, Expr)>, Option<SubScope>);
-
-// pub struct LocalScope(im_rc::HashMap<String, Expr>);
-// impl LocalScope {
-//   pub fn empty() -> Self {
-//     LocalScope(im_rc::HashMap::new())
-//   }
-//   pub fn set(&self, key: &str, v: Expr) -> LocalScope {
-//     LocalScope(self.0.update(key.to_owned(), v))
-//   }
-//   pub fn get(&self, key: &str) -> Option<&Expr> {
-//     self.0.get(key)
-//   }
-// }
-
 pub struct Scope<'a> {
   vbls: HashMap<String, Expr>,
   fns: HashMap<String, (Args, Expr)>,
