@@ -43,14 +43,14 @@ impl<'a> Scope<'a> {
       self.fns.insert(key.to_owned(), (args, body));
     }
 
-    pub fn call_fn(&self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
+    pub fn call_fn_raw(&self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
       match self.fns.get(name) {
         None => match self.parent {
           None => {
             // println!("{:?}", self.fns);
             Err(EvalError::MissingReference(name.to_owned()))
           },
-          Some(parent) => parent.call_fn(name, args)
+          Some(parent) => parent.call_fn_raw(name, args)
         },
         Some(f) if f.0.len() != args.len() => Err(EvalError::FunctionWrongNumberArgs(f.0.len(), args.len())),
         Some(f) => {

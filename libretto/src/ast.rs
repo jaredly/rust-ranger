@@ -181,7 +181,7 @@ impl Expr {
                 last.eval(&scope)
             },
 
-            Expr::FnCall(name, args) => scope.call_fn(&name, args),
+            Expr::FnCall(name, args) => scope.call_fn_raw(&name, args),
 
             // Expr::Lambda(args, block) => Err(EvalError::FunctionValue)
         }
