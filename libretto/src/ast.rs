@@ -20,7 +20,7 @@ pub enum Statement {
 }
 
 impl Statement {
-    fn eval(self, scope: &mut Scope) {
+    pub fn eval(self, scope: &mut Scope) {
         match self {
             Statement::Let(name, v) => scope.set_raw(&name, v),
             Statement::Expr(e) => {
@@ -65,6 +65,14 @@ pub enum Expr {
     // Lambda(Args, Box<Expr>),
     FnCall(String, Vec<Expr>),
 }
+
+impl From<f32> for Expr { fn from(i: f32) -> Self { Expr::Float(i) } }
+impl From<i32> for Expr { fn from(i: i32) -> Self { Expr::Int(i) } }
+impl From<bool> for Expr { fn from(i: bool) -> Self { Expr::Bool(i) } }
+impl From<char> for Expr { fn from(i: char) -> Self { Expr::Char(i) } }
+impl From<String> for Expr { fn from(i: String) -> Self { Expr::String(i) } }
+impl<T> From<Vec<T>> for Expr where T: Into<Expr> { fn from(i: Vec<T>) -> Self { Expr::Array(i.into_iter().map(|t|t.into()).collect()) } }
+// impl<T> std::convert::TryFrom<&T> for Expr where T: serde::Serialize { fn from(i: &T) -> Self { crate::ser::to_expr(i) } }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum EvalError {
@@ -361,9 +369,17 @@ pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
     }
 }
 
-pub fn process_file(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
+pub fn process_file(text: &str) -> Result<Vec<Statement>, pest::error::Error<Rule>> {
     match MainParser::parse(Rule::file, text) {
-        Ok(v) => Ok(Expr::Block(v.map(parse_stmt).collect(), Box::new(Expr::Unit))),
+        Ok(v) => {
+            let mut stmts = vec![];
+            for pair in v {
+                if let Rule::statement = pair.as_rule() {
+                    stmts.push(parse_stmt(pair))
+                }
+            }
+            Ok(stmts)
+        },
         Err(e) => Err(e),
     }
 }

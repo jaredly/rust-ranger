@@ -17,10 +17,16 @@ pub enum Error {
     WrongName(String, String),
     WrongTupleLength(usize, usize),
     Unevaluated,
+    EvalError(crate::ast::EvalError),
     Syntax
 }
 pub type Result<T> = std::result::Result<T, Error>;
 
+impl From<crate::ast::EvalError> for Error {
+    fn from(other: crate::ast::EvalError) -> Error {
+        Error::EvalError(other)
+    }
+}
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -48,6 +54,7 @@ impl ser::Error for Error {
 impl StdError for Error {
     fn description(&self) -> &str {
         match &self {
+          Error::EvalError(_) => "Error while evaluating",
           Error::ExpectedStruct => "Expected a struct",
           Error::ExpectedUnit => "Expected a unit",
           Error::ExpectedMap => "Expected a map",

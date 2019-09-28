@@ -75,3 +75,13 @@ fn add10(x) {
 add10(awesome() * 2)
 "##).unwrap()), Ok(20))
 }
+
+#[test]
+fn file() {
+  let scope = libretto::eval_file(r##"
+fn party(x, y, z) {
+  x * (y + z)
+}
+"##).unwrap();
+  assert_eq!(libretto::call_fn!(scope, "party", 10, 2, 3), Ok(50))
+}

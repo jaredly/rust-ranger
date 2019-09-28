@@ -20,6 +20,8 @@ pest = "*"
 pest_derive = "*"
 lazy_static = "1.3.0"
 
+libretto = {path="./libretto"}
+
 # rhai = { path="./rhai" }
 # ketos = "*"
 # ketos_derive = "0.11.0"

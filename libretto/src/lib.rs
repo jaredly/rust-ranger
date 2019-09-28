@@ -16,6 +16,14 @@ pub fn eval_expr(input: &str) -> Result<Expr, ast::EvalError> {
     process_expr(input).unwrap().eval(&Scope::empty())
 }
 
+pub fn eval_file(input: &str) -> Result<Scope, pest::error::Error<ast::Rule>> {
+    let mut scope = Scope::empty();
+    for stmt in process_file(input)? {
+        stmt.eval(&mut scope)
+    }
+    Ok(scope)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
