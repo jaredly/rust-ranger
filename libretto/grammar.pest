@@ -1,12 +1,13 @@
 
-file = _{SOI ~ value ~ EOI}
+file = _{SOI ~ statement* ~ EOI}
+expr = _{SOI ~ statement* ~ value ~ EOI}
 
 statement = {
     let_binding |
     value ~ ";" |
     fndefn
 }
-block = { "{" ~ statement ~ (";" ~ value)* ~ "}" }
+block = { "{" ~ statement* ~ value ~ "}" }
 
 let_binding = {"let" ~ ident ~ "=" ~ value ~ ";"}
 
@@ -19,7 +20,8 @@ op_item = _{
     | block
 
     | fncall
-    | lambda
+    // TODO figure out scope lifetime rules
+    // | lambda
 
     // Typed containers
     | struct_

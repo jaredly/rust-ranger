@@ -10,7 +10,7 @@ struct Point {
 
 #[test]
 fn example() {
-  let expr = libretto::process(r##" Point {x: 3, y: 5, name: "awesome"} "##).unwrap();
+  let expr = libretto::eval_expr(r##" Point {x: 3, y: 5, name: "awesome"} "##).unwrap();
   assert_eq!(
     Ok(Point {
       x: 3,
@@ -23,7 +23,7 @@ fn example() {
 
 #[test]
 fn example_uneval() {
-  let expr = libretto::process(r##" Point {x: 3 + 4, y: 5, name: "awesome"} "##).unwrap();
+  let expr = libretto::process_expr(r##" Point {x: 3 + 4, y: 5, name: "awesome"} "##).unwrap();
   assert_eq!(
     Err(libretto::Error::Unevaluated),
     libretto::from_expr::<Point>(&expr)
@@ -32,11 +32,7 @@ fn example_uneval() {
 
 #[test]
 fn example_eval() {
-  let expr = libretto::process(r##" Point {x: 3 + 4, y: 5, name: "awesome"} "##)
-    .unwrap()
-    .eval(&libretto::Scope::empty(), &libretto::LocalScope::empty())
-    .ok()
-    .unwrap();
+  let expr = libretto::eval_expr(r##" Point {x: 3 + 4, y: 5, name: "awesome"} "##).unwrap();
   assert_eq!(
     Ok(Point {
       x: 7,
@@ -51,9 +47,9 @@ fn example_eval() {
 fn example_eval_pass() {
   let mut scope = libretto::Scope::empty();
   scope.set("heads", 5).unwrap();
-  let expr = libretto::process(r##" Point {x: 3 + 4 + heads, y: 5, name: "awesome"} "##)
+  let expr = libretto::process_expr(r##" Point {x: 3 + 4 + heads, y: 5, name: "awesome"} "##)
     .unwrap()
-    .eval(&scope, &libretto::LocalScope::empty())
+    .eval(&scope)
     .ok()
     .unwrap();
   assert_eq!(

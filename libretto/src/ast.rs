@@ -3,12 +3,36 @@ use pest_derive::*;
 use pest::iterators::{Pair, Pairs};
 use unescape;
 
-use crate::scope::{Scope, LocalScope};
+use crate::scope::{Scope};
 
 
 #[grammar = "../grammar.pest"]
 #[derive(Parser)]
 pub struct MainParser;
+
+pub type Args = Vec<String>;
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Statement {
+    Let(String, Expr),
+    Expr(Expr),
+    FnDefn(String, Args, Expr)
+}
+
+impl Statement {
+    fn eval(self, scope: &mut Scope) {
+        match self {
+            Statement::Let(name, v) => scope.set_raw(&name, v),
+            Statement::Expr(e) => {
+                let _ = e.eval(&scope);
+            },
+            Statement::FnDefn(name, args, body) => {
+                scope.set_fn(&name, args, body)
+                // scope.set_raw(&name, Expr::Lambda(args, Box::new(body)))
+            }
+        }
+    }
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
@@ -36,12 +60,18 @@ pub enum Expr {
     Neq(Box<Expr>, Box<Expr>),
     Lt(Box<Expr>, Box<Expr>),
     Gt(Box<Expr>, Box<Expr>),
-    // todo fncall, etc.
+
+    Block(Vec<Statement>, Box<Expr>),
+    // Lambda(Args, Box<Expr>),
+    FnCall(String, Vec<Expr>),
 }
 
+#[derive(PartialEq, Debug, Clone)]
 pub enum EvalError {
     InvalidType,
     MissingReference(String),
+    FunctionValue,
+    FunctionWrongNumberArgs(usize, usize),
 }
 
 impl Expr {
@@ -64,7 +94,7 @@ impl Expr {
         }
     }
 
-    pub fn eval(self, scope: &Scope, locals: &LocalScope) -> Result<Self, EvalError> {
+    pub fn eval(self, scope: &Scope) -> Result<Self, EvalError> {
         match self {
             Expr::Float(_) | Expr::Int(_) | Expr::Bool(_) | Expr::String(_) | Expr::Char(_) | Expr::Unit => {
                 Ok(self)
@@ -72,75 +102,88 @@ impl Expr {
             Expr::Array(items) => {
                 let mut res = vec![];
                 for item in items {
-                    res.push(item.eval(scope, locals)?);
+                    res.push(item.eval(scope)?);
                 }
                 Ok(Expr::Array(res))
             }
             Expr::Object(items) => {
                 let mut res = vec![];
                 for (key, value) in items {
-                    res.push((key, value.eval(scope, locals)?));
+                    res.push((key, value.eval(scope)?));
                 }
                 Ok(Expr::Object(res))
             }
             Expr::Option(item) => Ok(Expr::Option(Box::new(
-                item.map(|v| v.eval(scope, locals)).transpose()?,
+                item.map(|v| v.eval(scope)).transpose()?,
             ))),
             Expr::Ident(name) => scope
                 .get_raw(&name)
-                .map(|v| v.clone().eval(scope, locals))
+                .map(|v| v.clone().eval(scope))
                 .ok_or(EvalError::MissingReference(name.to_string()))?,
             Expr::Struct(name, items) => {
                 let mut res = vec![];
                 for (key, value) in items {
-                    res.push((key, value.eval(scope, locals)?));
+                    res.push((key, value.eval(scope)?));
                 }
                 Ok(Expr::Struct(name, res))
             }
             Expr::NamedTuple(name, items) => {
                 let mut res = vec![];
                 for item in items {
-                    res.push(item.eval(scope, locals)?);
+                    res.push(item.eval(scope)?);
                 }
                 Ok(Expr::NamedTuple(name, res))
             }
 
             // some computation!
-            Expr::Plus(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
+            Expr::Plus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a + b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a + b)),
                 _ => Err(EvalError::InvalidType)
             }
-            Expr::Minus(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
+            Expr::Minus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a - b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a - b)),
                 _ => Err(EvalError::InvalidType)
             }
-            Expr::Times(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
+            Expr::Times(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a * b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a * b)),
                 _ => Err(EvalError::InvalidType)
             }
-            Expr::Divide(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
+            Expr::Divide(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a / b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a / b)),
                 _ => Err(EvalError::InvalidType)
             }
 
-            Expr::Eq(a, b) => Ok(Expr::Bool(a.eval(scope, locals)? == b.eval(scope, locals)?)),
-            Expr::Neq(a, b) => Ok(Expr::Bool(a.eval(scope, locals)? != b.eval(scope, locals)?)),
+            Expr::Eq(a, b) => Ok(Expr::Bool(a.eval(scope)? == b.eval(scope)?)),
+            Expr::Neq(a, b) => Ok(Expr::Bool(a.eval(scope)? != b.eval(scope)?)),
 
-            Expr::Lt(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
+            Expr::Lt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a < b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a < b)),
                 _ => Err(EvalError::InvalidType)
             }
 
-            Expr::Gt(a, b) => match (a.eval(scope, locals)?, b.eval(scope, locals)?) {
+            Expr::Gt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a > b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a > b)),
                 _ => Err(EvalError::InvalidType)
             }
+
+            //
+            Expr::Block(stmts, last) => {
+                let mut scope = scope.sub();
+                for stmt in stmts {
+                    stmt.eval(&mut scope);
+                }
+                last.eval(&scope)
+            },
+
+            Expr::FnCall(name, args) => scope.call_fn(&name, args),
+
+            // Expr::Lambda(args, block) => Err(EvalError::FunctionValue)
         }
     }
 }
@@ -233,10 +276,6 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
     }
 }
 
-pub fn parse(mut pairs: Pairs<Rule>) -> Expr {
-    parse_expr(pairs.next().unwrap())
-}
-
 macro_rules! make_ops {
     ($current: ident, $next: ident; $( $op: expr, $constr: path );*) => {
         fn $current(input: (Expr, Vec<(&str, Expr)>)) -> Expr {
@@ -273,105 +312,6 @@ fn make_op_4(input: (Expr, Vec<(&str, Expr)>)) -> Expr {
     input.0
 }
 
-// fn make_op_tree(mut input: (Expr, Vec<(&str, Expr)>)) -> Expr {
-//     let (first, items) = input;
-//     // let mut left = vec![];
-//     // let mut pos = None;
-//     for i in (0..items.len()) {
-//         if items[i].0 == "==" {
-//             let (left, right) = items.split_at(i);
-//             let mut right = right.to_vec();
-//             let (op, expr) = right.remove(0);
-//             return Expr::Eq(
-//                 Box::new(make_op_2((first, left.to_vec()))),
-//                 Box::new(make_op_tree((expr, right.to_vec()))),
-//             );
-//         }
-//         if items[i].0 == "!=" {
-//             let (left, right) = items.split_at(i);
-//             let mut right = right.to_vec();
-//             let (op, expr) = right.remove(0);
-//             return Expr::Neq(
-//                 Box::new(make_op_2((first, left.to_vec()))),
-//                 Box::new(make_op_tree((expr, right.to_vec()))),
-//             );
-//         }
-//         if items[i].0 == "<" {
-//             let (left, right) = items.split_at(i);
-//             let mut right = right.to_vec();
-//             let (op, expr) = right.remove(0);
-//             return Expr::Lt(
-//                 Box::new(make_op_2((first, left.to_vec()))),
-//                 Box::new(make_op_tree((expr, right.to_vec()))),
-//             );
-//         }
-//         if items[i].0 == ">" {
-//             let (left, right) = items.split_at(i);
-//             let mut right = right.to_vec();
-//             let (op, expr) = right.remove(0);
-//             return Expr::Gt(
-//                 Box::new(make_op_2((first, left.to_vec()))),
-//                 Box::new(make_op_tree((expr, right.to_vec()))),
-//             );
-//         }
-//     }
-//     make_op_2((first, items))
-// }
-
-// fn make_op_2(mut input: (Expr, Vec<(&str, Expr)>)) -> Expr {
-//     let (first, items) = input;
-//     // let mut left = vec![];
-//     // let mut pos = None;
-//     for i in (0..items.len()) {
-//         if items[i].0 == "-" {
-//             let (left, right) = items.split_at(i);
-//             let mut right = right.to_vec();
-//             let (op, expr) = right.remove(0);
-//             return Expr::Minus(
-//                 Box::new(make_op_3((first, left.to_vec()))),
-//                 Box::new(make_op_2((expr, right.to_vec()))),
-//             );
-//         }
-//         if items[i].0 == "+" {
-//             let (left, right) = items.split_at(i);
-//             let mut right = right.to_vec();
-//             let (op, expr) = right.remove(0);
-//             return Expr::Plus(
-//                 Box::new(make_op_3((first, left.to_vec()))),
-//                 Box::new(make_op_2((expr, right.to_vec()))),
-//             );
-//         }
-//     }
-//     make_op_3((first, items))
-// }
-
-// fn make_op_3(mut input: (Expr, Vec<(&str, Expr)>)) -> Expr {
-//     let (first, items) = input;
-//     // let mut left = vec![];
-//     // let mut pos = None;
-//     for i in (0..items.len()) {
-//         if items[i].0 == "/" {
-//             let (left, right) = items.split_at(i);
-//             let mut right = right.to_vec();
-//             let (op, expr) = right.remove(0);
-//             return Expr::Divide(
-//                 Box::new(make_op_4((first, left.to_vec()))),
-//                 Box::new(make_op_3((expr, right.to_vec()))),
-//             );
-//         }
-//         if items[i].0 == "*" {
-//             let (left, right) = items.split_at(i);
-//             let mut right = right.to_vec();
-//             let (op, expr) = right.remove(0);
-//             return Expr::Times(
-//                 Box::new(make_op_4((first, left.to_vec()))),
-//                 Box::new(make_op_3((expr, right.to_vec()))),
-//             );
-//         }
-//     }
-//     make_op_4((first, items))
-// }
-
 pub fn parse_expr(pair: Pair<Rule>) -> Expr {
     if pair.as_rule() != Rule::value {
         panic!("Invalid use of parse_expr. Must be a 'value'");
@@ -389,9 +329,53 @@ pub fn parse_expr(pair: Pair<Rule>) -> Expr {
     make_op_tree((first, rest))
 }
 
-pub fn process(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
+pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
+    match pair.as_rule() {
+        Rule::let_binding => {
+            let mut items = pair.into_inner();
+            let ident = items.next().unwrap().as_str().to_owned();
+            let value = parse_expr(items.next().unwrap());
+            Statement::Let(ident, value)
+        }
+        Rule::value => Statement::Expr(parse_expr(pair.into_inner().next().unwrap())),
+        Rule::fndefn => {
+            let mut items = pair.into_inner();
+            let ident = items.next().unwrap().as_str().to_owned();
+            let args = items.next().unwrap().into_inner().map(|pair| pair.as_str().to_owned()).collect();
+            let value = parse_expr(items.next().unwrap());
+            Statement::FnDefn(ident, args, value)
+        },
+        _ => unimplemented!()
+    }
+}
+
+pub fn process_file(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
     match MainParser::parse(Rule::file, text) {
-        Ok(v) => Ok(parse(v)),
+        Ok(v) => Ok(Expr::Block(v.map(parse_stmt).collect(), Box::new(Expr::Unit))),
+        Err(e) => Err(e),
+    }
+}
+
+pub fn process_expr(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
+    match MainParser::parse(Rule::expr, text) {
+        Ok(v) => {
+            let mut items = vec![];
+            for item in v {
+                match item.as_rule() {
+                    Rule::statement => items.push(parse_stmt(item)),
+                    Rule::value => return Ok(Expr::Block(items, Box::new(parse_expr(item)))),
+                    _ => ()
+                }
+            }
+            // let mut v: Vec<Pair<_>> = v.into_iter().collect();
+            // let last = v.pop().unwrap();
+            // println!("Number {} {:?}", v.len(), last);
+            // for item in v {
+            //     items.push(parse_stmt(item));
+            // }
+            // Ok(Expr::Block(items, Box::new(parse_expr(last))))
+            unreachable!()
+        },
         Err(e) => Err(e),
     }
 }

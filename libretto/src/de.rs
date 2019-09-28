@@ -33,8 +33,12 @@ pub fn from_expr<'a, T>(s: &'a ast::Expr) -> Result<T>
 where
     T: Deserialize<'a>,
 {
-    let deserializer = Deserializer::from_expr(s);
-    T::deserialize(deserializer)
+    if s.needs_evaluation() {
+        Err(Error::Unevaluated)
+    } else {
+        let deserializer = Deserializer::from_expr(s);
+        T::deserialize(deserializer)
+    }
 }
 
 // SERDE IS NOT A PARSING LIBRARY. This impl block defines a few basic parsing
