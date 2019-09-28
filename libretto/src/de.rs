@@ -323,12 +323,12 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
 }
 
 struct Items<'a> {
-    contents: &'a Vec<Expr>,
+    contents: &'a [Expr],
     index: usize
 }
 
 impl<'a, 'de> Items<'a> {
-    fn new(contents: &'a Vec<Expr>) -> Self {
+    fn new(contents: &'a [Expr]) -> Self {
         Items {
             contents,
             index: 0
@@ -338,12 +338,12 @@ impl<'a, 'de> Items<'a> {
 
 
 struct Pairs<'a> {
-    contents: &'a Vec<(String, Expr)>,
+    contents: &'a [(String, Expr)],
     index: usize
 }
 
 impl<'a, 'de> Pairs<'a> {
-    fn new(contents: &'a Vec<(String, Expr)>) -> Self {
+    fn new(contents: &'a [(String, Expr)]) -> Self {
         Pairs {
             contents,
             index: 0

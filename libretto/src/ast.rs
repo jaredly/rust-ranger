@@ -119,7 +119,7 @@ impl Expr {
             Expr::Ident(name) => scope
                 .get_raw(&name)
                 .map(|v| v.clone().eval(scope))
-                .ok_or(EvalError::MissingReference(name.to_string()))?,
+                .ok_or_else(|| EvalError::MissingReference(name.to_string()))?,
             Expr::Struct(name, items) => {
                 let mut res = vec![];
                 for (key, value) in items {
