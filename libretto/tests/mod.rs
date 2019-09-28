@@ -71,7 +71,7 @@ fn fn_call() {
 fn awesome() {
   5
 }
-fn add10(x) {
+fn add10(x: any) {
   x + 10
 }
 add10(awesome() * 2)
@@ -87,7 +87,7 @@ add10(awesome() * 2)
 fn file() {
     let scope = libretto::eval_file(
         r##"
-fn party(x, y, z) {
+fn party(x: any, y: any, z: any) {
   x * (y + z)
 }
 "##,
@@ -100,7 +100,7 @@ fn party(x, y, z) {
 fn file_pointer() {
     let scope = libretto::eval_file(
         r##"
-fn party(x, y, z, m) {
+fn party(x: any, y: any, z: any, m: any) {
   x * (y + z) + m.x
 }
 "##,
@@ -139,7 +139,7 @@ fn member_fns() {
         libretto::call_fn!(
             libretto::eval_file(
                 r#"
-      fn go(x, y) { x.cos() + pi.cos().abs() + (y as f32) }
+      fn go(x: any, y: any) { x.cos() + pi.cos().abs() + (y as f32) }
       "#
             )
             .unwrap(),
@@ -196,7 +196,7 @@ let res = [
   }
 ];
 let aa = log(res.len(), res);
-if res.len() != 2 {
+if res.len() != 3 {
   16
 } else {
   res

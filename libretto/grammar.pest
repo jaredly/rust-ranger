@@ -63,7 +63,7 @@ fncall = { ident ~ "(" ~ comma_values? ~ ")" }
 lambda = { "|" ~ args ~ "|" ~ op_item }
 fndefn = { "fn" ~ ident ~ "(" ~ args ~ ")" ~ block }
 
-args = { (ident ~ ("," ~ ident)* ~ ","?)? }
+args = { (ident ~ ":" ~ "any" ~ ("," ~ ident ~ ":" ~ "any")* ~ ","?)? }
 
 
 unit = {"()"}
