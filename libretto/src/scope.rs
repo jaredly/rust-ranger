@@ -104,7 +104,13 @@ impl<'a> Scope<'a> {
   pub fn get_raw(&self, key: &str) -> Option<&Expr> {
     match self.vbls.get(key) {
       None => match self.parent {
-        None => None,
+        None => match key {
+          "e" => Some(&Expr::Float(std::f32::consts::E)),
+          "pi" => Some(&Expr::Float(std::f32::consts::PI)),
+          "tau" => Some(&Expr::Float(std::f32::consts::PI * 2.0)),
+          "half_pi" => Some(&Expr::Float(std::f32::consts::FRAC_PI_2)),
+          _ => None
+        },
         Some(parent) => parent.get_raw(key),
       },
       Some(v) => Some(v),
