@@ -41,7 +41,10 @@ impl Statement {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum Type { F32, I32 }
+pub enum Type {
+    F32,
+    I32,
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
@@ -102,7 +105,7 @@ pub enum Pattern {
 #[derive(PartialEq, Debug, Clone)]
 pub enum IfCond {
     Value(Expr),
-    IfLet(Pattern, Expr)
+    IfLet(Pattern, Expr),
 }
 
 impl From<f32> for Expr {
@@ -178,7 +181,7 @@ impl Expr {
             | Expr::String(_)
             | Expr::Char(_)
             | Expr::Unit => Ok(self),
-            Expr::Array(items) => Ok(Expr::Array(items.try_map(|a|a.eval(scope))?)),
+            Expr::Array(items) => Ok(Expr::Array(items.try_map(|a| a.eval(scope))?)),
             Expr::Object(items) => {
                 let mut res = vec![];
                 for (key, value) in items {
@@ -201,7 +204,7 @@ impl Expr {
                 Ok(Expr::Struct(name, res))
             }
             Expr::NamedTuple(name, items) => {
-                Ok(Expr::NamedTuple(name, items.try_map(|a|a.eval(scope))?))
+                Ok(Expr::NamedTuple(name, items.try_map(|a| a.eval(scope))?))
             }
 
             // some computation!
@@ -254,7 +257,7 @@ impl Expr {
                 last.eval(&scope)
             }
 
-            Expr::FnCall(name, args) => scope.call_fn_raw(&name, args.try_map(|a|a.eval(&scope))?),
+            Expr::FnCall(name, args) => scope.call_fn_raw(&name, args.try_map(|a| a.eval(&scope))?),
 
             Expr::Cast(expr, typ) => {
                 let expr = expr.eval(&scope)?;
@@ -263,7 +266,7 @@ impl Expr {
                     (Expr::Float(f), Type::F32) => Ok(Expr::Float(f)),
                     (Expr::Int(i), Type::F32) => Ok(Expr::Float(i as f32)),
                     (Expr::Int(i), Type::I32) => Ok(Expr::Int(i)),
-                    _ => Err(EvalError::InvalidType("Cannot cast"))
+                    _ => Err(EvalError::InvalidType("Cannot cast")),
                 }
             }
 
@@ -273,7 +276,6 @@ impl Expr {
             //     }
             //     Ok(target)
             // }
-
             Expr::MemberAccess(expr, items) => {
                 let mut target = expr.eval(&scope)?;
                 for (name, args) in items {
@@ -283,7 +285,7 @@ impl Expr {
                                 "len" if args.is_empty() => Expr::Int(items.len() as i32),
                                 _ => {
                                     println!("{} - {:?}", name, args);
-                                    return Err(EvalError::InvalidType("unknown array fn"))
+                                    return Err(EvalError::InvalidType("unknown array fn"));
                                 }
                             },
                             Expr::Float(f) => match name.as_ref() {
@@ -294,20 +296,22 @@ impl Expr {
                                 // "to_int" if args.is_empty() => Expr::Int(f as i32),
                                 _ => {
                                     println!("{} - {:?}", name, args);
-                                    return Err(EvalError::InvalidType("unknown float fn"))
-                                },
+                                    return Err(EvalError::InvalidType("unknown float fn"));
+                                }
                             },
                             Expr::Int(i) => match name.as_ref() {
                                 "to_float" if false => Expr::Float(i as f32),
                                 _ => {
                                     println!("int {} - {:?}", name, args);
-                                    return Err(EvalError::InvalidType("Unknown int fn"))
-                                },
+                                    return Err(EvalError::InvalidType("Unknown int fn"));
+                                }
                             },
                             _ => {
-                                    println!("other {:?} : {} - {:?}", target, name, args);
-                                return Err(EvalError::InvalidType("Can only do fns on floats and ints"))
-                            },
+                                println!("other {:?} : {} - {:?}", target, name, args);
+                                return Err(EvalError::InvalidType(
+                                    "Can only do fns on floats and ints",
+                                ));
+                            }
                         }
                     } else {
                         match name.parse::<usize>() {
@@ -315,7 +319,11 @@ impl Expr {
                                 Expr::Array(children) | Expr::NamedTuple(_, children) => {
                                     target = children[index].clone()
                                 }
-                                _ => return Err(EvalError::InvalidType("Can only get index of array or namedtuple")),
+                                _ => {
+                                    return Err(EvalError::InvalidType(
+                                        "Can only get index of array or namedtuple",
+                                    ))
+                                }
                             },
                             Err(_) => match target {
                                 Expr::Object(children) | Expr::Struct(_, children) => {
@@ -332,7 +340,11 @@ impl Expr {
                                         return Err(EvalError::MissingMember(name));
                                     }
                                 }
-                                _ => return Err(EvalError::InvalidType("Can only get member of object or struct")),
+                                _ => {
+                                    return Err(EvalError::InvalidType(
+                                        "Can only get member of object or struct",
+                                    ))
+                                }
                             },
                         }
                     }
@@ -343,12 +355,10 @@ impl Expr {
             Expr::IfChain(chain, else_) => {
                 for (cond, body) in chain {
                     match cond {
-                        IfCond::Value(value) => {
-                            match value.eval(&scope)? {
-                                Expr::Bool(true) => return body.eval(&scope),
-                                Expr::Bool(false) => (),
-                                _ => return Err(EvalError::InvalidType("If condition must be a bool"))
-                            }
+                        IfCond::Value(value) => match value.eval(&scope)? {
+                            Expr::Bool(true) => return body.eval(&scope),
+                            Expr::Bool(false) => (),
+                            _ => return Err(EvalError::InvalidType("If condition must be a bool")),
                         },
                         IfCond::IfLet(pattern, value) => {
                             if let Some(bindings) = match_pattern(pattern, value) {
@@ -356,14 +366,14 @@ impl Expr {
                                 for (name, value) in bindings {
                                     sub.set_raw(&name, value)
                                 }
-                                return body.eval(&sub)
+                                return body.eval(&sub);
                             }
                         }
                     }
                 }
                 match else_ {
                     None => Ok(Expr::Unit),
-                    Some(block) => block.eval(&scope)
+                    Some(block) => block.eval(&scope),
                 }
             }
 
@@ -376,7 +386,7 @@ impl Expr {
                         for (name, value) in bindings {
                             sub.set_raw(&name, value)
                         }
-                        return body.eval(&sub)
+                        return body.eval(&sub);
                     }
                 }
                 Err(EvalError::Unmatched)
@@ -402,7 +412,7 @@ fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
                     if let Some(inner) = match_pattern(pat.clone(), val) {
                         bindings.extend(inner)
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Some(bindings)
@@ -412,17 +422,17 @@ fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
         }
         (Pattern::Struct(name, items), Expr::Struct(bname, bitems)) => {
             if name != bname {
-                return None
+                return None;
             }
             let mut bindings = vec![];
             for (ident, pat) in items {
-                match bitems.iter().find(|(iname, _)|iname == &ident) {
+                match bitems.iter().find(|(iname, _)| iname == &ident) {
                     None => return None,
                     Some((_, val)) => {
                         if let Some(inner) = match_pattern(pat, val.clone()) {
                             bindings.extend(inner);
                         } else {
-                            return None
+                            return None;
                         }
                     }
                 }

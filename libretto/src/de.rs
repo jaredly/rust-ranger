@@ -1,12 +1,7 @@
-
-
-use serde::Deserialize;
-use serde::forward_to_deserialize_any;
-use serde::de::{
-    self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess,
-    VariantAccess, Visitor,
-};
 use crate::error::{Error, Result};
+use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
+use serde::forward_to_deserialize_any;
+use serde::Deserialize;
 
 use crate::ast::{self, Expr};
 
@@ -74,7 +69,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
                 None => visitor.visit_none(),
                 Some(s) => visitor.visit_some(Deserializer::from_expr(&s)),
             },
-            _ => Err(Error::Unevaluated)
+            _ => Err(Error::Unevaluated),
         }
     }
 
@@ -110,11 +105,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     }
 
     // Unit struct means a named value containing no data.
-    fn deserialize_unit_struct<V>(
-        self,
-        name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -131,11 +122,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         }
     }
 
-    fn deserialize_newtype_struct<V>(
-        self,
-        name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -160,10 +147,11 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         V: Visitor<'de>,
     {
         match self.input {
-            Expr::Array(contents) |
-            Expr::NamedTuple(_, contents) => visitor.visit_seq(Items::new(contents)),
+            Expr::Array(contents) | Expr::NamedTuple(_, contents) => {
+                visitor.visit_seq(Items::new(contents))
+            }
             // Expr::Object(items) | Expr::Struct(_, items) => visitor.visit_seq(Pairs::new(items)),
-            _ => Err(Error::ExpectedSequence)
+            _ => Err(Error::ExpectedSequence),
         }
         // Parse the opening bracket of the sequence.
         // if self.next_char()? == '[' {
@@ -324,30 +312,23 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
 
 struct Items<'a> {
     contents: &'a [Expr],
-    index: usize
+    index: usize,
 }
 
 impl<'a, 'de> Items<'a> {
     fn new(contents: &'a [Expr]) -> Self {
-        Items {
-            contents,
-            index: 0
-        }
+        Items { contents, index: 0 }
     }
 }
 
-
 struct Pairs<'a> {
     contents: &'a [(String, Expr)],
-    index: usize
+    index: usize,
 }
 
 impl<'a, 'de> Pairs<'a> {
     fn new(contents: &'a [(String, Expr)]) -> Self {
-        Pairs {
-            contents,
-            index: 0
-        }
+        Pairs { contents, index: 0 }
     }
 }
 
@@ -361,11 +342,12 @@ impl<'a> SeqAccess<'a> for Items<'a> {
         T: DeserializeSeed<'a>,
     {
         if self.index == self.contents.len() {
-            return Ok(None)
+            return Ok(None);
         }
         self.index += 1;
         // Deserialize an array element.
-        seed.deserialize(Deserializer::from_expr(&self.contents[self.index - 1])).map(Some)
+        seed.deserialize(Deserializer::from_expr(&self.contents[self.index - 1]))
+            .map(Some)
     }
 }
 
@@ -411,7 +393,7 @@ impl<'a> MapAccess<'a> for Pairs<'a> {
         K: DeserializeSeed<'a>,
     {
         if self.index == self.contents.len() {
-            return Ok(None)
+            return Ok(None);
         }
         let (key, _v) = &self.contents[self.index];
         // self.index += 1;
@@ -464,12 +446,11 @@ impl<'a> EnumAccess<'a> for Enum<'a> {
         // currently inside of a map. The seed will be deserializing itself from
         // the key of the map.
         match self.expr {
-            Expr::NamedTuple(name, _)
-            | Expr::Struct(name, _) => {
+            Expr::NamedTuple(name, _) | Expr::Struct(name, _) => {
                 let val = seed.deserialize(KeyDeserializer::from_str(name))?;
                 Ok((val, self))
             }
-            | _ => Err(Error::ExpectedEnum)
+            _ => Err(Error::ExpectedEnum),
         }
         // Parse the colon separating map key from value.
         // if self.de.next_char()? == ':' {
@@ -489,10 +470,8 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     // should have been the plain string case handled in `deserialize_enum`.
     fn unit_variant(self) -> Result<()> {
         match self.expr {
-            Expr::NamedTuple(_, v) if v.is_empty() => {
-                Ok(())
-            }
-            _ => Err(Error::ExpectedEnum)
+            Expr::NamedTuple(_, v) if v.is_empty() => Ok(()),
+            _ => Err(Error::ExpectedEnum),
         }
     }
 
@@ -532,11 +511,7 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
 
     // Struct variants are represented in JSON as `{ NAME: { K: V, ... } }` so
     // deserialize the inner map here.
-    fn struct_variant<V>(
-        self,
-        _fields: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value>
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
         V: Visitor<'a>,
     {

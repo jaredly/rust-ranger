@@ -1,4 +1,4 @@
-use crate::ast::{Expr};
+use crate::ast::Expr;
 
 use serde::{ser, Serialize};
 
@@ -68,7 +68,7 @@ impl ser::Serializer for Serializer {
     // Not particularly efficient but this is example code anyway. A more
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
-      Ok(Expr::Int(v as i32))
+        Ok(Expr::Int(v as i32))
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
@@ -84,7 +84,7 @@ impl ser::Serializer for Serializer {
     }
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
-      Ok(Expr::Int(v as i32))
+        Ok(Expr::Int(v as i32))
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
@@ -105,7 +105,7 @@ impl ser::Serializer for Serializer {
     // get the idea. For example it would emit invalid JSON if the input string
     // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-      Ok(Expr::String(v.to_owned()))
+        Ok(Expr::String(v.to_owned()))
     }
 
     // Serialize a byte array as an array of bytes. Could also use a base64
@@ -166,15 +166,14 @@ impl ser::Serializer for Serializer {
 
     // As is done here, serializers are encouraged to treat newtype structs as
     // insignificant wrappers around the data they contain.
-    fn serialize_newtype_struct<T>(
-        self,
-        name: &'static str,
-        value: &T,
-    ) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: ?Sized + Serialize,
     {
-        Ok(Expr::NamedTuple(name.to_owned(), vec![value.serialize(self)?]))
+        Ok(Expr::NamedTuple(
+            name.to_owned(),
+            vec![value.serialize(self)?],
+        ))
     }
 
     // Note that newtype variant (and all of the other variant serialization
@@ -192,7 +191,10 @@ impl ser::Serializer for Serializer {
     where
         T: ?Sized + Serialize,
     {
-        Ok(Expr::NamedTuple(variant.to_owned(), vec![value.serialize(self)?]))
+        Ok(Expr::NamedTuple(
+            variant.to_owned(),
+            vec![value.serialize(self)?],
+        ))
     }
 
     // Now we get to the serialization of compound types.
@@ -247,11 +249,7 @@ impl ser::Serializer for Serializer {
     // omit the field names when serializing structs because the corresponding
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
-    fn serialize_struct(
-        self,
-        name: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Ok(StructTracker::new(name.to_owned()))
     }
 
@@ -268,11 +266,13 @@ impl ser::Serializer for Serializer {
     }
 }
 
-pub struct SeqTracker { items: Vec<Expr> }
+pub struct SeqTracker {
+    items: Vec<Expr>,
+}
 impl SeqTracker {
-  fn new() -> Self {
-    SeqTracker { items: vec![] }
-  }
+    fn new() -> Self {
+        SeqTracker { items: vec![] }
+    }
 }
 
 // The following 7 impls deal with the serialization of compound types like
@@ -299,7 +299,7 @@ impl ser::SerializeSeq for SeqTracker {
 
     // Close the sequence.
     fn end(self) -> Result<Self::Ok> {
-      Ok(Expr::Array(self.items))
+        Ok(Expr::Array(self.items))
     }
 }
 
@@ -321,11 +321,17 @@ impl<'a> ser::SerializeTuple for SeqTracker {
     }
 }
 
-pub struct TupleStructTracker { name: String, items: Vec<Expr> }
+pub struct TupleStructTracker {
+    name: String,
+    items: Vec<Expr>,
+}
 impl TupleStructTracker {
-  fn new(name: String) -> Self {
-    TupleStructTracker { name, items: vec![] }
-  }
+    fn new(name: String) -> Self {
+        TupleStructTracker {
+            name,
+            items: vec![],
+        }
+    }
 }
 
 // Same thing but for tuple structs.
@@ -342,7 +348,7 @@ impl ser::SerializeTupleStruct for TupleStructTracker {
     }
 
     fn end(self) -> Result<Self::Ok> {
-      Ok(Expr::NamedTuple(self.name, self.items))
+        Ok(Expr::NamedTuple(self.name, self.items))
     }
 }
 
@@ -373,16 +379,16 @@ impl<'a> ser::SerializeTupleVariant for TupleStructTracker {
 }
 
 pub struct MapTracker {
-  key: Option<String>,
-  items: Vec<(String, Expr)>,
+    key: Option<String>,
+    items: Vec<(String, Expr)>,
 }
 impl MapTracker {
-  fn new() -> Self {
-    MapTracker {
-      key: None,
-      items: vec![],
+    fn new() -> Self {
+        MapTracker {
+            key: None,
+            items: vec![],
+        }
     }
-  }
 }
 
 impl ser::SerializeMap for MapTracker {
@@ -402,8 +408,8 @@ impl ser::SerializeMap for MapTracker {
         T: ?Sized + Serialize,
     {
         match key.serialize(Serializer)? {
-          Expr::String(name) | Expr::Ident(name) => self.key = Some(name),
-          _ => unimplemented!()
+            Expr::String(name) | Expr::Ident(name) => self.key = Some(name),
+            _ => unimplemented!(),
         }
         Ok(())
     }
@@ -415,41 +421,37 @@ impl ser::SerializeMap for MapTracker {
     where
         T: ?Sized + Serialize,
     {
-      let key = self.key.take();
-      match key {
-        None => panic!("Value wthout key"),
-        Some(v) => {
-          self.key = None;
-          self.items.push((
-            v,
-            value.serialize(Serializer)?
-          ));
-          Ok(())
+        let key = self.key.take();
+        match key {
+            None => panic!("Value wthout key"),
+            Some(v) => {
+                self.key = None;
+                self.items.push((v, value.serialize(Serializer)?));
+                Ok(())
+            }
         }
-      }
     }
 
     fn end(self) -> Result<Self::Ok> {
-      if self.key.is_some() {
-        panic!("Unused key");
-      }
-      Ok(Expr::Object(self.items))
+        if self.key.is_some() {
+            panic!("Unused key");
+        }
+        Ok(Expr::Object(self.items))
     }
 }
 
 pub struct StructTracker {
-  name: String,
-  items: Vec<(String, Expr)>,
+    name: String,
+    items: Vec<(String, Expr)>,
 }
 impl StructTracker {
-  fn new(name: String) -> Self {
-    StructTracker {
-      name,
-      items: vec![],
+    fn new(name: String) -> Self {
+        StructTracker {
+            name,
+            items: vec![],
+        }
     }
-  }
 }
-
 
 // Structs are like maps in which the keys are constrained to be compile-time
 // constant strings.
@@ -461,10 +463,8 @@ impl<'a> ser::SerializeStruct for StructTracker {
     where
         T: ?Sized + Serialize,
     {
-        self.items.push((
-          key.to_owned(),
-          value.serialize(Serializer)?,
-        ));
+        self.items
+            .push((key.to_owned(), value.serialize(Serializer)?));
         Ok(())
     }
 
@@ -483,10 +483,8 @@ impl<'a> ser::SerializeStructVariant for StructTracker {
     where
         T: ?Sized + Serialize,
     {
-        self.items.push((
-          key.to_owned(),
-          value.serialize(Serializer)?,
-        ));
+        self.items
+            .push((key.to_owned(), value.serialize(Serializer)?));
         Ok(())
     }
 

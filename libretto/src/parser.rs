@@ -4,7 +4,7 @@ use pest_derive::*;
 
 use unescape;
 
-use crate::ast::{Expr, Statement, Type, Const, Pattern, IfCond};
+use crate::ast::{Const, Expr, IfCond, Pattern, Statement, Type};
 
 #[grammar = "../grammar.pest"]
 #[derive(Parser)]
@@ -95,62 +95,55 @@ fn parse_const_const(pair: Pair<Rule>) -> Const {
 }
 
 fn parse_pattern(pattern: Pair<Rule>) -> Pattern {
-  let pattern = match pattern.into_inner().next() {
-    None => return Pattern::Any,
-    Some(item) => item
-  };
-  match pattern.as_rule() {
-    Rule::const_ => Pattern::Const(parse_const_const(pattern)),
-    Rule::ident => Pattern::Ident(pattern.as_str().to_owned()),
-    Rule::tuple_pattern => {
-      let mut inner = pattern.into_inner();
-      let first = inner.next().unwrap();
-      Pattern::Tuple(
-        first.as_str().to_owned(),
-        inner.map(parse_pattern).collect()
-      )
-    }
-    Rule::struct_pattern => {
-      let mut inner = pattern.into_inner();
-      let first = inner.next().unwrap();
-      let mut items = vec![];
-      loop {
-        if let None = inner.peek() {
-          break;
+    let pattern = match pattern.into_inner().next() {
+        None => return Pattern::Any,
+        Some(item) => item,
+    };
+    match pattern.as_rule() {
+        Rule::const_ => Pattern::Const(parse_const_const(pattern)),
+        Rule::ident => Pattern::Ident(pattern.as_str().to_owned()),
+        Rule::tuple_pattern => {
+            let mut inner = pattern.into_inner();
+            let first = inner.next().unwrap();
+            Pattern::Tuple(
+                first.as_str().to_owned(),
+                inner.map(parse_pattern).collect(),
+            )
         }
-        let ident = inner.next().unwrap().as_str().to_owned();
-        let pattern = if let Some(pattern) = inner.peek() {
-          if pattern.as_rule() == Rule::pattern {
-            parse_pattern(inner.next().unwrap())
-          } else {
-            Pattern::Ident(ident.clone())
-          }
-        } else {
-          Pattern::Ident(ident.clone())
-        };
-        items.push((ident, pattern))
-      }
-      Pattern::Struct(
-        first.as_str().to_owned(),
-        items
-      )
-    },
-    _ => unreachable!()
-  }
+        Rule::struct_pattern => {
+            let mut inner = pattern.into_inner();
+            let first = inner.next().unwrap();
+            let mut items = vec![];
+            loop {
+                if let None = inner.peek() {
+                    break;
+                }
+                let ident = inner.next().unwrap().as_str().to_owned();
+                let pattern = if let Some(pattern) = inner.peek() {
+                    if pattern.as_rule() == Rule::pattern {
+                        parse_pattern(inner.next().unwrap())
+                    } else {
+                        Pattern::Ident(ident.clone())
+                    }
+                } else {
+                    Pattern::Ident(ident.clone())
+                };
+                items.push((ident, pattern))
+            }
+            Pattern::Struct(first.as_str().to_owned(), items)
+        }
+        _ => unreachable!(),
+    }
 }
 
 fn parse_if_cond(pair: Pair<Rule>) -> IfCond {
-  let mut cond = pair.into_inner();
-  let first = cond.next().unwrap();
-  match first.as_rule() {
-    Rule::value => IfCond::Value(parse_expr(first)),
-    Rule::pattern => IfCond::IfLet(
-      parse_pattern(first),
-      parse_expr(cond.next().unwrap())
-    ),
-    _ => unreachable!()
-  }
-
+    let mut cond = pair.into_inner();
+    let first = cond.next().unwrap();
+    match first.as_rule() {
+        Rule::value => IfCond::Value(parse_expr(first)),
+        Rule::pattern => IfCond::IfLet(parse_pattern(first), parse_expr(cond.next().unwrap())),
+        _ => unreachable!(),
+    }
 }
 
 pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
@@ -160,11 +153,14 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
             let first = parse_op_item(items.next().unwrap());
             match items.next() {
                 None => first,
-                Some(pair) => Expr::Cast(Box::new(first), match pair.as_str() {
-                    "i32" => Type::I32,
-                    "f32" => Type::F32,
-                    _ => unreachable!()
-                })
+                Some(pair) => Expr::Cast(
+                    Box::new(first),
+                    match pair.as_str() {
+                        "i32" => Type::I32,
+                        "f32" => Type::F32,
+                        _ => unreachable!(),
+                    },
+                ),
             }
         }
 
@@ -174,18 +170,19 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
             let block = parse_expr(items.next().unwrap());
             let mut middles = vec![(first_cond, block)];
             loop {
-              let first = match items.next() {
-                None => break,
-                Some(pair) => pair
-              };
-              match first.as_rule() {
-                Rule::block => return Expr::IfChain(middles, Some(Box::new(parse_expr(first)))),
-                Rule::if_cond => middles.push((
-                  parse_if_cond(first),
-                  parse_expr(items.next().unwrap())
-                )),
-                _ => unreachable!()
-              }
+                let first = match items.next() {
+                    None => break,
+                    Some(pair) => pair,
+                };
+                match first.as_rule() {
+                    Rule::block => {
+                        return Expr::IfChain(middles, Some(Box::new(parse_expr(first))))
+                    }
+                    Rule::if_cond => {
+                        middles.push((parse_if_cond(first), parse_expr(items.next().unwrap())))
+                    }
+                    _ => unreachable!(),
+                }
             }
             Expr::IfChain(middles, None)
         }
@@ -195,12 +192,12 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
             let value = parse_expr(items.next().unwrap());
             let mut cases = vec![];
             loop {
-              if let None = items.peek() {
-                break;
-              }
-              let pattern = parse_pattern(items.next().unwrap());
-              let body = parse_expr(items.next().unwrap());
-              cases.push((pattern, body))
+                if let None = items.peek() {
+                    break;
+                }
+                let pattern = parse_pattern(items.next().unwrap());
+                let body = parse_expr(items.next().unwrap());
+                cases.push((pattern, body))
             }
             Expr::Match(Box::new(value), cases)
         }
@@ -299,7 +296,7 @@ fn make_op_4(input: (Expr, Vec<(&str, Expr)>)) -> Expr {
 
 pub fn parse_expr(pair: Pair<Rule>) -> Expr {
     if pair.as_rule() == Rule::block {
-        return parse_block(pair)
+        return parse_block(pair);
     }
     if pair.as_rule() != Rule::value {
         panic!(
