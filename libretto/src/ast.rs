@@ -1,10 +1,9 @@
+use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::*;
-use pest::iterators::{Pair};
 use unescape;
 
-use crate::scope::{Scope};
-
+use crate::scope::Scope;
 
 #[grammar = "../grammar.pest"]
 #[derive(Parser)]
@@ -16,7 +15,7 @@ pub type Args = Vec<String>;
 pub enum Statement {
     Let(String, Expr),
     Expr(Expr),
-    FnDefn(String, Args, Expr)
+    FnDefn(String, Args, Expr),
 }
 
 impl Statement {
@@ -25,7 +24,7 @@ impl Statement {
             Statement::Let(name, v) => scope.set_raw(&name, v),
             Statement::Expr(e) => {
                 let _ = e.eval(&scope);
-            },
+            }
             Statement::FnDefn(name, args, body) => {
                 scope.set_fn(&name, args, body)
                 // scope.set_raw(&name, Expr::Lambda(args, Box::new(body)))
@@ -61,19 +60,46 @@ pub enum Expr {
     Lt(Box<Expr>, Box<Expr>),
     Gt(Box<Expr>, Box<Expr>),
 
-    MemberAccess(Box<Expr>, Vec<String>),
+    MemberAccess(Box<Expr>, Vec<(String, Option<Vec<Expr>>)>),
 
     Block(Vec<Statement>, Box<Expr>),
     // Lambda(Args, Box<Expr>),
     FnCall(String, Vec<Expr>),
 }
 
-impl From<f32> for Expr { fn from(i: f32) -> Self { Expr::Float(i) } }
-impl From<i32> for Expr { fn from(i: i32) -> Self { Expr::Int(i) } }
-impl From<bool> for Expr { fn from(i: bool) -> Self { Expr::Bool(i) } }
-impl From<char> for Expr { fn from(i: char) -> Self { Expr::Char(i) } }
-impl From<String> for Expr { fn from(i: String) -> Self { Expr::String(i) } }
-impl<T> From<Vec<T>> for Expr where T: Into<Expr> { fn from(i: Vec<T>) -> Self { Expr::Array(i.into_iter().map(|t|t.into()).collect()) } }
+impl From<f32> for Expr {
+    fn from(i: f32) -> Self {
+        Expr::Float(i)
+    }
+}
+impl From<i32> for Expr {
+    fn from(i: i32) -> Self {
+        Expr::Int(i)
+    }
+}
+impl From<bool> for Expr {
+    fn from(i: bool) -> Self {
+        Expr::Bool(i)
+    }
+}
+impl From<char> for Expr {
+    fn from(i: char) -> Self {
+        Expr::Char(i)
+    }
+}
+impl From<String> for Expr {
+    fn from(i: String) -> Self {
+        Expr::String(i)
+    }
+}
+impl<T> From<Vec<T>> for Expr
+where
+    T: Into<Expr>,
+{
+    fn from(i: Vec<T>) -> Self {
+        Expr::Array(i.into_iter().map(|t| t.into()).collect())
+    }
+}
 // impl<T> std::convert::TryFrom<T> for Expr where T: serde::Serialize { fn from(i: T) -> Self { crate::ser::to_expr(&i) } }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -106,9 +132,12 @@ impl Expr {
 
     pub fn eval(self, scope: &Scope) -> Result<Self, EvalError> {
         match self {
-            Expr::Float(_) | Expr::Int(_) | Expr::Bool(_) | Expr::String(_) | Expr::Char(_) | Expr::Unit => {
-                Ok(self)
-            }
+            Expr::Float(_)
+            | Expr::Int(_)
+            | Expr::Bool(_)
+            | Expr::String(_)
+            | Expr::Char(_)
+            | Expr::Unit => Ok(self),
             Expr::Array(items) => {
                 let mut res = vec![];
                 for item in items {
@@ -149,23 +178,23 @@ impl Expr {
             Expr::Plus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a + b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a + b)),
-                _ => Err(EvalError::InvalidType)
-            }
+                _ => Err(EvalError::InvalidType),
+            },
             Expr::Minus(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a - b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a - b)),
-                _ => Err(EvalError::InvalidType)
-            }
+                _ => Err(EvalError::InvalidType),
+            },
             Expr::Times(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a * b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a * b)),
-                _ => Err(EvalError::InvalidType)
-            }
+                _ => Err(EvalError::InvalidType),
+            },
             Expr::Divide(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Int(a / b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Float(a / b)),
-                _ => Err(EvalError::InvalidType)
-            }
+                _ => Err(EvalError::InvalidType),
+            },
 
             Expr::Eq(a, b) => Ok(Expr::Bool(a.eval(scope)? == b.eval(scope)?)),
             Expr::Neq(a, b) => Ok(Expr::Bool(a.eval(scope)? != b.eval(scope)?)),
@@ -173,14 +202,14 @@ impl Expr {
             Expr::Lt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a < b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a < b)),
-                _ => Err(EvalError::InvalidType)
-            }
+                _ => Err(EvalError::InvalidType),
+            },
 
             Expr::Gt(a, b) => match (a.eval(scope)?, b.eval(scope)?) {
                 (Expr::Int(a), Expr::Int(b)) => Ok(Expr::Bool(a > b)),
                 (Expr::Float(a), Expr::Float(b)) => Ok(Expr::Bool(a > b)),
-                _ => Err(EvalError::InvalidType)
-            }
+                _ => Err(EvalError::InvalidType),
+            },
 
             //
             Expr::Block(stmts, last) => {
@@ -189,41 +218,69 @@ impl Expr {
                     stmt.eval(&mut scope);
                 }
                 last.eval(&scope)
-            },
+            }
 
             Expr::FnCall(name, args) => scope.call_fn_raw(&name, args),
 
+            // Expr::MemberCall(expr, calls) => {
+            //     let mut target = expr.eval(&scope)?;
+            //     for (name, args) in calls {
+            //     }
+            //     Ok(target)
+            // }
+
             Expr::MemberAccess(expr, items) => {
                 let mut target = expr.eval(&scope)?;
-                for name in items {
-                    match name.parse::<usize>() {
-                        Ok(index) => match target {
-                            Expr::Array(children) | Expr::NamedTuple(_, children) => target = children[index].clone(),
-                            _ => return Err(EvalError::InvalidType)
-                        },
-                        Err(_) => match target {
-                            Expr::Object(children) | Expr::Struct(_, children) => {
-                                let mut found = false;
-                                target = Expr::Unit;
-                                for (sname, child) in children {
-                                    if sname == name {
-                                        target = child;
-                                        found = true;
-                                        break;
+                for (name, args) in items {
+                    if let Some(args) = args {
+                        target = match target {
+                            Expr::Float(f) => match name.as_ref() {
+                                "sin" if args.is_empty() => Expr::Float(f.sin()),
+                                "cos" if args.is_empty() => Expr::Float(f.cos()),
+                                "tan" if args.is_empty() => Expr::Float(f.tan()),
+                                "abs" if args.is_empty() => Expr::Float(f.abs()),
+                                "to_int" if args.is_empty() => Expr::Int(f as i32),
+                                _ => {
+                                    // println!("{} - {}", name, args);
+                                    return Err(EvalError::InvalidType)
+                                },
+                            },
+                            Expr::Int(i) => match name.as_ref() {
+                                "to_float" if args.is_empty() => Expr::Float(i as f32),
+                                _ => return Err(EvalError::InvalidType),
+                            },
+                            _ => return Err(EvalError::InvalidType),
+                        }
+                    } else {
+                        match name.parse::<usize>() {
+                            Ok(index) => match target {
+                                Expr::Array(children) | Expr::NamedTuple(_, children) => {
+                                    target = children[index].clone()
+                                }
+                                _ => return Err(EvalError::InvalidType),
+                            },
+                            Err(_) => match target {
+                                Expr::Object(children) | Expr::Struct(_, children) => {
+                                    let mut found = false;
+                                    target = Expr::Unit;
+                                    for (sname, child) in children {
+                                        if sname == name {
+                                            target = child;
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    if !found {
+                                        return Err(EvalError::InvalidType);
                                     }
                                 }
-                                if !found {
-                                    return Err(EvalError::InvalidType)
-                                }
+                                _ => return Err(EvalError::InvalidType),
                             },
-                            _ => return Err(EvalError::InvalidType)
                         }
                     }
                 }
                 Ok(target)
-            }
-
-            // Expr::Lambda(args, block) => Err(EvalError::FunctionValue)
+            } // Expr::Lambda(args, block) => Err(EvalError::FunctionValue)
         }
     }
 }
@@ -288,10 +345,38 @@ fn parse_pair(pair: Pair<Rule>) -> (String, Expr) {
 
 pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
     match pair.as_rule() {
+        // Rule::member_call => {
+        //     let mut items = pair.into_inner();
+        //     let first = parse_op_item(items.next().unwrap());
+        //     if let None = items.peek() {
+        //         first
+        //     } else {
+        //         let calls: Vec<(String, Vec<Expr>)> = items.into_iter().map(|pair|{
+        //             let mut items = pair.into_inner();
+        //             let name = items.next().unwrap().as_str().to_string();
+        //             let args = items.next().map_or(vec![], |v|v.into_inner().map(parse_expr).collect());
+        //             (name, args)
+        //         }).collect();
+        //         Expr::MemberCall(Box::new(first), calls)
+        //     }
+        // }
         Rule::subject => {
             let mut items = pair.into_inner();
             let first = parse_op_item(items.next().unwrap());
-            let access: Vec<String> = items.into_iter().map(|pair|pair.as_str().to_string()).collect();
+            let access: Vec<(String, Option<Vec<Expr>>)> = items
+                .into_iter()
+                .map(|pair| match pair.as_rule() {
+                    Rule::fncall => {
+                        let mut items = pair.into_inner();
+                        let name = items.next().unwrap().as_str().to_string();
+                        let args = items
+                            .next()
+                            .map_or(vec![], |v| v.into_inner().map(parse_expr).collect());
+                        (name, Some(args))
+                    }
+                    _ => (pair.as_str().to_owned(), None),
+                })
+                .collect();
             if access.is_empty() {
                 first
             } else {
@@ -369,7 +454,11 @@ fn make_op_4(input: (Expr, Vec<(&str, Expr)>)) -> Expr {
 
 pub fn parse_expr(pair: Pair<Rule>) -> Expr {
     if pair.as_rule() != Rule::value {
-        panic!("Invalid use of parse_expr. Must be a 'value' : {} {:?}", pair.as_str(), pair);
+        panic!(
+            "Invalid use of parse_expr. Must be a 'value' : {} {:?}",
+            pair.as_str(),
+            pair
+        );
     }
     let mut items = pair.into_inner();
     let first = parse_op_item(items.next().unwrap());
@@ -397,10 +486,15 @@ pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
         Rule::fndefn => {
             let mut items = pair.into_inner();
             let ident = items.next().unwrap().as_str().to_owned();
-            let args = items.next().unwrap().into_inner().map(|pair| pair.as_str().to_owned()).collect();
+            let args = items
+                .next()
+                .unwrap()
+                .into_inner()
+                .map(|pair| pair.as_str().to_owned())
+                .collect();
             let value = parse_block(items.next().unwrap());
             Statement::FnDefn(ident, args, value)
-        },
+        }
         _ => {
             panic!(format!(
                 "Unreachable stmt {}, {:?}",
@@ -421,7 +515,7 @@ pub fn process_file(text: &str) -> Result<Vec<Statement>, pest::error::Error<Rul
                 }
             }
             Ok(stmts)
-        },
+        }
         Err(e) => Err(e),
     }
 }
@@ -432,7 +526,7 @@ pub fn parse_block(pair: Pair<Rule>) -> Expr {
         match item.as_rule() {
             Rule::statement => items.push(parse_stmt(item)),
             Rule::value => return Expr::Block(items, Box::new(parse_expr(item))),
-            _ => ()
+            _ => (),
         }
     }
     unreachable!()
@@ -446,7 +540,7 @@ pub fn process_expr(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
                 match item.as_rule() {
                     Rule::statement => items.push(parse_stmt(item)),
                     Rule::value => return Ok(Expr::Block(items, Box::new(parse_expr(item)))),
-                    _ => ()
+                    _ => (),
                 }
             }
             // let mut v: Vec<Pair<_>> = v.into_iter().collect();
@@ -457,7 +551,7 @@ pub fn process_expr(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
             // }
             // Ok(Expr::Block(items, Box::new(parse_expr(last))))
             unreachable!()
-        },
+        }
         Err(e) => Err(e),
     }
 }

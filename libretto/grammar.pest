@@ -14,7 +14,7 @@ let_binding = {"let" ~ ident ~ "=" ~ value ~ ";"}
 value = {subject ~ binop_post*}
 binop_post = {binop ~ subject}
 
-subject = { op_item ~ ("." ~ (ident | digits))* }
+subject = { op_item ~ ("." ~ (fncall | ident | digits))* }
 digits = @{ASCII_DIGIT+}
 
 op_item = _{
