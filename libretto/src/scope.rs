@@ -27,7 +27,7 @@ pub struct Scope<'a> {
     pub id: usize,
     pub vbls: HashMap<String, Expr>,
     pub fns: HashMap<String, (Args, Expr)>,
-    pub parent: Option<&'a Scope<'a>>,
+    pub parent: Option<&'a mut Scope<'a>>,
 }
 
 impl<'a> Scope<'a> {
@@ -41,7 +41,7 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn from(parent: &'a Scope<'a>) -> Self {
+    pub fn from(parent: &'a mut Scope<'a>) -> Self {
         Scope {
             id: parent.id + 1,
             vbls: HashMap::new(),
@@ -50,7 +50,7 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn sub(&'a self) -> Scope<'a> {
+    pub fn sub(&'a mut self) -> Scope<'a> {
         // println!("New sub scope from {}", self.show());
         Self::from(self)
     }
@@ -71,7 +71,7 @@ impl<'a> Scope<'a> {
     //   crate::de::from_expr(&result)
     // }
 
-    pub fn call_fn_raw(&self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
+    pub fn call_fn_raw<'b>(&'b mut self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
         match self.fns.get(name) {
             None => match self.parent {
                 None => {
@@ -99,11 +99,13 @@ impl<'a> Scope<'a> {
                 Err(EvalError::FunctionWrongNumberArgs(f.0.len(), args.len()))
             }
             Some(f) => {
-                let mut sub = self.sub();
+                let sub = Scope::from(&mut self);
                 for (aname, aval) in f.0.iter().zip(args) {
-                    sub.set_raw(aname, aval.eval(&self)?);
+                    sub.set_raw(aname, aval);
                 }
-                f.1.clone().eval(&sub)
+                let body = f.1.clone();
+                body.eval(&sub)?;
+                Ok(body)
             }
         }
     }
@@ -126,6 +128,52 @@ impl<'a> Scope<'a> {
         match self.parent {
             None => own,
             Some(parent) => format!("{}, parent: {}", own, parent.show()),
+        }
+    }
+
+    pub fn move_raw(&mut self, key: &str) -> Option<Expr> {
+        // println!("Looking for {} in {} ", key, self.show());
+        match self.vbls.remove(key) {
+            None => match self.parent {
+                None => match key {
+                    "e" => Some(Expr::Float(std::f32::consts::E)),
+                    "pi" => Some(Expr::Float(std::f32::consts::PI)),
+                    "tau" => Some(Expr::Float(std::f32::consts::PI * 2.0)),
+                    "half_pi" => Some(Expr::Float(std::f32::consts::FRAC_PI_2)),
+                    _ => None,
+                },
+                Some(parent) => parent.move_raw(key),
+            },
+            Some(v) => {
+                let replacement = match v {
+                    Expr::Float(_)
+                    | Expr::Int(_)
+                    | Expr::Bool(_)
+                    | Expr::String(_)
+                    | Expr::Char(_)
+                    | Expr::Unit => v.clone(),
+                    _ => Expr::Moved
+                };
+                self.vbls.insert(key.to_owned(), replacement);
+                Some(v)
+            },
+        }
+    }
+
+    pub fn get_raw_mut(&self, key: &str) -> Option<&mut Expr> {
+        // println!("Looking for {} in {} ", key, self.show());
+        match self.vbls.get_mut(key) {
+            None => match self.parent {
+                None => match key {
+                    "e" => Some(&mut Expr::Float(std::f32::consts::E)),
+                    "pi" => Some(&mut Expr::Float(std::f32::consts::PI)),
+                    "tau" => Some(&mut Expr::Float(std::f32::consts::PI * 2.0)),
+                    "half_pi" => Some(&mut Expr::Float(std::f32::consts::FRAC_PI_2)),
+                    _ => None,
+                },
+                Some(parent) => parent.get_raw_mut(key),
+            },
+            Some(v) => Some(v),
         }
     }
 

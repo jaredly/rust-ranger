@@ -15,7 +15,7 @@ pub use scope::Scope;
 pub use ser::to_expr;
 
 pub fn eval_expr(input: &str) -> Result<Expr, ast::EvalError> {
-    process_expr(input).unwrap().eval(&Scope::empty())
+    process_expr(input).unwrap().into_eval(&Scope::empty())
 }
 
 pub fn eval_file(input: &str) -> Result<Scope, error::Error> {
@@ -36,7 +36,7 @@ mod tests {
         assert_eq!(
             parser::process_expr("vec![1,2,3]")
                 .unwrap()
-                .eval(&Scope::empty()),
+                .into_eval(&Scope::empty()),
             Ok(Expr::Array(vec![Expr::Int(1), Expr::Int(2), Expr::Int(3),]))
         );
     }
@@ -46,7 +46,7 @@ mod tests {
         assert_eq!(
             parser::process_expr("Hello { one: 2 }")
                 .unwrap()
-                .eval(&Scope::empty()),
+                .into_eval(&Scope::empty()),
             Ok(Expr::Struct(
                 "Hello".to_string(),
                 vec![("one".to_string(), Expr::Int(2)),]
@@ -59,7 +59,7 @@ mod tests {
         assert_eq!(
             parser::process_expr("Hello ( 2, 3 )")
                 .unwrap()
-                .eval(&Scope::empty()),
+                .into_eval(&Scope::empty()),
             Ok(Expr::NamedTuple(
                 "Hello".to_string(),
                 vec![Expr::Int(2), Expr::Int(3),]
@@ -94,7 +94,7 @@ mod tests {
         assert_eq!(
             parser::process_expr(r##"vec!["o\nne", r#"t"w\no"#, 'a', '\n', "😅"]"##)
                 .unwrap()
-                .eval(&Scope::empty()),
+                .into_eval(&Scope::empty()),
             Ok(Expr::Array(vec![
                 Expr::String("o\nne".to_string()),
                 Expr::String("t\"w\\no".to_string()),
