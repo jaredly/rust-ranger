@@ -30,6 +30,26 @@ pub struct Scope<'a> {
     pub parent: Option<&'a mut Scope<'a>>,
 }
 
+fn ok() {
+    let a = Scope::empty();
+    let b = &mut a;
+    let c = b.sub();
+}
+
+fn oo<'a>(a: &'a mut Scope<'a>) {
+    let b = a.sub();
+}
+
+fn eval_body(scope: &mut Scope, fdef: &(Vec<String>, Expr), args: Vec<Expr>) -> Result<Expr, crate::ast::EvalError> {
+    let sub = scope.sub();
+    for (aname, aval) in fdef.0.iter().zip(args) {
+        sub.set_raw(aname, aval);
+    }
+    let body = fdef.1.clone();
+    body.eval(&sub)?;
+    Ok(body)
+}
+
 impl<'a> Scope<'a> {
     pub fn empty() -> Self {
         // println!("New empty scope");
@@ -71,7 +91,7 @@ impl<'a> Scope<'a> {
     //   crate::de::from_expr(&result)
     // }
 
-    pub fn call_fn_raw<'b>(&'b mut self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
+    pub fn call_fn_raw(&mut self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
         match self.fns.get(name) {
             None => match self.parent {
                 None => {
@@ -99,12 +119,13 @@ impl<'a> Scope<'a> {
                 Err(EvalError::FunctionWrongNumberArgs(f.0.len(), args.len()))
             }
             Some(f) => {
-                let sub = Scope::from(&mut self);
-                for (aname, aval) in f.0.iter().zip(args) {
-                    sub.set_raw(aname, aval);
-                }
-                let body = f.1.clone();
-                body.eval(&sub)?;
+                let body = eval_body(self, f, args)?;
+                // let sub = self.sub();
+                // for (aname, aval) in f.0.iter().zip(args) {
+                //     sub.set_raw(aname, aval);
+                // }
+                // let body = f.1.clone();
+                // body.eval(&sub)?;
                 Ok(body)
             }
         }
