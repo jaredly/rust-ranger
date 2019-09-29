@@ -27,27 +27,7 @@ pub struct Scope<'a> {
     pub id: usize,
     pub vbls: HashMap<String, Expr>,
     pub fns: HashMap<String, (Args, Expr)>,
-    pub parent: Option<&'a mut Scope<'a>>,
-}
-
-fn ok() {
-    let a = Scope::empty();
-    let b = &mut a;
-    let c = b.sub();
-}
-
-fn oo<'a>(a: &'a mut Scope<'a>) {
-    let b = a.sub();
-}
-
-fn eval_body(scope: &mut Scope, fdef: &(Vec<String>, Expr), args: Vec<Expr>) -> Result<Expr, crate::ast::EvalError> {
-    let sub = scope.sub();
-    for (aname, aval) in fdef.0.iter().zip(args) {
-        sub.set_raw(aname, aval);
-    }
-    let body = fdef.1.clone();
-    body.eval(&sub)?;
-    Ok(body)
+    pub parent: Option<&'a Scope<'a>>,
 }
 
 impl<'a> Scope<'a> {
@@ -61,7 +41,7 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn from(parent: &'a mut Scope<'a>) -> Self {
+    pub fn from(parent: &'a Scope<'a>) -> Self {
         Scope {
             id: parent.id + 1,
             vbls: HashMap::new(),
@@ -70,7 +50,7 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn sub(&'a mut self) -> Scope<'a> {
+    pub fn sub(&'a self) -> Scope<'a> {
         // println!("New sub scope from {}", self.show());
         Self::from(self)
     }
@@ -91,7 +71,7 @@ impl<'a> Scope<'a> {
     //   crate::de::from_expr(&result)
     // }
 
-    pub fn call_fn_raw(&mut self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
+    pub fn call_fn_raw(&self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
         match self.fns.get(name) {
             None => match self.parent {
                 None => {
@@ -119,13 +99,12 @@ impl<'a> Scope<'a> {
                 Err(EvalError::FunctionWrongNumberArgs(f.0.len(), args.len()))
             }
             Some(f) => {
-                let body = eval_body(self, f, args)?;
-                // let sub = self.sub();
-                // for (aname, aval) in f.0.iter().zip(args) {
-                //     sub.set_raw(aname, aval);
-                // }
-                // let body = f.1.clone();
-                // body.eval(&sub)?;
+                let mut sub = self.sub();
+                for (aname, aval) in f.0.iter().zip(args) {
+                    sub.set_raw(aname, aval);
+                }
+                let mut body = f.1.clone();
+                body.eval(&mut sub)?;
                 Ok(body)
             }
         }
@@ -163,7 +142,11 @@ impl<'a> Scope<'a> {
                     "half_pi" => Some(Expr::Float(std::f32::consts::FRAC_PI_2)),
                     _ => None,
                 },
-                Some(parent) => parent.move_raw(key),
+                Some(parent) => {
+                    // parent.move_raw(key)
+                    // TODO new enum
+                    None
+                },
             },
             Some(v) => {
                 let replacement = match v {
@@ -181,18 +164,21 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn get_raw_mut(&self, key: &str) -> Option<&mut Expr> {
+    pub fn get_raw_mut(&mut self, key: &str) -> Option<&mut Expr> {
         // println!("Looking for {} in {} ", key, self.show());
         match self.vbls.get_mut(key) {
             None => match self.parent {
                 None => match key {
-                    "e" => Some(&mut Expr::Float(std::f32::consts::E)),
-                    "pi" => Some(&mut Expr::Float(std::f32::consts::PI)),
-                    "tau" => Some(&mut Expr::Float(std::f32::consts::PI * 2.0)),
-                    "half_pi" => Some(&mut Expr::Float(std::f32::consts::FRAC_PI_2)),
+                    // "e" => Some(&mut Expr::Float(std::f32::consts::E)),
+                    // "pi" => Some(&mut Expr::Float(std::f32::consts::PI)),
+                    // "tau" => Some(&mut Expr::Float(std::f32::consts::PI * 2.0)),
+                    // "half_pi" => Some(&mut Expr::Float(std::f32::consts::FRAC_PI_2)),
                     _ => None,
                 },
-                Some(parent) => parent.get_raw_mut(key),
+                Some(parent) => {
+                    // parent.get_raw_mut(key)
+                    None
+                },
             },
             Some(v) => Some(v),
         }

@@ -49,7 +49,7 @@ fn example_eval_pass() {
     scope.set("heads", 5).unwrap();
     let expr = libretto::process_expr(r##" Point {x: 3 + 4 + heads, y: 5, name: "awesome"} "##)
         .unwrap()
-        .eval(&scope)
+        .into_eval(&mut scope)
         .ok()
         .unwrap();
     assert_eq!(
