@@ -199,7 +199,7 @@ impl Expr {
                 Ok(())
             }
             Expr::Object(items) => {
-                for (key, value) in items {
+                for (_key, value) in items {
                     value.eval(scope)?;
                 }
                 Ok(())
@@ -217,15 +217,15 @@ impl Expr {
                     Ok(())
                 }
             },
-            Expr::Struct(name, items) => {
-                for (key, value) in items {
+            Expr::Struct(_name, items) => {
+                for (_key, value) in items {
                     value.eval(scope)?;
                 }
                 Ok(())
             }
-            Expr::NamedTuple(name, items) => {
+            Expr::NamedTuple(_name, items) => {
                 for item in items {
-                    item.eval(scope);
+                    item.eval(scope)?;
                 }
                 Ok(())
             }
@@ -331,7 +331,7 @@ impl Expr {
                 for arg in args.iter_mut() {
                     arg.eval(scope)?;
                 }
-                // *self = scope.call_fn_raw(&name, args)?;
+                *self = scope.call_fn_raw(&name, args)?;
                 Ok(())
             }
 
@@ -528,7 +528,6 @@ fn member_move<'a>(value: Expr, name: &str) -> Result<Expr, EvalError> {
         },
         Err(_) => match value {
             Expr::Object(children) | Expr::Struct(_, children) => {
-                let mut found = false;
                 for (sname, child) in children {
                     if sname == name {
                         return Ok(child);

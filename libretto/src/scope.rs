@@ -36,7 +36,7 @@ pub struct Scope(Vec<SingleScope>);
 impl Scope {
     pub fn new() -> Self {
         // TODO prepopulate with globals
-        Scope(vec![SingleScope::empty()])
+        Scope(vec![SingleScope::globals()])
     }
     pub fn push(&mut self) {
         self.0.insert(0, SingleScope::empty());
@@ -56,6 +56,14 @@ impl Scope {
                     break f.clone()
                 }
             } else {
+                if name == "log" {
+                    let args = args.into_iter().map(|m|match m {
+                        Expr::String(s) => s,
+                        _ => format!("{:?}", m)
+                    }).collect::<Vec<String>>().concat();
+                    println!("{}", args);
+                    return Ok(Expr::Unit)
+                }
                 return Err(EvalError::MissingReference(name.to_owned()))
             }
         };
@@ -232,5 +240,13 @@ impl SingleScope {
             vbls: HashMap::new(),
             fns: HashMap::new(),
         }
+    }
+    pub fn globals() -> Self {
+        let mut scope = Self::empty();
+        scope.vbls.insert("e".to_owned(), Expr::Float(std::f32::consts::E));
+        scope.vbls.insert("pi".to_owned(), Expr::Float(std::f32::consts::PI));
+        scope.vbls.insert("tau".to_owned(), Expr::Float(std::f32::consts::PI * 2.0));
+        scope.vbls.insert("half_pi".to_owned(), Expr::Float(std::f32::consts::FRAC_PI_2));
+        scope
     }
 }
