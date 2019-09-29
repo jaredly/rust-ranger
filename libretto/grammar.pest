@@ -1,7 +1,12 @@
 
-file = _{SOI ~ statement* ~ EOI}
+file = _{SOI ~ toplevel_statement* ~ EOI}
 expr = _{SOI ~ statement* ~ value ~ EOI}
 
+toplevel_statement = {
+    const_binding |
+    value ~ ";" |
+    fndefn
+}
 statement = {
     let_binding |
     value ~ ";" |
@@ -10,6 +15,7 @@ statement = {
 block = { "{" ~ statement* ~ value ~ "}" }
 
 let_binding = {"let" ~ ident ~ "=" ~ value ~ ";"}
+const_binding = {"const" ~ ident ~ ":" ~ "any" ~ "=" ~ value ~ ";"}
 
 value = {cast ~ binop_post*}
 binop_post = {binop ~ cast}

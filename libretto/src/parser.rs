@@ -321,6 +321,7 @@ pub fn parse_expr(pair: Pair<Rule>) -> Expr {
 pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
     let pair = pair.into_inner().next().unwrap();
     match pair.as_rule() {
+        Rule::const_binding |
         Rule::let_binding => {
             let mut items = pair.into_inner();
             let ident = items.next().unwrap().as_str().to_owned();
@@ -355,7 +356,7 @@ pub fn process_file(text: &str) -> Result<Vec<Statement>, pest::error::Error<Rul
         Ok(v) => {
             let mut stmts = vec![];
             for pair in v {
-                if let Rule::statement = pair.as_rule() {
+                if let Rule::toplevel_statement = pair.as_rule() {
                     stmts.push(parse_stmt(pair))
                 }
             }
