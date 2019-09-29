@@ -327,10 +327,11 @@ impl Expr {
             }
 
             Expr::FnCall(name, args) => {
-                let mut args = std::mem::replace(args, vec![]);
                 for arg in args.iter_mut() {
                     arg.eval(scope)?;
                 }
+                println!("Fn Call {:?}", args);
+                let args = std::mem::replace(args, vec![]);
                 *self = scope.call_fn_raw(&name, args)?;
                 Ok(())
             }
@@ -352,6 +353,13 @@ impl Expr {
                     Expr::Ident(name) => {
                         let can_borrow = items.iter().any(|(_, x)| x.is_some());
                         if can_borrow {
+                            for (_name, args) in items.iter_mut() {
+                                if let Some(args) = args {
+                                    for arg in args {
+                                        arg.eval(scope)?;
+                                    }
+                                }
+                            }
                             let mut target = match scope.get_raw_mut(&name) {
                                 None => return Err(EvalError::MissingReference(name.to_owned())),
                                 Some(v) => v,
@@ -360,7 +368,7 @@ impl Expr {
                             let mut owned = loop {
                                 if let Some((name, args)) = items.next() {
                                     if let Some(args) = args {
-                                        break member_function(target, name, args.to_vec())?;
+                                        break member_function(target, name, std::mem::replace(args, vec![]))?;
                                     } else {
                                         target = member_access(target, name)?;
                                     }
@@ -424,9 +432,10 @@ impl Expr {
                                 for (name, value) in bindings {
                                     scope.set_raw(&name, value)
                                 }
-                                let res = body.eval(scope);
+                                body.eval(scope)?;
+                                *self = std::mem::replace(body, Expr::Unit);
                                 scope.pop();
-                                return res
+                                return Ok(())
                             }
                         }
                     }
@@ -454,9 +463,10 @@ impl Expr {
                         for (name, value) in bindings {
                             scope.set_raw(&name, value)
                         }
-                        let res = body.eval(scope);
+                        body.eval(scope)?;
+                        *self = std::mem::replace(body, Expr::Moved);
                         scope.pop();
-                        return res;
+                        return Ok(());
                     }
                 }
                 Err(EvalError::Unmatched)
@@ -574,6 +584,9 @@ fn member_access<'a>(value: &'a mut Expr, name: &str) -> Result<&'a mut Expr, Ev
 }
 
 fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<Expr, EvalError> {
+    if name == "clone" {
+        return Ok(value.clone())
+    }
     Ok(match value {
         Expr::Array(items) => match name.as_ref() {
             "len" if args.is_empty() => Expr::Int(items.len() as i32),

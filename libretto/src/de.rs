@@ -29,7 +29,7 @@ where
     T: Deserialize<'a>,
 {
     if s.needs_evaluation() {
-        Err(Error::Unevaluated)
+        Err(Error::Unevaluated(format!("{:?}", s)))
     } else {
         let deserializer = Deserializer::from_expr(s);
         T::deserialize(deserializer)
@@ -69,7 +69,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
                 None => visitor.visit_none(),
                 Some(s) => visitor.visit_some(Deserializer::from_expr(&s)),
             },
-            _ => Err(Error::Unevaluated),
+            s => Err(Error::Unevaluated(format!("{:?}", s)))
         }
     }
 
