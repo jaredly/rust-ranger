@@ -313,13 +313,15 @@ impl Expr {
                 // println!("Block start");
                 let stmts = std::mem::replace(stmts, vec![]);
 
-                let mut sub = scope.sub();
+                // let mut sub = scope.sub();
+                scope.push();
                 for stmt in stmts {
                     // println!("Procesing {:?} : scope {:?}", stmt, scope.vbls.keys());
-                    stmt.eval(&mut sub)?;
+                    stmt.eval(scope)?;
                 }
                 // println!("Block end");
-                last.eval(&mut sub)?;
+                last.eval(scope)?;
+                scope.pop();
                 *self = std::mem::replace(last, Expr::Unit);
                 Ok(())
             }
@@ -329,7 +331,7 @@ impl Expr {
                 for arg in args.iter_mut() {
                     arg.eval(scope)?;
                 }
-                *self = scope.call_fn_raw(&name, args)?;
+                // *self = scope.call_fn_raw(&name, args)?;
                 Ok(())
             }
 
@@ -417,11 +419,14 @@ impl Expr {
                         },
                         IfCond::IfLet(pattern, value) => {
                             if let Some(bindings) = match_pattern(std::mem::replace(pattern, Pattern::Any), std::mem::replace(value, Expr::Unit)) {
-                                let mut sub = scope.sub();
+                                scope.push();
+                                // let mut sub = scope.sub();
                                 for (name, value) in bindings {
-                                    sub.set_raw(&name, value)
+                                    scope.set_raw(&name, value)
                                 }
-                                return body.eval(&mut sub);
+                                let res = body.eval(scope);
+                                scope.pop();
+                                return res
                             }
                         }
                     }
@@ -444,11 +449,14 @@ impl Expr {
                 for (pattern, body) in cases {
                     // TODO don't need to clone here, could return the value if unused
                     if let Some(bindings) = match_pattern(std::mem::replace(pattern, Pattern::Any), *value.clone()) {
-                        let mut sub = scope.sub();
+                        scope.push();
+                        // let mut sub = scope.sub();
                         for (name, value) in bindings {
-                            sub.set_raw(&name, value)
+                            scope.set_raw(&name, value)
                         }
-                        return body.eval(&mut sub);
+                        let res = body.eval(scope);
+                        scope.pop();
+                        return res;
                     }
                 }
                 Err(EvalError::Unmatched)

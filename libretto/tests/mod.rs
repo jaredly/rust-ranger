@@ -45,7 +45,7 @@ fn example_eval() {
 
 #[test]
 fn example_eval_pass() {
-    let mut scope = libretto::Scope::empty();
+    let mut scope = libretto::Scope::new();
     scope.set("heads", 5).unwrap();
     let expr = libretto::process_expr(r##" Point {x: 3 + 4 + heads, y: 5, name: "awesome"} "##)
         .unwrap()
@@ -85,7 +85,7 @@ add10(awesome() * 2)
 
 #[test]
 fn file() {
-    let scope = libretto::eval_file(
+    let mut scope = libretto::eval_file(
         r##"
 fn party(x: any, y: any, z: any) {
   x * (y + z)
@@ -98,7 +98,7 @@ fn party(x: any, y: any, z: any) {
 
 #[test]
 fn file_pointer() {
-    let scope = libretto::eval_file(
+    let mut scope = libretto::eval_file(
         r##"
 fn party(x: any, y: any, z: any, m: any) {
   x * (y + z) + m.x

@@ -23,44 +23,59 @@ macro_rules! call_fn {
   };
 }
 
-pub struct Scope<'a> {
-    pub id: usize,
-    pub vbls: HashMap<String, Expr>,
-    pub fns: HashMap<String, (Args, Expr)>,
-    pub parent: Option<&'a Scope<'a>>,
+#[derive(Debug, PartialEq)]
+pub struct SingleScope {
+    id: usize,
+    vbls: HashMap<String, Expr>,
+    fns: HashMap<String, (Args, Expr)>,
 }
 
-impl<'a> Scope<'a> {
-    pub fn empty() -> Self {
-        // println!("New empty scope");
-        Scope {
-            id: 0,
-            vbls: HashMap::new(),
-            fns: HashMap::new(),
-            parent: None,
-        }
+#[derive(Debug, PartialEq)]
+pub struct Scope(Vec<SingleScope>);
+
+impl Scope {
+    pub fn new() -> Self {
+        // TODO prepopulate with globals
+        Scope(vec![SingleScope::empty()])
+    }
+    pub fn push(&mut self) {
+        self.0.insert(0, SingleScope::empty());
+    }
+    pub fn pop(&mut self) {
+        self.0.remove(0);
     }
 
-    pub fn from(parent: &'a Scope<'a>) -> Self {
-        Scope {
-            id: parent.id + 1,
-            vbls: HashMap::new(),
-            fns: HashMap::new(),
-            parent: Some(parent),
+    pub fn call_fn_raw(&mut self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
+        let mut scopesi = self.0.iter();
+        let (fargs, mut body) = loop {
+            if let Some(scope) = scopesi.next() {
+                if let Some(f) = scope.fns.get(name) {
+                    if f.0.len() != args.len() {
+                        return Err(EvalError::FunctionWrongNumberArgs(f.0.len(), args.len()))
+                    }
+                    break f.clone()
+                }
+            } else {
+                return Err(EvalError::MissingReference(name.to_owned()))
+            }
+        };
+        self.push();
+        // let mut sub = self.sub();
+        for (aname, aval) in fargs.iter().zip(args) {
+            self.set_raw(aname, aval);
         }
+        body.eval(self)?;
+        self.pop();
+        return Ok(body)
     }
 
-    pub fn sub(&'a self) -> Scope<'a> {
-        // println!("New sub scope from {}", self.show());
-        Self::from(self)
-    }
 
     pub fn get_fn(&self, key: &str) -> Option<&(Args, Expr)> {
-        self.fns.get(key)
+        self.0[0].fns.get(key)
     }
 
     pub fn set_fn(&mut self, key: &str, args: Args, body: Expr) {
-        self.fns.insert(key.to_owned(), (args, body));
+        self.0[0].fns.insert(key.to_owned(), (args, body));
     }
 
     // pub fn call_fn<'de, T>(&self, name: &str, args: Vec<Expr>) -> crate::error::Result<T>
@@ -71,147 +86,151 @@ impl<'a> Scope<'a> {
     //   crate::de::from_expr(&result)
     // }
 
-    pub fn call_fn_raw(&self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
-        match self.fns.get(name) {
-            None => match self.parent {
-                None => {
-                    match name {
-                        "log" => {
-                            let mut res = vec![];
-                            for arg in args {
-                                res.push(match arg {
-                                    Expr::String(string) => string,
-                                    arg => format!("{:?}", arg),
-                                });
-                            }
-                            // println!("{}", res.concat());
-                            Ok(Expr::Unit)
-                        }
-                        _ => {
-                            // println!("{:?}", self.fns);
-                            Err(EvalError::MissingReference(name.to_owned()))
-                        }
-                    }
-                }
-                Some(parent) => parent.call_fn_raw(name, args),
-            },
-            Some(f) if f.0.len() != args.len() => {
-                Err(EvalError::FunctionWrongNumberArgs(f.0.len(), args.len()))
-            }
-            Some(f) => {
-                let mut sub = self.sub();
-                for (aname, aval) in f.0.iter().zip(args) {
-                    sub.set_raw(aname, aval);
-                }
-                let mut body = f.1.clone();
-                body.eval(&mut sub)?;
-                Ok(body)
-            }
-        }
-    }
-
     // pub fn get<'de, T>(&self, key: &str) -> crate::error::Result<T>
     // where
     //   T: serde::Deserialize<'de>,
     // {
-    //   match self.vbls.get(key) {
-    //     None => match self.parent {
-    //       None => Err(crate::error::Error::Message("Missing vbl".to_owned())),
-    //       Some(parent) => parent.get::<T>(key),
-    //     },
-    //     Some(expr) => crate::de::from_expr(&expr.clone()),
-    //   }
+    //     for scope in self.0.iter() {
+    //         if let Some(x) = scope.vbls.get(key) {
+    //             return crate::de::from_expr(x)
+    //         }
+    //     }
+    //     Err(crate::error::Error::Message("mope".to_owned()))
     // }
 
     pub fn show(&self) -> String {
-        let own = format!("own({}): {:?}", self.id, self.vbls.keys());
-        match self.parent {
-            None => own,
-            Some(parent) => format!("{}, parent: {}", own, parent.show()),
-        }
+        // let own = format!("own({}): {:?}", self.id, self.vbls.keys());
+        // match self.parent {
+        //     None => own,
+        //     Some(parent) => format!("{}, parent: {}", own, parent.show()),
+        // }
+        format!("{:?}", self)
     }
 
     pub fn move_raw(&mut self, key: &str) -> Option<Expr> {
         // println!("Looking for {} in {} ", key, self.show());
-        match self.vbls.remove(key) {
-            None => match self.parent {
-                None => match key {
-                    "e" => Some(Expr::Float(std::f32::consts::E)),
-                    "pi" => Some(Expr::Float(std::f32::consts::PI)),
-                    "tau" => Some(Expr::Float(std::f32::consts::PI * 2.0)),
-                    "half_pi" => Some(Expr::Float(std::f32::consts::FRAC_PI_2)),
-                    _ => None,
-                },
-                Some(parent) => {
-                    // parent.move_raw(key)
-                    // TODO new enum
-                    None
-                },
-            },
-            Some(v) => {
-                let replacement = match v {
+        for scope in self.0.iter_mut() {
+            if let Some(x) = scope.vbls.remove(key) {
+                let replacement = match x {
                     Expr::Float(_)
                     | Expr::Int(_)
                     | Expr::Bool(_)
                     | Expr::String(_)
                     | Expr::Char(_)
-                    | Expr::Unit => v.clone(),
+                    | Expr::Unit => x.clone(),
                     _ => Expr::Moved
                 };
-                self.vbls.insert(key.to_owned(), replacement);
-                Some(v)
-            },
+                scope.vbls.insert(key.to_owned(), replacement);
+                return Some(x)
+            }
         }
+        None
+        // match self.0[0].vbls.remove(key) {
+        //     // None => match self.parent {
+        //     //     None => match key {
+        //     //         "e" => Some(Expr::Float(std::f32::consts::E)),
+        //     //         "pi" => Some(Expr::Float(std::f32::consts::PI)),
+        //     //         "tau" => Some(Expr::Float(std::f32::consts::PI * 2.0)),
+        //     //         "half_pi" => Some(Expr::Float(std::f32::consts::FRAC_PI_2)),
+        //     //         _ => None,
+        //     //     },
+        //     //     Some(parent) => {
+        //     //         // parent.move_raw(key)
+        //     //         // TODO new enum
+        //     //         None
+        //     //     },
+        //     // },
+        //     None => None,
+        //     Some(v) => {
+        //         let replacement = match v {
+        //             Expr::Float(_)
+        //             | Expr::Int(_)
+        //             | Expr::Bool(_)
+        //             | Expr::String(_)
+        //             | Expr::Char(_)
+        //             | Expr::Unit => v.clone(),
+        //             _ => Expr::Moved
+        //         };
+        //         self.0[0].vbls.insert(key.to_owned(), replacement);
+        //         Some(v)
+        //     },
+        // }
     }
 
     pub fn get_raw_mut(&mut self, key: &str) -> Option<&mut Expr> {
         // println!("Looking for {} in {} ", key, self.show());
-        match self.vbls.get_mut(key) {
-            None => match self.parent {
-                None => match key {
-                    // "e" => Some(&mut Expr::Float(std::f32::consts::E)),
-                    // "pi" => Some(&mut Expr::Float(std::f32::consts::PI)),
-                    // "tau" => Some(&mut Expr::Float(std::f32::consts::PI * 2.0)),
-                    // "half_pi" => Some(&mut Expr::Float(std::f32::consts::FRAC_PI_2)),
-                    _ => None,
-                },
-                Some(parent) => {
-                    // parent.get_raw_mut(key)
-                    None
-                },
-            },
-            Some(v) => Some(v),
+        for scope in self.0.iter_mut() {
+            if let Some(x) = scope.vbls.get_mut(key) {
+                return Some(x)
+            }
         }
+        None
+        // match self.vbls.get_mut(key) {
+        //     // None => match self.parent {
+        //     //     None => match key {
+        //     //         // "e" => Some(&mut Expr::Float(std::f32::consts::E)),
+        //     //         // "pi" => Some(&mut Expr::Float(std::f32::consts::PI)),
+        //     //         // "tau" => Some(&mut Expr::Float(std::f32::consts::PI * 2.0)),
+        //     //         // "half_pi" => Some(&mut Expr::Float(std::f32::consts::FRAC_PI_2)),
+        //     //         _ => None,
+        //     //     },
+        //     //     Some(parent) => {
+        //     //         // parent.get_raw_mut(key)
+        //     //         None
+        //     //     },
+        //     // },
+        //     Some(v) => Some(v),
+        // }
     }
 
     pub fn get_raw(&self, key: &str) -> Option<&Expr> {
         // println!("Looking for {} in {} ", key, self.show());
-        match self.vbls.get(key) {
-            None => match self.parent {
-                None => match key {
-                    "e" => Some(&Expr::Float(std::f32::consts::E)),
-                    "pi" => Some(&Expr::Float(std::f32::consts::PI)),
-                    "tau" => Some(&Expr::Float(std::f32::consts::PI * 2.0)),
-                    "half_pi" => Some(&Expr::Float(std::f32::consts::FRAC_PI_2)),
-                    _ => None,
-                },
-                Some(parent) => parent.get_raw(key),
-            },
-            Some(v) => Some(v),
+        for scope in self.0.iter() {
+            match scope.vbls.get(key) {
+                None => (),
+                Some(x) => return Some(x)
+            }
         }
+        None
+        // self.vbls.get(key) 
+        // match self.vbls.get(key) {
+        //     None => match self.parent {
+        //         None => match key {
+        //             "e" => Some(&Expr::Float(std::f32::consts::E)),
+        //             "pi" => Some(&Expr::Float(std::f32::consts::PI)),
+        //             "tau" => Some(&Expr::Float(std::f32::consts::PI * 2.0)),
+        //             "half_pi" => Some(&Expr::Float(std::f32::consts::FRAC_PI_2)),
+        //             _ => None,
+        //         },
+        //         Some(parent) => parent.get_raw(key),
+        //     },
+        //     Some(v) => Some(v),
+        // }
     }
 
     pub fn set<T>(&mut self, key: &str, value: T) -> crate::error::Result<()>
     where
         T: serde::Serialize,
     {
-        self.vbls
+        self.0[0].vbls
             .insert(key.to_owned(), crate::ser::to_expr(&value)?);
         Ok(())
     }
 
     pub fn set_raw(&mut self, key: &str, value: Expr) {
         // println!("Setting {} in {}", key, self.show());
-        self.vbls.insert(key.to_owned(), value);
+        self.0[0].vbls.insert(key.to_owned(), value);
+    }
+
+}
+
+impl SingleScope {
+    pub fn empty() -> Self {
+        // println!("New empty scope");
+        SingleScope {
+            id: 0,
+            vbls: HashMap::new(),
+            fns: HashMap::new(),
+        }
     }
 }
