@@ -90,8 +90,7 @@ comma_pairs = _{pair ~ ("," ~ pair)* ~ ","?}
 pair = { (string | ident) ~ ":" ~ value }
 
 array = {
-    "[" ~ "]" |
-    "[" ~ comma_values ~ "]"
+    "vec![" ~ comma_values? ~ "]"
 }
 comma_values = _{value ~ ("," ~ value)* ~ ","?}
 

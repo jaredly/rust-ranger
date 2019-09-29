@@ -279,10 +279,18 @@ impl Expr {
             Expr::MemberAccess(expr, items) => {
                 let mut target = expr.eval(&scope)?;
                 for (name, args) in items {
-                    if let Some(args) = args {
+                    if let Some(mut args) = args {
                         target = match target {
-                            Expr::Array(items) => match name.as_ref() {
+                            Expr::Array(mut items) => match name.as_ref() {
                                 "len" if args.is_empty() => Expr::Int(items.len() as i32),
+                                "push" => {
+                                    if args.len() == 1 {
+                                        items.push(args.remove(0));
+                                        Expr::Unit
+                                    } else {
+                                        return Err(EvalError::InvalidType("vec.push() takes a single argument"));
+                                    }
+                                },
                                 _ => {
                                     println!("{} - {:?}", name, args);
                                     return Err(EvalError::InvalidType("unknown array fn"));

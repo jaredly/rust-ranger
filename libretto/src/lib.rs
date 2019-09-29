@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn array() {
         assert_eq!(
-            parser::process_expr("[1,2,3]")
+            parser::process_expr("vec![1,2,3]")
                 .unwrap()
                 .eval(&Scope::empty()),
             Ok(Expr::Array(vec![Expr::Int(1), Expr::Int(2), Expr::Int(3),]))
@@ -92,7 +92,7 @@ mod tests {
         );
 
         assert_eq!(
-            parser::process_expr(r##"["o\nne", r#"t"w\no"#, 'a', '\n', "😅"]"##)
+            parser::process_expr(r##"vec!["o\nne", r#"t"w\no"#, 'a', '\n', "😅"]"##)
                 .unwrap()
                 .eval(&Scope::empty()),
             Ok(Expr::Array(vec![
@@ -150,7 +150,7 @@ mod tests {
 {
     one: 1,
     "two": 2,
-    three_four: [3, 3 + 1],
+    three_four: vec![3, 3 + 1],
     five: None,
     six: Some(6 - (3 - 2)),
     "7": true != false

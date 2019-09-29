@@ -104,7 +104,36 @@ fn female(context: any) {
                     ((context.throw_theta / pi) * (180.0))
                 },
             },
+            Throw => Bone {
+                sprite: "female_arm.png",
+                flip: context.facing == Right,
+                offset: ((0), (-0.2)),
+                pivot_offset: ((0), ((-0.3) + ((0.02) * context.throw_mag))),
+                rotation: if (context.throw_vx > 0.0) {
+                    context.throw_theta / pi * 180.0 + 270.0
+                } else {
+                    context.throw_theta / pi * 180.0 + -90
+                },
+            },
         })
+    }
+
+    if context.arm_action == Throw {
+        bones.push(Bone {
+            sprite: "bow.png",
+            flip: true,
+            offset: (
+                (0.3) * context.throw_theta.cos(),
+                (-0.2) + ((0.3) * context.throw_theta.sin()),
+            ),
+            pivot_offset: ((0.0), (0.0)),
+            scale: (1.5),
+            rotation: if (context.throw_vx > 0.0) {
+                (((context.throw_theta / pi) * (180.0)) + (180.0)) + (40)
+            } else {
+                ((-135.0) + ((context.throw_theta / pi) * (180.0)))
+            },
+        });
     }
 
     Skeleton {

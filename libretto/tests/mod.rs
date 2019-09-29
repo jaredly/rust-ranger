@@ -180,7 +180,7 @@ fn matches() {
             &libretto::eval_expr(
                 r##"
 let party = 16;
-let res = [
+let res = vec![
   match party {
     16 => 5,
     _ => 2
@@ -189,18 +189,16 @@ let res = [
     15 => 5,
     _ => 2
   },
+];
+res.push(
   match Points { x: 3, y: 5 } {
     Points { x: 2 } => 111,
     Points { x, y: 5 } => x,
     _ => 0
   }
-];
+);
 let aa = log(res.len(), res);
-if res.len() != 3 {
-  16
-} else {
-  res
-}
+res
 "##
             )
             .unwrap()

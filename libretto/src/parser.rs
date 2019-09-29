@@ -211,9 +211,7 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                     Rule::fncall => {
                         let mut items = pair.into_inner();
                         let name = items.next().unwrap().as_str().to_string();
-                        let args = items
-                            .next()
-                            .map_or(vec![], |v| v.into_inner().map(parse_expr).collect());
+                        let args = items.map(parse_expr).collect();
                         (name, Some(args))
                     }
                     _ => (pair.as_str().to_owned(), None),
@@ -328,7 +326,7 @@ pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
             let value = parse_expr(items.next().unwrap());
             Statement::Let(ident, value)
         }
-        Rule::value => Statement::Expr(parse_expr(pair.into_inner().next().unwrap())),
+        Rule::value => Statement::Expr(parse_expr(pair)),
         Rule::fndefn => {
             let mut items = pair.into_inner();
             let ident = items.next().unwrap().as_str().to_owned();
