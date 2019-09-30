@@ -150,35 +150,21 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
             Expr::Array(contents) | Expr::NamedTuple(_, contents) => {
                 visitor.visit_seq(Items::new(contents))
             }
-            // Expr::Object(items) | Expr::Struct(_, items) => visitor.visit_seq(Pairs::new(items)),
             _ => Err(Error::ExpectedSequence),
         }
-        // Parse the opening bracket of the sequence.
-        // if self.next_char()? == '[' {
-        //     // Give the visitor access to each element of the sequence.
-        //     let value = visitor.visit_seq(CommaSeparated::new(&mut self))?;
-        //     // Parse the closing bracket of the sequence.
-        //     if self.next_char()? == ']' {
-        //         Ok(value)
-        //     } else {
-        //         Err(Error::ExpectedArrayEnd)
-        //     }
-        // } else {
-        //     Err(Error::ExpectedArray)
-        // }
     }
 
-    // Tuples look just like sequences in JSON. Some formats may be able to
-    // represent tuples more efficiently.
-    //
-    // As indicated by the length parameter, the `Deserialize` implementation
-    // for a tuple in the Serde data model is required to know the length of the
-    // tuple before even looking at the input data.
+    // TODO check _len
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        self.deserialize_seq(visitor)
+        match self.input {
+            Expr::Tuple(contents) => {
+                visitor.visit_seq(Items::new(contents))
+            }
+            _ => Err(Error::ExpectedSequence),
+        }
     }
 
     fn deserialize_tuple_struct<V>(

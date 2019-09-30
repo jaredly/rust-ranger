@@ -225,6 +225,14 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
         }
         Rule::object => Expr::Object(pair.into_inner().map(parse_pair).collect()),
         Rule::array => Expr::Array(pair.into_inner().map(parse_expr).collect()),
+        Rule::tuple => {
+            let mut items: Vec<Expr> = pair.into_inner().map(parse_expr).collect();
+            if items.len() == 1 {
+                items.remove(0)
+            } else {
+                Expr::Tuple(items)
+            }
+        },
         Rule::const_ => parse_const(pair.into_inner().next().unwrap()),
         Rule::option => Expr::Option(Box::new(pair.into_inner().next().map(parse_expr))),
         Rule::ident => Expr::Ident(pair.as_str().to_string()),

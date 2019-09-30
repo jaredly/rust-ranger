@@ -5,16 +5,18 @@ use serde::{Deserialize, Serialize};
 struct Point {
     x: i32,
     y: i32,
+    t: (i32, f32),
     name: String,
 }
 
 #[test]
 fn example() {
-    let expr = libretto::eval_expr(r##" Point {x: 3, y: 5, name: "awesome"} "##).unwrap();
+    let expr = libretto::eval_expr(r##" Point {x: 3, y: 5, t: (2, 3.2), name: "awesome"} "##).unwrap();
     assert_eq!(
         Ok(Point {
             x: 3,
             y: 5,
+            t: (2, 3.2),
             name: "awesome".to_string()
         }),
         libretto::from_expr(&expr)
@@ -32,11 +34,12 @@ fn example() {
 
 #[test]
 fn example_eval() {
-    let expr = libretto::eval_expr(r##" Point {x: 3 + 4, y: 5, name: "awesome"} "##).unwrap();
+    let expr = libretto::eval_expr(r##" Point {x: 3 + 4, y: 5, t: (2, 3.2), name: "awesome"} "##).unwrap();
     assert_eq!(
         Ok(Point {
             x: 7,
             y: 5,
+            t: (2, 3.2),
             name: "awesome".to_string()
         }),
         libretto::from_expr::<Point>(&expr)
@@ -47,7 +50,7 @@ fn example_eval() {
 fn example_eval_pass() {
     let mut scope = libretto::Scope::new();
     scope.set("heads", 5).unwrap();
-    let expr = libretto::process_expr(r##" Point {x: 3 + 4 + heads, y: 5, name: "awesome"} "##)
+    let expr = libretto::process_expr(r##" Point {x: 3 + 4 + heads, y: 5, t: (2, 3.2), name: "awesome"} "##)
         .unwrap()
         .into_eval(&mut scope)
         .ok()
@@ -56,6 +59,7 @@ fn example_eval_pass() {
         Ok(Point {
             x: 12,
             y: 5,
+            t: (2, 3.2),
             name: "awesome".to_string()
         }),
         libretto::from_expr::<Point>(&expr)
@@ -116,6 +120,7 @@ fn party(x: any, y: any, z: any, m: any) {
             Point {
                 x: 1,
                 y: 2,
+                t: (2, 3.2),
                 name: "ok".into()
             }
         ),

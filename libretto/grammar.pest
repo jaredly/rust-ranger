@@ -38,7 +38,7 @@ match_ = {"match" ~ value ~ "{" ~ pattern ~ "=>" ~ value ~ ("," ~ pattern ~ "=>"
 
 op_item = _{
     unit
-    | "(" ~ value ~ ")"
+    | tuple
     | block
 
     | if_chain
@@ -64,6 +64,7 @@ op_item = _{
 }
 binop = { "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">" }
 option = {"None" | "Some" ~ "(" ~ value ~ ")"}
+tuple = {"(" ~ value ~ ("," ~ value)* ~ ","? ~ ")"}
 
 fncall = { ident ~ "(" ~ comma_values? ~ ")" }
 lambda = { "|" ~ args ~ "|" ~ op_item }

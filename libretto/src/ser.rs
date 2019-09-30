@@ -35,7 +35,7 @@ impl ser::Serializer for Serializer {
     // additional state is required beyond what is already stored in the
     // Serializer struct.
     type SerializeSeq = SeqTracker;
-    type SerializeTuple = SeqTracker;
+    type SerializeTuple = TupleTracker;
     type SerializeTupleStruct = TupleStructTracker;
     type SerializeTupleVariant = TupleStructTracker;
     type SerializeMap = MapTracker;
@@ -216,7 +216,7 @@ impl ser::Serializer for Serializer {
     // means that the corresponding `Deserialize implementation will know the
     // length without needing to look at the serialized data.
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-        Ok(SeqTracker::new())
+        Ok(TupleTracker::new())
     }
 
     fn serialize_tuple_struct(
@@ -303,8 +303,17 @@ impl ser::SerializeSeq for SeqTracker {
     }
 }
 
+pub struct TupleTracker {
+    items: Vec<Expr>,
+}
+impl TupleTracker {
+    fn new() -> Self {
+        TupleTracker { items: vec![] }
+    }
+}
+
 // Same thing but for tuples.
-impl<'a> ser::SerializeTuple for SeqTracker {
+impl<'a> ser::SerializeTuple for TupleTracker {
     type Ok = Expr;
     type Error = Error;
 
@@ -317,7 +326,7 @@ impl<'a> ser::SerializeTuple for SeqTracker {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Ok(Expr::Array(self.items))
+        Ok(Expr::Tuple(self.items))
     }
 }
 

@@ -117,6 +117,7 @@ pub enum Expr {
     String(String),
 
     Array(Vec<Expr>),
+    Tuple(Vec<Expr>),
     Object(Vec<(String, Expr)>),
     Option(Box<Option<Expr>>),
     Ident(String),
@@ -226,6 +227,7 @@ impl Expr {
             | Expr::String(_)
             | Expr::Char(_)
             | Expr::Unit => Ok(()),
+            Expr::Tuple(items) |
             Expr::Array(items) => {
                 for item in items {
                     item.move_nonlocal_vars(local_vars, scope)?;
@@ -380,7 +382,7 @@ impl Expr {
             Expr::Float(_) | Expr::Int(_) | Expr::Bool(_) | Expr::String(_) | Expr::Char(_) => {
                 false
             }
-            Expr::NamedTuple(_, items) | Expr::Array(items) => {
+            Expr::NamedTuple(_, items) | Expr::Array(items) | Expr::Tuple(items) => {
                 items.iter().any(Expr::needs_evaluation)
             }
             Expr::Struct(_, items) | Expr::Object(items) => {
@@ -408,6 +410,7 @@ impl Expr {
             | Expr::String(_)
             | Expr::Char(_)
             | Expr::Unit => Ok(()),
+            Expr::Tuple(items) |
             Expr::Array(items) => {
                 for item in items {
                     item.eval(scope)?;
