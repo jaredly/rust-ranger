@@ -406,11 +406,11 @@ impl Expr {
                 }
             }
 
-            ExprDesc::Cast(expr, typ) => {
+            ExprDesc::Cast(expr, _typ) => {
                 expr.walk(f)?;
             }
 
-            ExprDesc::MemberAccess(expr, items) => {
+            ExprDesc::MemberAccess(expr, _items) => {
                 expr.walk(f)?;
             }
 
@@ -421,7 +421,7 @@ impl Expr {
                         IfCond::Value(value) => {
                             value.walk(f)?;
                         }
-                        IfCond::IfLet(pattern, value) => {
+                        IfCond::IfLet(_pattern, value) => {
                             value.walk(f)?;
                         }
                     }
@@ -436,7 +436,7 @@ impl Expr {
 
             ExprDesc::Match(value, cases) => {
                 value.walk(f)?;
-                for (pattern, body) in cases {
+                for (_pattern, body) in cases {
                     body.walk(f)?;
                 }
             }
@@ -1058,7 +1058,7 @@ fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
             }
             Some(bindings)
         }
-        (pattern, value) => {
+        (_pattern, _value) => {
             // println!("No match {:?} - {:?}", pattern, value);
             None
         }
