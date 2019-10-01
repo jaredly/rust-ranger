@@ -87,7 +87,7 @@ impl<'a> System<'a> for Draw {
         ReadStorage<'a, Drawable>,
         ReadExpect<'a, crate::sprites::SpriteSheet>,
         ReadStorage<'a, crate::skeletons::component::Skeleton>,
-        ReadExpect<'a, crate::skeletons::Skeletons>,
+        WriteExpect<'a, crate::skeletons::Skeletons>,
         ReadStorage<'a, crate::player::Player>,
     );
 
@@ -104,7 +104,7 @@ impl<'a> System<'a> for Draw {
             drawables,
             sheet,
             skeletons,
-            skeleton_map,
+            mut skeleton_map,
             player,
         ): Self::SystemData,
     ) {
@@ -206,7 +206,7 @@ impl<'a> System<'a> for Draw {
                         .velocity();
                     let p = collider.position().translation.vector + offset;
                     let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
-                    match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p.into(), r, 1.0) {
+                    match skeleton_map.draw_new(&skeleton, &mut rd, &sheet, v, p.into(), r, 1.0) {
                         Ok(()) => (),
                         Err(err) => println!("Failed to draw! Scripting error {:?}", err),
                     };

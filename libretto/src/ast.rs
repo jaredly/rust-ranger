@@ -691,10 +691,12 @@ impl Expr {
                             };
                         }
                         IfCond::IfLet(pattern, value) => {
+                            value.eval(scope)?;
                             if let Some(bindings) = match_pattern(
                                 std::mem::replace(pattern, Pattern::Any),
                                 std::mem::replace(value, ExprDesc::Unit.into()),
-                            ) {
+                                self.pos
+                            )? {
                                 scope.push();
                                 // let mut sub = scope.sub();
                                 for (name, value) in bindings {
@@ -724,9 +726,8 @@ impl Expr {
             ExprDesc::Match(value, cases) => {
                 value.eval(scope)?;
                 for (pattern, body) in cases {
-                    // TODO don't need to clone here, could return the value if unused
                     if let Some(bindings) =
-                        match_pattern(std::mem::replace(pattern, Pattern::Any), *value.clone())
+                        match_pattern(std::mem::replace(pattern, Pattern::Any), *value.clone(), self.pos)?
                     {
                         scope.push();
                         // let mut sub = scope.sub();
@@ -739,7 +740,7 @@ impl Expr {
                         return Ok(());
                     }
                 }
-                Err(EvalErrorDesc::Unmatched.with_pos(self.pos))
+                Err(EvalErrorDesc::Unmatched(format!("{:?}", value)).with_pos(self.pos))
             }
         }
     }
@@ -989,8 +990,8 @@ impl ExprDesc {
 }
 
 /// TODO this allocates a bunch of empty vectors
-fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
-    match (pattern, value) {
+fn match_pattern(pattern: Pattern, value: Expr, pos: Pos) -> Result<Option<Vec<(String, Expr)>>, EvalError> {
+    Ok(match (pattern, value) {
         (Pattern::Any, _) => Some(vec![]),
         (Pattern::Ident(name), value) => Some(vec![(name, value)]),
         (
@@ -999,35 +1000,54 @@ fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
                 desc: ExprDesc::Bool(bb),
                 ..
             },
-        ) if b == bb => Some(vec![]),
+        ) => if b == bb {Some(vec![])} else {None},
         (
             Pattern::Const(Const::Int(b)),
             Expr {
                 desc: ExprDesc::Int(bb),
                 ..
             },
-        ) if b == bb => Some(vec![]),
+        ) => if b == bb {Some(vec![])}else{None},
         (
             Pattern::Const(Const::Float(b)),
             Expr {
                 desc: ExprDesc::Float(bb),
                 ..
             },
-        ) if b == bb => Some(vec![]),
+        ) => if b == bb {Some(vec![])}else{None},
         (
             Pattern::Const(Const::String(ref b)),
             Expr {
                 desc: ExprDesc::String(ref bb),
                 ..
             },
-        ) if b == bb => Some(vec![]),
+        ) => if b == bb {Some(vec![])}else{None},
         (
             Pattern::Const(Const::Char(b)),
             Expr {
                 desc: ExprDesc::Char(bb),
                 ..
             },
-        ) if b == bb => Some(vec![]),
+        ) => if b == bb {Some(vec![])}else{None},
+
+        (Pattern::Tuple(name, mut items), Expr {desc: ExprDesc::Option(contents), ..}) => {
+            if name == "None" {
+                if let None = *contents.as_ref() {
+                    Some(vec![])
+                } else {
+                    None
+                }
+            } else if name == "Some" {
+                if let Some(contents) = *contents {
+                    match_pattern(items.remove(0), contents, pos)?
+                } else {
+                    None
+                }
+            } else {
+                return Err(EvalErrorDesc::InvalidType("A tuple struct cannot match an optional").with_pos(pos))
+            }
+        },
+
         (
             Pattern::Tuple(name, items),
             Expr {
@@ -1035,39 +1055,43 @@ fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
                 ..
             },
         ) => {
-            if name == bname && items.len() == bitems.len() {
-                let mut bindings = vec![];
-                for (pat, val) in items.iter().zip(bitems) {
-                    if let Some(inner) = match_pattern(pat.clone(), val) {
-                        bindings.extend(inner)
-                    } else {
-                        return None;
-                    }
-                }
-                Some(bindings)
-            } else {
-                None
+            if name != bname {
+                return Ok(None);
             }
+            if items.len() != bitems.len() {
+                return Err(EvalErrorDesc::InvalidType("Wrong number of ").with_pos(pos))
+            }
+
+            let mut bindings = vec![];
+            for (pat, val) in items.iter().zip(bitems) {
+                if let Some(inner) = match_pattern(pat.clone(), val, pos)? {
+                    bindings.extend(inner)
+                } else {
+                    return Ok(None);
+                }
+            }
+            Some(bindings)
         }
         (
-            Pattern::Struct(name, items),
+            Pattern::Struct(name, pitems),
             Expr {
                 desc: ExprDesc::Struct(bname, bitems),
                 ..
             },
         ) => {
             if name != bname {
-                return None;
+                return Ok(None);
             }
             let mut bindings = vec![];
-            for (ident, pat) in items {
+            for (ident, pat) in pitems {
                 match bitems.iter().find(|(iname, _)| iname == &ident) {
-                    None => return None,
+                    // TODO maybe get pos up
+                    None => return Err(EvalErrorDesc::CannotGetMember(ident, "No").with_pos(pos)),
                     Some((_, val)) => {
-                        if let Some(inner) = match_pattern(pat, val.clone()) {
+                        if let Some(inner) = match_pattern(pat, val.clone(), pos)? {
                             bindings.extend(inner);
                         } else {
-                            return None;
+                            return Ok(None);
                         }
                     }
                 }
@@ -1075,10 +1099,10 @@ fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
             Some(bindings)
         }
         (_pattern, _value) => {
-            // println!("No match {:?} - {:?}", pattern, value);
-            None
+            println!("No match {:?} - {:?}", _pattern, _value);
+            return Err(EvalErrorDesc::InvalidType("Mismatched pattern type").with_pos(pos))
         }
-    }
+    })
 }
 
 fn pattern_names(pattern: &Pattern, vbls: &mut Vec<String>) {
@@ -1102,12 +1126,12 @@ fn pattern_names(pattern: &Pattern, vbls: &mut Vec<String>) {
 fn member_move<'a>(value: Expr, name: &str, pos: Pos) -> Result<Expr, EvalError> {
     Ok(match name.parse::<usize>() {
         Ok(index) => match value.desc {
-            ExprDesc::Array(mut children) | ExprDesc::NamedTuple(_, mut children) => {
+            ExprDesc::Array(mut children) | ExprDesc::Tuple(mut children) | ExprDesc::NamedTuple(_, mut children) => {
                 children.remove(index)
             }
             _ => {
                 return Err(
-                    EvalErrorDesc::InvalidType("Can only get index of array or namedtuple")
+                    EvalErrorDesc::InvalidType("Can only get index of array or namedtuple or tuple")
                         .with_pos(pos),
                 )
             }
@@ -1136,10 +1160,10 @@ fn member_access<'a>(value: &'a mut Expr, name: &str, pos: Pos) -> Result<&'a mu
     let kind = value.desc.kind();
     Ok(match name.parse::<usize>() {
         Ok(index) => match &mut value.desc {
-            ExprDesc::Array(children) | ExprDesc::NamedTuple(_, children) => &mut children[index],
+            ExprDesc::Array(children) | ExprDesc::Tuple(children) | ExprDesc::NamedTuple(_, children) => &mut children[index],
             _ => {
                 return Err(
-                    EvalErrorDesc::InvalidType("Can only get index of array or namedtuple")
+                    EvalErrorDesc::InvalidType("Can only get index of array or namedtuple or tuple")
                         .with_pos(pos),
                 )
             }
@@ -1182,7 +1206,7 @@ fn member_function(
             }
             _ => {
                 println!("{} - {:?}", name, args);
-                return Err(EvalErrorDesc::InvalidType("unknown array fn"));
+                return Err(EvalErrorDesc::UnknownFunction(name.to_owned()));
             }
         },
         ExprDesc::Float(f) => match name.as_ref() {
@@ -1190,14 +1214,23 @@ fn member_function(
             "cos" if args.is_empty() => ExprDesc::Float(f.cos()),
             "tan" if args.is_empty() => ExprDesc::Float(f.tan()),
             "abs" if args.is_empty() => ExprDesc::Float(f.abs()),
+            "sqrt" if args.is_empty() => ExprDesc::Float(f.sqrt()),
+            "min" if args.len() == 1 => match args[0].desc {
+                ExprDesc::Float(x) => ExprDesc::Float(f.min(x)),
+                _ => return Err(EvalErrorDesc::InvalidType("min() takes a float argument")),
+            },
+            "max" if args.len() == 1 => match args[0].desc {
+                ExprDesc::Float(x) => ExprDesc::Float(f.max(x)),
+                _ => return Err(EvalErrorDesc::InvalidType("max() takes a float argument")),
+            },
             "atan2" if args.len() == 1 => match args[0].desc {
                 ExprDesc::Float(x) => ExprDesc::Float(f.atan2(x)),
-                _ => return Err(EvalErrorDesc::InvalidType("atan2 takes a float argument")),
+                _ => return Err(EvalErrorDesc::InvalidType("atan2() takes a float argument")),
             },
             // "to_int" if args.is_empty() => ExprDesc::Int(f as i32),
             _ => {
                 println!("{} - {:?}", name, args);
-                return Err(EvalErrorDesc::InvalidType("unknown float fn"));
+                return Err(EvalErrorDesc::UnknownFunction(name.to_owned()));
             }
         },
         ExprDesc::Int(i) => match name.as_ref() {

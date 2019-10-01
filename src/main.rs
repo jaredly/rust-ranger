@@ -419,6 +419,7 @@ fn main() {
 
     let should_close = false;
     let mut skel_change = std::fs::metadata(skel_file).unwrap().modified().unwrap();
+    let mut skel_change_new = std::fs::metadata(skel_file_new).unwrap().modified().unwrap();
     let mut last = std::time::Instant::now();
     while !window_should_close(&world) && !should_close {
         {
@@ -447,13 +448,15 @@ fn main() {
 
             {
                 let skel_new = std::fs::metadata(skel_file).unwrap().modified().unwrap();
-                if skel_new > skel_change {
+                let skel_new_new = std::fs::metadata(skel_file_new).unwrap().modified().unwrap();
+                if skel_new > skel_change || skel_new_new > skel_change_new {
                     let mut skeletons = world.write_resource::<skeletons::Skeletons>();
                     match skeletons::read(skel_file, skel_file_new) {
                         Ok(skel) => {
                             println!("Reload skeletons");
                             *skeletons = skel;
                             skel_change = skel_new;
+                            skel_change_new = skel_new_new;
                         }
                         Err(_) => (),
                     }

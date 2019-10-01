@@ -20,10 +20,11 @@ pub enum EvalErrorDesc {
     MissingMember(String),
     CannotGetMember(String, &'static str),
     MissingReference(String),
+    UnknownFunction(String),
     MemberMovedValue,
     FunctionValue,
     FunctionWrongNumberArgs(usize, usize),
-    Unmatched,
+    Unmatched(String),
 }
 
 impl From<EvalErrorDesc> for EvalError {

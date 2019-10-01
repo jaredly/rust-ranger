@@ -289,25 +289,74 @@ pub mod draw {
                 scale,
             )
         }
+
+        pub fn draw_new(
+            &mut self,
+            state: &component::Skeleton,
+            rd: &mut crate::draw::DrawHandle,
+            sheet: &crate::sprites::SpriteSheet,
+            velocity: nphysics2d::math::Velocity<f32>,
+            position: na::Point2<f32>,
+            rotation: f32,
+            scale: f32,
+        ) -> Result<(), libretto::Error> {
+            let sk: new::Skeleton = libretto::call_fn!(
+                self.new,
+                &state.name,
+                state,
+                velocity.linear
+            )?;
+            sk.draw(
+                rd,
+                &sheet,
+                position,
+                rotation,
+                scale,
+            );
+            Ok(())
+        }
     }
 
-    impl OldSkeleton {
-        pub fn draw_new(
+    impl new::Skeleton {
+        pub fn draw(
             &self,
-            _state: &component::Skeleton,
-            _shared: &Shared,
-            _shared_bones: &HashMap<String, Simple<Bone>>,
-            _fns: &Fns,
-            _rd: &mut crate::draw::DrawHandle,
-            _sheet: &crate::sprites::SpriteSheet,
-            _velocity: nphysics2d::math::Velocity<f32>,
-            _position: na::Point2<f32>,
-            _rotation: f32,
-            _scale: f32,
+            rd: &mut crate::draw::DrawHandle,
+            sheet: &crate::sprites::SpriteSheet,
+            position: na::Point2<f32>,
+            rotation: f32,
+            scale: f32,
         ) -> Result<(), libretto::Error> {
+            for bone in &self.bones {
+                let local_scale = self.scale * bone.scale;
+                let offset = position
+                    + na::Vector2::new(
+                        self.offset.0 * local_scale,
+                        self.offset.1 * local_scale,
+                    )
+                    + na::Vector2::new(
+                        bone.offset.0 * local_scale,
+                        bone.offset.1 * local_scale,
+                    );
+                let flip = bone.flip;
+                sheet.draw(
+                    rd,
+                    &bone.sprite,
+                    (offset.x, offset.y),
+                    (
+                        bone.pivot_offset.0 * if flip { -1.0 } else { 1.0 },
+                        bone.pivot_offset.1,
+                    ),
+                    rotation + bone.rotation,
+                    scale * local_scale,
+                    flip,
+                )
+            }
             Ok(())
         }
 
+    }
+
+    impl OldSkeleton {
         pub fn draw(
             &self,
             // skeletons: &Skeletons,

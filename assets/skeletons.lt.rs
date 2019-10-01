@@ -13,6 +13,10 @@ fn body_offset(context: any, velocity: any) {
     vx_sin(context, velocity).abs() * 0.04
 }
 
+fn vector_mag(vector: any) {
+    (vector.0 * vector.0 + vector.1 * vector.1).sqrt()
+}
+
 fn vector_theta(vector: any) {
     vector.1.atan2(vector.0)
 }
@@ -59,7 +63,7 @@ fn female(context: any, velocity: any) {
         Bone {
             sprite: "female_head.png",
             flip: if let Throw(vec) = context.arm_action {
-                vec.0 > 0
+                vec.0 > 0.0
             } else {
                 context.facing == Right
             },
@@ -69,30 +73,30 @@ fn female(context: any, velocity: any) {
         },
     ];
     if let Throw(throw) = context.arm_action {
+        let theta = vector_theta(throw.clone());
         bones.push(Bone {
             sprite: "arrow_thinner.png",
             flip: true,
             offset: (
-                context.throw_theta.cos() * 0.3,
-                -0.2 + 0.3 * context.throw_theta.sin(),
+                theta.cos() * 0.3,
+                -0.2 + 0.3 * theta.sin(),
             ),
-            // pivot_offset: (Plain(0), Plain(0.0)),
-            pivot_offset: (0.0, 0.5 + -0.02 * context.throw_mag),
+            pivot_offset: (0.0, 0.5 + -0.02 * vector_mag(throw.clone())),
             scale: 1.5,
-            rotation: if (context.throw_vx > 0.0) {
-                ((context.throw_theta / pi) * 180.0) + 180.0 + -90.0
+            rotation: if (throw.0 > 0.0) {
+                ((theta / pi) * 180.0) + 180.0 + -90.0
             } else {
-                90.0 + ((context.throw_theta / pi) * 180.0)
+                90.0 + ((theta / pi) * 180.0)
             },
         })
     };
-    if let Some(point_theta) = context.point_theta {
+    if let Some(vec) = context.pointing {
         bones.push(Bone {
             sprite: "female_arm.png",
             flip: context.facing == Right,
             offset: ((0.0), (-0.02)),
             pivot_offset: ((0), (-0.3)),
-            rotation: (((point_theta / pi) * (180)) + (90)),
+            rotation: (((vector_theta(vec) / pi) * (180)) + (90)),
         })
     } else {
         bones.push(match context.arm_action {
@@ -103,45 +107,46 @@ fn female(context: any, velocity: any) {
                 pivot_offset: ((0.0), (-0.3)),
                 rotation: (vx_sin * (10.0)),
             },
-            ThrowArm => Bone {
+            Bow(vec) => Bone {
                 sprite: "female_arm.png",
                 flip: context.facing == Right,
                 offset: ((0.0), (-0.2)),
                 pivot_offset: ((0.00), (-0.3)),
-                rotation: if (context.throw_vx > (0.0)) {
-                    (((context.throw_theta / pi) * (180.0)) + (180.0))
+                rotation: if (vec.0 > (0.0)) {
+                    (((vector_theta(vec) / pi) * (180.0)) + (180.0))
                 } else {
-                    ((context.throw_theta / pi) * (180.0))
+                    ((vector_theta(vec) / pi) * (180.0))
                 },
             },
-            Throw => Bone {
+            Throw(vec) => Bone {
                 sprite: "female_arm.png",
                 flip: context.facing == Right,
                 offset: ((0), (-0.2)),
-                pivot_offset: ((0), ((-0.3) + ((0.02) * context.throw_mag))),
-                rotation: if (context.throw_vx > 0.0) {
-                    context.throw_theta / pi * 180.0 + 270.0
+                pivot_offset: ((0), ((-0.3) + ((0.02) * vector_mag(vec.clone())))),
+                rotation: if (vec.0 > 0.0) {
+                    vector_theta(vec) / pi * 180.0 + 270.0
                 } else {
-                    context.throw_theta / pi * 180.0 + -90
+                    vector_theta(vec) / pi * 180.0 + -90.0
                 },
             },
         })
     };
 
-    if context.arm_action == Throw {
+    if let Throw(vec) = context.arm_action {
+        let theta = vector_theta(vec.clone());
         bones.push(Bone {
             sprite: "bow.png",
             flip: true,
             offset: (
-                (0.3) * context.throw_theta.cos(),
-                (-0.2) + ((0.3) * context.throw_theta.sin()),
+                (0.3) * theta.cos(),
+                (-0.2) + ((0.3) * theta.sin()),
             ),
             pivot_offset: ((0.0), (0.0)),
             scale: (1.5),
-            rotation: if (context.throw_vx > 0.0) {
-                (((context.throw_theta / pi) * (180.0)) + (180.0)) + (40)
+            rotation: if (vec.0 > 0.0) {
+                (((theta / pi) * (180.0)) + (180.0)) + (40.0)
             } else {
-                ((-135.0) + ((context.throw_theta / pi) * (180.0)))
+                ((-135.0) + ((theta/ pi) * (180.0)))
             },
         })
     };
