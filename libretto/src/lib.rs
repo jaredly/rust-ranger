@@ -36,9 +36,8 @@ mod tests {
         assert_eq!(
             parser::process_expr("vec![1,2,3]")
                 .unwrap()
-                .into_eval(&mut Scope::new())
-                .map(Expr::clear_pos),
-            Ok(ExprDesc::Array(vec![ExprDesc::Int(1).into(), ExprDesc::Int(2).into(), ExprDesc::Int(3).into(),]).into())
+                .into_eval(&mut Scope::new()),
+            Ok(Expr::array(vec![1.into(), 2.into(), 3.into()]))
         );
     }
 
@@ -48,10 +47,10 @@ mod tests {
             parser::process_expr("Hello { one: 2 }")
                 .unwrap()
                 .into_eval(&mut Scope::new())
-                .map(Expr::clear_pos),
+                ,
             Ok(ExprDesc::Struct(
                 "Hello".to_string(),
-                vec![("one".to_string(), ExprDesc::Int(2).into()),]
+                vec![("one".to_string(), 2.into()),]
             ).into())
         );
     }
@@ -62,10 +61,10 @@ mod tests {
             parser::process_expr("Hello ( 2, 3 )")
                 .unwrap()
                 .into_eval(&mut Scope::new())
-                .map(Expr::clear_pos),
+                ,
             Ok(ExprDesc::NamedTuple(
                 "Hello".to_string(),
-                vec![ExprDesc::Int(2).into(), ExprDesc::Int(3).into(),]
+                vec![2.into(), 3.into(),]
             ).into())
         );
     }
@@ -74,23 +73,23 @@ mod tests {
     fn plus_minus() {
         assert_eq!(
             parser::process_expr("1 + 2 - 3")
-                .map(Expr::clear_pos),
+                ,
             Ok(ExprDesc::Block(
                 vec![],
                 Box::new(ExprDesc::Minus(
-                    Box::new(ExprDesc::Plus(Box::new(ExprDesc::Int(1).into()), Box::new(ExprDesc::Int(2).into()),).into()),
-                    Box::new(ExprDesc::Int(3).into()),
+                    Box::new(ExprDesc::Plus(Box::new(1.into()), Box::new(2.into()),).into()),
+                    Box::new(3.into()),
                 ).into())
             ).into())
         );
 
         assert_eq!(
-            parser::process_expr("1 - 2 + 3").map(Expr::clear_pos),
+            parser::process_expr("1 - 2 + 3"),
             Ok(ExprDesc::Block(
                 vec![],
                 Box::new(ExprDesc::Plus(
-                    Box::new(ExprDesc::Minus(Box::new(ExprDesc::Int(1).into()), Box::new(ExprDesc::Int(2).into()),).into()),
-                    Box::new(ExprDesc::Int(3).into()),
+                    Box::new(ExprDesc::Minus(Box::new(1.into()), Box::new(2.into()),).into()),
+                    Box::new(3.into()),
                 ).into())
             ).into())
         );
@@ -98,29 +97,29 @@ mod tests {
         assert_eq!(
             parser::process_expr(r##"vec!["o\nne", r#"t"w\no"#, 'a', '\n', "😅"]"##)
                 .unwrap()
-                .into_eval(&mut Scope::new()).map(Expr::clear_pos),
-            Ok(ExprDesc::Array(vec![
-                ExprDesc::String("o\nne".to_string()).into(),
-                ExprDesc::String("t\"w\\no".to_string()).into(),
-                ExprDesc::Char('a').into(),
-                ExprDesc::Char('\n').into(),
-                ExprDesc::String("😅".to_string()).into(),
-            ]).into())
+                .into_eval(&mut Scope::new()),
+            Ok(Expr::array(vec![
+                ("o\nne".to_string()).into(),
+                ("t\"w\\no".to_string()).into(),
+                ('a').into(),
+                ('\n').into(),
+                ("😅".to_string()).into(),
+            ]))
         );
     }
 
     #[test]
     fn struct__() {
         assert_eq!(
-            parser::process_expr(r##" Point {x: 3, y: 5, name: "awesome"} "##).map(Expr::clear_pos),
+            parser::process_expr(r##" Point {x: 3, y: 5, name: "awesome"} "##),
             Ok(ExprDesc::Block(
                 vec![],
                 Box::new(ExprDesc::Struct(
                     "Point".into(),
                     vec![
-                        ("x".into(), ExprDesc::Int(3).into()),
-                        ("y".into(), ExprDesc::Int(5).into()),
-                        ("name".into(), ExprDesc::String("awesome".into()).into()),
+                        ("x".into(), (3).into()),
+                        ("y".into(), (5).into()),
+                        ("name".into(), ("awesome".to_owned()).into()),
                     ]
                 ).into())
             ).into())
@@ -130,18 +129,18 @@ mod tests {
     #[test]
     fn many_ops() {
         assert_eq!(
-            parser::process_expr("1 - 2 * 3 + 5 == 4").map(Expr::clear_pos),
+            parser::process_expr("1 - 2 * 3 + 5 == 4"),
             Ok(ExprDesc::Block(
                 vec![],
                 Box::new(ExprDesc::Eq(
                     Box::new(ExprDesc::Plus(
                         Box::new(ExprDesc::Minus(
-                            Box::new(ExprDesc::Int(1).into()),
-                            Box::new(ExprDesc::Times(Box::new(ExprDesc::Int(2).into()), Box::new(ExprDesc::Int(3).into())).into())
+                            Box::new((1).into()),
+                            Box::new(ExprDesc::Times(Box::new((2).into()), Box::new((3).into())).into())
                         ).into()),
-                        Box::new(ExprDesc::Int(5).into())
+                        Box::new((5).into())
                     ).into()),
-                    Box::new(ExprDesc::Int(4).into())
+                    Box::new((4).into())
                 ).into())
             ).into())
         );

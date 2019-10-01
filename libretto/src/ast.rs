@@ -241,37 +241,37 @@ impl From<ExprDesc> for Expr {
     }
 }
 
-impl From<f32> for ExprDesc {
+impl From<f32> for Expr {
     fn from(i: f32) -> Self {
-        ExprDesc::Float(i)
+        ExprDesc::Float(i).into()
     }
 }
-impl From<i32> for ExprDesc {
+impl From<i32> for Expr {
     fn from(i: i32) -> Self {
-        ExprDesc::Int(i)
+        ExprDesc::Int(i).into()
     }
 }
-impl From<bool> for ExprDesc {
+impl From<bool> for Expr {
     fn from(i: bool) -> Self {
-        ExprDesc::Bool(i)
+        ExprDesc::Bool(i).into()
     }
 }
-impl From<char> for ExprDesc {
+impl From<char> for Expr {
     fn from(i: char) -> Self {
-        ExprDesc::Char(i)
+        ExprDesc::Char(i).into()
     }
 }
-impl From<String> for ExprDesc {
+impl From<String> for Expr {
     fn from(i: String) -> Self {
-        ExprDesc::String(i)
+        ExprDesc::String(i).into()
     }
 }
-impl<T> From<Vec<T>> for ExprDesc
+impl<T> From<Vec<T>> for Expr
 where
     T: Into<Expr>,
 {
     fn from(i: Vec<T>) -> Self {
-        ExprDesc::Array(i.into_iter().map(|t| t.into()).collect())
+        ExprDesc::Array(i.into_iter().map(|t| t.into()).collect()).into()
     }
 }
 
@@ -286,6 +286,10 @@ pub enum EvalError {
 }
 
 impl Expr {
+    pub fn array(arr: Vec<Expr>) -> Self {
+        ExprDesc::Array(arr).into()
+    }
+
     pub fn clear_pos(mut self) -> Self {
         let empty = crate::ast::Pos { start: (0, 0), end: (0, 0) };
         let _ = self.walk::<(), _>(&|e: &mut Expr|{e.pos = empty; Ok(())});
