@@ -122,6 +122,12 @@ pub struct Pos {
     pub end: (usize, usize),
 }
 
+impl Default for Pos {
+    fn default() -> Self {
+        Pos {start: (0,0), end: (0,0)}
+    }
+}
+
 impl<T: pest::RuleType> From<&pest::iterators::Pair<'_, T>> for Pos {
     fn from(other: &pest::iterators::Pair<T>) -> Pos {
         Pos::from(&other.as_span())
@@ -275,6 +281,18 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct EvalError2 {
+    pub desc: EvalError,
+    pub pos: Pos,
+}
+
+impl PartialEq for EvalError2 {
+    fn eq(&self, other: &Self) -> bool {
+        self.desc == other.desc
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum EvalError {
     InvalidType(&'static str),
@@ -285,13 +303,25 @@ pub enum EvalError {
     Unmatched,
 }
 
+impl From<EvalError> for EvalError2 {
+    fn from(other: EvalError) -> Self {
+        EvalError2 { desc: other, pos: Pos::default() }
+    }
+}
+
+impl EvalError {
+    fn with_pos(self, pos: Pos) -> EvalError2 {
+        EvalError2 { desc: self, pos }
+    }
+}
+
 impl Expr {
     pub fn array(arr: Vec<Expr>) -> Self {
         ExprDesc::Array(arr).into()
     }
 
     pub fn clear_pos(mut self) -> Self {
-        let empty = crate::ast::Pos { start: (0, 0), end: (0, 0) };
+        let empty = crate::ast::Pos::default();
         let _ = self.walk::<(), _>(&|e: &mut Expr|{e.pos = empty; Ok(())});
         self
     }
@@ -426,7 +456,10 @@ impl Expr {
                 Ok(())
             }
             ExprDesc::Ident(name) => match scope.move_raw(&name) {
-                None => Err(EvalError::MissingReference(name.to_string())),
+                None => {
+                    let e2 = EvalError::MissingReference(name.to_string()).with_pos(self.pos);
+                    Err(EvalError::MissingReference(name.to_string()))
+                },
                 Some(expr) => {
                     *self = expr;
                     Ok(())
