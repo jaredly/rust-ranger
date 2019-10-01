@@ -174,7 +174,47 @@ pub struct Bone {
     pub rotation: Animated<f32>,
 }
 
-#[derive(Debug, Deserialize)]
+pub mod new {
+    use super::*;
+
+
+    #[derive(Debug, Deserialize, Clone, PartialEq)]
+    pub struct Bone {
+        pub sprite: String,
+        // #[serde(default = "Animated::origin")]
+        pub offset: (f32, f32),
+        // #[serde(default = "Animated::origin")]
+        pub pivot_offset: (f32, f32),
+        // #[serde(default = "if_facing_right")]
+        pub flip: bool,
+        // #[serde(default = "Animated::one")]
+        pub scale: f32,
+        // #[serde(default = "Animated::zero")]
+        pub rotation: f32,
+    }
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    pub struct Skeleton {
+        pub shape: Shape,
+        pub scale: f32,
+        pub offset: (f32, f32),
+        pub bones: Vec<Bone>,
+    }
+
+    impl Default for Skeleton {
+        fn default() -> Self {
+            Skeleton {
+                shape: Shape::Capsule { width: 1.0, height: 1.0 },
+                scale: 1.0,
+                offset: (0.0, 0.0),
+                bones: vec![]
+            }
+        }
+    }
+
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
 pub enum Shape {
     Capsule { width: f32, height: f32 },
     Ball { radius: f32 },

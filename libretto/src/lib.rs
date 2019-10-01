@@ -14,7 +14,7 @@ pub use parser::{process_expr, process_file};
 pub use scope::Scope;
 pub use ser::to_expr;
 
-pub fn eval_expr(input: &str) -> Result<Expr, ast::EvalError> {
+pub fn eval_expr(input: &str) -> Result<Expr, error::EvalError> {
     process_expr(input).unwrap().into_eval(&mut Scope::new())
 }
 

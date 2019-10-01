@@ -1,16 +1,16 @@
 const run_freq: any = 500.0;
 const leg_pos: any = 0.6;
 
-fn vx_sin(context: any) {
+fn vx_sin(context: any, velocity: any) {
     if let Jump = context.action {
         (context.timer / 50.0).min(4.0)
     } else {
-        (tau * (context.timer / run_freq)).sin() * context.vx.abs()
+        (tau * (context.timer / run_freq)).sin() * velocity.0.abs()
     }
 }
 
-fn body_offset(context: any) {
-    vx_sin(context).abs() * 0.04
+fn body_offset(context: any, velocity: any) {
+    vx_sin(context, velocity).abs() * 0.04
 }
 
 fn vector_theta(vector: any) {
@@ -21,13 +21,13 @@ fn vector_cos(vector: any) {
     vector_theta(vector).cos()
 }
 
-fn female(context: any) {
-    let vx_sin = vx_sin(context);
-    let body_offset = body_offset(context);
+fn female(context: any, velocity: any) {
+    let vx_sin = vx_sin(context.clone(), velocity.clone());
+    let body_offset = body_offset(context.clone(), velocity.clone());
     let bones = vec![
         Bone {
             sprite: "female_arm.png",
-            pivot_offset: (0, -0.3),
+            pivot_offset: (0.0, -0.3),
             offset: (vx_sin * 0.01, -0.2),
             flip: context.facing == Right,
             rotation: vx_sin * -10.0,
@@ -35,15 +35,15 @@ fn female(context: any) {
         // back leg
         Bone {
             sprite: "female_leg.png",
-            offset: (vx_sin * -0.05, leg_pos + body_offset * -1),
-            pivot_offset: (0, -0.3),
+            offset: (vx_sin * -0.05, leg_pos + body_offset * -1.0),
+            pivot_offset: (0.0, -0.3),
             rotation: vx_sin * 5.0,
         },
         // front leg
         Bone {
             sprite: "female_leg.png",
-            offset: (vx_sin * 0.05, leg_pos + body_offset * -1),
-            pivot_offset: (0, -0.3),
+            offset: (vx_sin * 0.05, leg_pos + body_offset * -1.0),
+            pivot_offset: (0.0, -0.3),
             rotation: vx_sin * -5.0,
         },
         // body
@@ -150,7 +150,7 @@ fn female(context: any) {
             height: 0.1,
         },
         scale: 0.3,
-        offset: (0, body_offset(context)),
+        offset: (0.0, body_offset(context.clone(), velocity.clone())),
         bones: bones,
     }
 }

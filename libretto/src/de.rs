@@ -1,12 +1,14 @@
-use crate::error::{Error, Result};
+use crate::error::{DeserializeErrorDesc as ErrorDesc, DeserializeError as Error};
 use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
 
 use crate::ast::{self, Expr, ExprDesc};
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 pub struct Deserializer<'de> {
-    input: &'de ast::ExprDesc,
+    input: &'de ast::Expr,
 }
 
 impl<'de> Deserializer<'de> {
@@ -14,7 +16,7 @@ impl<'de> Deserializer<'de> {
     // That way basic use cases are satisfied by something like
     // `serde_json::from_str(...)` while advanced use cases that require a
     // deserializer can make one with `serde_json::Deserializer::from_str(...)`.
-    pub fn from_expr(input: &'de ast::ExprDesc) -> Self {
+    pub fn from_expr(input: &'de ast::Expr) -> Self {
         Deserializer { input }
     }
 }
@@ -24,12 +26,12 @@ impl<'de> Deserializer<'de> {
 // depending on what Rust types the deserializer is able to consume as input.
 //
 // This basic deserializer supports only `from_str`.
-pub fn from_expr<'a, T>(s: &'a ast::ExprDesc) -> Result<T>
+pub fn from_expr<'a, T>(s: &'a ast::Expr) -> Result<T>
 where
     T: Deserialize<'a>,
 {
     if s.needs_evaluation() {
-        Err(Error::Unevaluated(format!("{:?}", s)))
+        Err(ErrorDesc::Unevaluated(format!("{:?}", s)).with_pos(s.pos))
     } else {
         let deserializer = Deserializer::from_expr(s);
         T::deserialize(deserializer)
@@ -59,7 +61,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.input {
+        match &self.input.desc {
             ExprDesc::Float(f) => visitor.visit_f32(*f),
             ExprDesc::Int(i) => visitor.visit_i32(*i),
             ExprDesc::Bool(b) => visitor.visit_bool(*b),
@@ -69,7 +71,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
                 None => visitor.visit_none(),
                 Some(s) => visitor.visit_some(Deserializer::from_expr(&s)),
             },
-            s => Err(Error::Unevaluated(format!("{:?}", s))),
+            s => Err(ErrorDesc::Unevaluated(format!("{:?}", s)).with_pos(self.input.pos)),
         }
     }
 
@@ -97,10 +99,10 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let ExprDesc::Unit = self.input {
+        if let ExprDesc::Unit = self.input.desc {
             visitor.visit_unit()
         } else {
-            Err(Error::ExpectedUnit)
+            Err(ErrorDesc::ExpectedUnit.with_pos(self.input.pos))
         }
     }
 
@@ -109,16 +111,16 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let ExprDesc::NamedTuple(tname, contents) = self.input {
+        if let ExprDesc::NamedTuple(tname, contents) = &self.input.desc {
             if name != tname {
-                Err(Error::WrongName(name.to_owned(), tname.to_owned()))
+                Err(ErrorDesc::WrongName(name.to_owned(), tname.to_owned()).with_pos(self.input.pos))
             } else if !contents.is_empty() {
-                Err(Error::WrongTupleLength(0, contents.len()))
+                Err(ErrorDesc::WrongTupleLength(0, contents.len()).with_pos(self.input.pos))
             } else {
                 visitor.visit_unit()
             }
         } else {
-            Err(Error::ExpectedNamedTuple)
+            Err(ErrorDesc::ExpectedNamedTuple.with_pos(self.input.pos))
         }
     }
 
@@ -126,16 +128,16 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let ExprDesc::Struct(sname, _items) = self.input {
+        if let ExprDesc::Struct(sname, _items) = &self.input.desc {
             if sname != name {
-                Err(Error::WrongName(name.to_owned(), sname.to_owned()))
+                Err(ErrorDesc::WrongName(name.to_owned(), sname.to_owned()).with_pos(self.input.pos))
             } else {
                 visitor.visit_newtype_struct(self)
                 // TODO?
                 // visitor.visit_newtype_struct(Deserializer::from_expr(ExprDesc::Object(self.items)))
             }
         } else {
-            Err(Error::ExpectedStruct)
+            Err(ErrorDesc::ExpectedStruct.with_pos(self.input.pos))
         }
     }
 
@@ -146,11 +148,11 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.input {
+        match &self.input.desc {
             ExprDesc::Array(contents) | ExprDesc::NamedTuple(_, contents) => {
                 visitor.visit_seq(Items::new(contents))
             }
-            _ => Err(Error::ExpectedSequence),
+            _ => Err(ErrorDesc::ExpectedSequence.with_pos(self.input.pos)),
         }
     }
 
@@ -159,9 +161,9 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.input {
+        match &self.input.desc {
             ExprDesc::Tuple(contents) => visitor.visit_seq(Items::new(contents)),
-            _ => Err(Error::ExpectedSequence),
+            _ => Err(ErrorDesc::ExpectedSequence.with_pos(self.input.pos)),
         }
     }
 
@@ -174,16 +176,16 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let ExprDesc::NamedTuple(tname, contents) = self.input {
+        if let ExprDesc::NamedTuple(tname, contents) = &self.input.desc {
             if name != tname {
-                Err(Error::WrongName(name.to_owned(), tname.to_owned()))
+                Err(ErrorDesc::WrongName(name.to_owned(), tname.to_owned()).with_pos(self.input.pos))
             } else if contents.len() != len {
-                Err(Error::WrongTupleLength(len, contents.len()))
+                Err(ErrorDesc::WrongTupleLength(len, contents.len()).with_pos(self.input.pos))
             } else {
                 visitor.visit_unit()
             }
         } else {
-            Err(Error::ExpectedNamedTuple)
+            Err(ErrorDesc::ExpectedNamedTuple.with_pos(self.input.pos))
         }
     }
 
@@ -194,10 +196,10 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let ExprDesc::Object(items) = self.input {
+        if let ExprDesc::Object(items) = &self.input.desc {
             visitor.visit_map(Pairs::new(items))
         } else {
-            Err(Error::ExpectedMap)
+            Err(ErrorDesc::ExpectedMap.with_pos(self.input.pos))
         }
         // // Parse the opening brace of the map.
         // if self.next_char()? == '{' {
@@ -207,10 +209,10 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         //     if self.next_char()? == '}' {
         //         Ok(value)
         //     } else {
-        //         Err(Error::ExpectedMapEnd)
+        //         Err(ErrorDesc::ExpectedMapEnd)
         //     }
         // } else {
-        //     Err(Error::ExpectedMap)
+        //     Err(ErrorDesc::ExpectedMap)
         // }
     }
 
@@ -224,14 +226,14 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         V: Visitor<'de>,
     {
         // self.deserialize_map(visitor)
-        if let ExprDesc::Struct(name, items) = self.input {
+        if let ExprDesc::Struct(name, items) = &self.input.desc {
             if name == ename {
                 visitor.visit_map(Pairs::new(items))
             } else {
-                Err(Error::WrongName(ename.to_string(), name.to_string()))
+                Err(ErrorDesc::WrongName(ename.to_string(), name.to_string()).with_pos(self.input.pos))
             }
         } else {
-            Err(Error::ExpectedMap)
+            Err(ErrorDesc::ExpectedMap.with_pos(self.input.pos))
         }
     }
 
@@ -257,10 +259,10 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         //     if self.next_char()? == '}' {
         //         Ok(value)
         //     } else {
-        //         Err(Error::ExpectedMapEnd)
+        //         Err(ErrorDesc::ExpectedMapEnd)
         //     }
         // } else {
-        //     Err(Error::ExpectedEnum)
+        //     Err(ErrorDesc::ExpectedEnum)
         // }
     }
 
@@ -393,7 +395,7 @@ impl<'a> MapAccess<'a> for Pairs<'a> {
         // of `next_key_seed` or at the beginning of `next_value_seed`. In this
         // case the code is a bit simpler having it here.
         // if self.de.next_char()? != ':' {
-        //     return Err(Error::ExpectedMapColon);
+        //     return Err(ErrorDesc::ExpectedMapColon);
         // }
         // Deserialize a map value.
         let (_key, v) = &self.contents[self.index];
@@ -404,11 +406,11 @@ impl<'a> MapAccess<'a> for Pairs<'a> {
 
 struct Enum<'a> {
     // name: &'a str,
-    expr: &'a ExprDesc,
+    expr: &'a Expr,
 }
 
 impl<'a> Enum<'a> {
-    fn new(expr: &'a ExprDesc) -> Self {
+    fn new(expr: &'a Expr) -> Self {
         Enum { expr }
     }
 }
@@ -429,18 +431,18 @@ impl<'a> EnumAccess<'a> for Enum<'a> {
         // The `deserialize_enum` method parsed a `{` character so we are
         // currently inside of a map. The seed will be deserializing itself from
         // the key of the map.
-        match self.expr {
+        match &self.expr.desc {
             ExprDesc::NamedTuple(name, _) | ExprDesc::Struct(name, _) => {
                 let val = seed.deserialize(KeyDeserializer::from_str(name))?;
                 Ok((val, self))
             }
-            _ => Err(Error::ExpectedEnum),
+            _ => Err(ErrorDesc::ExpectedEnum.with_pos(self.expr.pos)),
         }
         // Parse the colon separating map key from value.
         // if self.de.next_char()? == ':' {
         //     Ok((val, self))
         // } else {
-        //     Err(Error::ExpectedMapColon)
+        //     Err(ErrorDesc::ExpectedMapColon)
         // }
     }
 }
@@ -453,9 +455,9 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     // If the `Visitor` expected this variant to be a unit variant, the input
     // should have been the plain string case handled in `deserialize_enum`.
     fn unit_variant(self) -> Result<()> {
-        match self.expr {
+        match &self.expr.desc {
             ExprDesc::NamedTuple(_, v) if v.is_empty() => Ok(()),
-            _ => Err(Error::ExpectedEnum),
+            _ => Err(ErrorDesc::ExpectedEnum.with_pos(self.expr.pos)),
         }
     }
 
@@ -465,14 +467,14 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     where
         T: DeserializeSeed<'a>,
     {
-        if let ExprDesc::NamedTuple(_, v) = self.expr {
+        if let ExprDesc::NamedTuple(_, v) = &self.expr.desc {
             if v.len() == 1 {
                 seed.deserialize(Deserializer::from_expr(&v[0]))
             } else {
-                Err(Error::WrongTupleLength(0, v.len()))
+                Err(ErrorDesc::WrongTupleLength(0, v.len()).with_pos(self.expr.pos))
             }
         } else {
-            Err(Error::ExpectedNamedTuple)
+            Err(ErrorDesc::ExpectedNamedTuple.with_pos(self.expr.pos))
         }
     }
 
@@ -482,14 +484,14 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     where
         V: Visitor<'a>,
     {
-        if let ExprDesc::NamedTuple(_, v) = self.expr {
+        if let ExprDesc::NamedTuple(_, v) = &self.expr.desc {
             if len == v.len() {
                 de::Deserializer::deserialize_seq(Deserializer::from_expr(self.expr), visitor)
             } else {
-                Err(Error::WrongTupleLength(len, v.len()))
+                Err(ErrorDesc::WrongTupleLength(len, v.len()).with_pos(self.expr.pos))
             }
         } else {
-            Err(Error::ExpectedNamedTuple)
+            Err(ErrorDesc::ExpectedNamedTuple.with_pos(self.expr.pos))
         }
     }
 

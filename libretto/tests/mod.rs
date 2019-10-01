@@ -183,6 +183,23 @@ if 5 == 10 {
 }
 
 #[test]
+fn auto_copy() {
+    assert_eq!(
+        libretto::from_expr::<usize>(
+            &libretto::eval_expr(
+                r##"
+let stuff = Point {x: 2, y: 3};
+let aa = log(stuff.x + stuff.y);
+23
+"##
+            )
+            .unwrap()
+        ),
+        Ok(23)
+    )
+}
+
+#[test]
 fn matches() {
     assert_eq!(
         libretto::from_expr::<Vec<usize>>(

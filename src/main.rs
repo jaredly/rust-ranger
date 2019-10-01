@@ -254,10 +254,10 @@ mod test {
 
         let mut skeletons = crate::skeletons::read(skel_file, skel_file_new).unwrap();
         let sk = crate::skeletons::component::Skeleton::new("female");
-        let res = libretto::call_fn!(skeletons.new, "female", sk);
+        let res = libretto::call_fn!(skeletons.new, "female", sk, na::Vector2::new(0.0, 0.0));
         assert_eq!(
             res,
-            Ok(())
+            Ok(crate::skeletons::new::Skeleton::default())
         )
         // skeletons.unwrap();
     }

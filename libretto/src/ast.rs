@@ -1,4 +1,5 @@
 use crate::scope::Scope;
+use crate::error::{EvalError, EvalErrorDesc};
 
 pub type Args = Vec<String>;
 
@@ -293,44 +294,6 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct EvalError {
-    pub desc: EvalErrorDesc,
-    pub pos: Pos,
-}
-
-impl PartialEq for EvalError {
-    fn eq(&self, other: &Self) -> bool {
-        self.desc == other.desc
-    }
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum EvalErrorDesc {
-    InvalidType(&'static str),
-    MissingMember(String),
-    CannotGetMember(String, &'static str),
-    MissingReference(String),
-    FunctionValue,
-    FunctionWrongNumberArgs(usize, usize),
-    Unmatched,
-}
-
-impl From<EvalErrorDesc> for EvalError {
-    fn from(other: EvalErrorDesc) -> Self {
-        EvalError {
-            desc: other,
-            pos: Pos::default(),
-        }
-    }
-}
-
-impl EvalErrorDesc {
-    pub fn with_pos(self, pos: Pos) -> EvalError {
-        EvalError { desc: self, pos }
-    }
-}
-
 impl Expr {
     pub fn array(arr: Vec<Expr>) -> Self {
         ExprDesc::Array(arr).into()
@@ -622,58 +585,64 @@ impl Expr {
             ExprDesc::MemberAccess(expr, items) => {
                 let mut target = match &mut expr.as_mut().desc {
                     ExprDesc::Ident(name) => {
-                        let can_borrow = items.iter().any(|(_, x)| x.is_some());
-                        if can_borrow {
-                            for (_name, args) in items.iter_mut() {
-                                if let Some(args) = args {
-                                    for arg in args {
-                                        arg.eval(scope)?;
-                                    }
+
+                        // If I don't want to auto-clone, re-enable this stuff
+                        // let can_borrow = items.iter().any(|(_, x)| x.is_some());
+                        // if can_borrow {
+
+                        for (_name, args) in items.iter_mut() {
+                            if let Some(args) = args {
+                                for arg in args {
+                                    arg.eval(scope)?;
                                 }
-                            }
-                            let mut target = match scope.get_raw_mut(&name) {
-                                None => {
-                                    return Err(EvalErrorDesc::MissingReference(name.to_owned())
-                                        .with_pos(self.pos))
-                                }
-                                Some(v) => v,
-                            };
-                            let mut items = items.into_iter();
-                            let mut owned = loop {
-                                if let Some((name, args)) = items.next() {
-                                    if let Some(args) = args {
-                                        break member_function(
-                                            target,
-                                            name,
-                                            std::mem::replace(args, vec![]),
-                                        )?;
-                                    } else {
-                                        target = member_access(target, name, self.pos)?;
-                                    }
-                                } else {
-                                    unreachable!()
-                                }
-                            };
-                            for (name, args) in items {
-                                if let Some(args) = args.take() {
-                                    owned = member_function(&mut owned, name, args)?;
-                                } else {
-                                    owned = member_move(owned, name, self.pos)?;
-                                }
-                            }
-                            // TODO preserve location?
-                            *self = owned;
-                            // do the borrow one I guess
-                            return Ok(());
-                        } else {
-                            match scope.move_raw(&name) {
-                                None => {
-                                    return Err(EvalErrorDesc::MissingReference(name.to_owned())
-                                        .with_pos(self.pos))
-                                }
-                                Some(v) => v,
                             }
                         }
+                        let mut target = match scope.get_raw_mut(&name) {
+                            None => {
+                                return Err(EvalErrorDesc::MissingReference(name.to_owned())
+                                    .with_pos(self.pos))
+                            }
+                            Some(v) => v,
+                        };
+                        let mut items = items.into_iter();
+                        let mut owned = loop {
+                            if let Some((name, args)) = items.next() {
+                                if let Some(args) = args {
+                                    break member_function(
+                                        target,
+                                        name,
+                                        std::mem::replace(args, vec![]),
+                                    )?;
+                                } else {
+                                    target = member_access(target, name, self.pos)?;
+                                }
+                            } else {
+                                // ok now we auto-clone
+                                *self = target.clone();
+                                return Ok(())
+                            }
+                        };
+                        for (name, args) in items {
+                            if let Some(args) = args.take() {
+                                owned = member_function(&mut owned, name, args)?;
+                            } else {
+                                owned = member_move(owned, name, self.pos)?;
+                            }
+                        }
+                        // TODO preserve location?
+                        *self = owned;
+                        // do the borrow one I guess
+                        return Ok(());
+
+                        // } else {
+                        //     match scope.move_raw(&name) {
+                        //         None => {
+                        //             return Err(EvalErrorDesc::MissingReference(name.to_owned())
+                        //                 .with_pos(self.pos))
+                        //         }
+                        //         Some(v) => v,
+                        //     }
+                        // }
                     }
                     _ => {
                         expr.eval(scope)?;
@@ -1146,6 +1115,7 @@ fn member_move<'a>(value: Expr, name: &str, pos: Pos) -> Result<Expr, EvalError>
                 }
                 return Err(EvalErrorDesc::MissingMember(name.to_owned()).with_pos(pos));
             }
+            ExprDesc::Moved => return Err(EvalErrorDesc::MemberMovedValue.with_pos(pos)),
             _ => {
                 return Err(EvalErrorDesc::CannotGetMember(
                     name.to_owned(),
@@ -1176,6 +1146,7 @@ fn member_access<'a>(value: &'a mut Expr, name: &str, pos: Pos) -> Result<&'a mu
                 }
                 return Err(EvalErrorDesc::MissingMember(name.to_owned()).with_pos(pos));
             }
+            ExprDesc::Moved => return Err(EvalErrorDesc::MemberMovedValue.with_pos(pos)),
             _ => {
                 return Err(EvalErrorDesc::CannotGetMember(
                     name.to_owned(),

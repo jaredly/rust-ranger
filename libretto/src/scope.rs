@@ -1,4 +1,5 @@
-use crate::ast::{Args, EvalError, EvalErrorDesc, Expr, ExprDesc, Pos};
+use crate::ast::{Args, Expr, ExprDesc, Pos};
+use crate::error::{EvalError, EvalErrorDesc};
 use std::collections::HashMap;
 
 #[macro_export]

@@ -2,7 +2,8 @@ use crate::ast::{Expr, ExprDesc};
 
 use serde::{ser, Serialize};
 
-use crate::error::{Error, Result};
+use crate::error::{DeserializeError as Error};
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct Serializer;
 
