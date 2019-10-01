@@ -1,9 +1,11 @@
 use ron::de::from_reader;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use std::{collections::HashMap, fs::File};
 
 pub mod component {
-    #[derive(Copy, Clone, PartialEq)]
+    use serde::{Serialize, Deserialize};
+
+    #[derive(Copy, Clone, PartialEq, Serialize)]
     pub enum Facing {
         Left,
         Right,
@@ -21,14 +23,14 @@ pub mod component {
         }
     }
 
-    #[derive(Copy, Clone, PartialEq)]
+    #[derive(Copy, Clone, PartialEq, Serialize)]
     pub enum Action {
         Walk,
         Stand,
         Jump,
     }
 
-    #[derive(Copy, Clone, PartialEq)]
+    #[derive(Copy, Clone, PartialEq, Serialize)]
     pub enum ArmAction {
         None,
         Throw(na::Vector2<f32>),
@@ -48,7 +50,7 @@ pub mod component {
     }
 
     use specs::prelude::*;
-    #[derive(Component)]
+    #[derive(Component, Serialize)]
     pub struct Skeleton {
         pub name: String,
         pub facing: Facing,
@@ -179,7 +181,7 @@ pub enum Shape {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Skeleton {
+pub struct OldSkeleton {
     pub shape: Shape,
     #[serde(default = "Animated::one")]
     pub scale: Animated<f32>,
@@ -189,16 +191,26 @@ pub struct Skeleton {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Skeletons {
+pub struct OldSkeletons {
     pub fns: Fns,
     pub shared: Shared,
     pub shared_bones: HashMap<String, Simple<Bone>>,
-    pub skeletons: HashMap<String, Skeleton>,
+    pub skeletons: HashMap<String, OldSkeleton>,
 }
 
-pub fn read(path: &str) -> Result<Skeletons, ron::de::Error> {
-    let f = File::open(path).expect("Failed opening file");
-    from_reader(f)
+pub struct Skeletons {
+    pub old: OldSkeletons,
+    pub new: libretto::Scope,
+}
+
+pub fn read(path: &str, new_path: &str) -> Result<Skeletons, ron::de::Error> {
+    let f = std::fs::read_to_string(new_path).expect("Failed opening file");
+    let new = libretto::eval_file(&f).unwrap();
+    let f_old = File::open(path).expect("Failed opening file");
+    Ok(Skeletons {
+        old: from_reader::<_, OldSkeletons>(f_old)?,
+        new: new,
+    })
 }
 
 pub mod draw {
@@ -214,13 +226,13 @@ pub mod draw {
             rotation: f32,
             scale: f32,
         ) -> Result<(), crate::scripting::EvalErr> {
-            let sk = self.skeletons.get(&state.name).unwrap();
+            let sk = self.old.skeletons.get(&state.name).unwrap();
             sk.draw(
                 // &self,
                 &state,
-                &self.shared,
-                &self.shared_bones,
-                &self.fns,
+                &self.old.shared,
+                &self.old.shared_bones,
+                &self.old.fns,
                 rd,
                 &sheet,
                 velocity,
@@ -231,7 +243,23 @@ pub mod draw {
         }
     }
 
-    impl Skeleton {
+    impl OldSkeleton {
+        pub fn draw_new(
+            &self,
+            state: &component::Skeleton,
+            shared: &Shared,
+            shared_bones: &HashMap<String, Simple<Bone>>,
+            fns: &Fns,
+            rd: &mut crate::draw::DrawHandle,
+            sheet: &crate::sprites::SpriteSheet,
+            velocity: nphysics2d::math::Velocity<f32>,
+            position: na::Point2<f32>,
+            rotation: f32,
+            scale: f32,
+        ) -> Result<(), libretto::Error> {
+            Ok(())
+        }
+
         pub fn draw(
             &self,
             // skeletons: &Skeletons,

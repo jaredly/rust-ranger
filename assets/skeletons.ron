@@ -1,4 +1,4 @@
-Skeletons(
+OldSkeletons(
     // "leg_off_x": Fn(args: ["inv"], body: )
     fns: {
     },
@@ -22,7 +22,7 @@ Skeletons(
     },
     shared_bones: {},
     skeletons: {
-        "female": Skeleton(
+        "female": OldSkeleton(
             shape: Capsule(width: 0.1, height: 0.1),
             scale: Plain(0.3),
             offset: (Plain(0), Shared("body_offset")),

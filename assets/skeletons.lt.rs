@@ -3,14 +3,22 @@ const leg_pos: any = 0.6;
 
 fn vx_sin(context: any) {
     if let Jump = context.action {
-        (context.time / 50.0).min(4.0)
+        (context.timer / 50.0).min(4.0)
     } else {
-        (tau * (context.time / run_freq)).sin() * context.vx.abs()
+        (tau * (context.timer / run_freq)).sin() * context.vx.abs()
     }
 }
 
 fn body_offset(context: any) {
     vx_sin(context).abs() * 0.04
+}
+
+fn vector_theta(vector: any) {
+    vector.1.atan2(vector.0)
+}
+
+fn vector_cos(vector: any) {
+    vector_theta(vector).cos()
 }
 
 fn female(context: any) {
@@ -48,8 +56,8 @@ fn female(context: any) {
         },
         Bone {
             sprite: "female_head.png",
-            flip: if (context.arm_action == Throw) {
-                context.throw_vx > 0
+            flip: if let Throw(vec) = context.arm_action {
+                vec.0 > 0
             } else {
                 context.facing == Right
             },
@@ -58,7 +66,7 @@ fn female(context: any) {
             rotation: 0.0,
         },
     ];
-    if context.arm_action == Throw {
+    if let Throw(throw) = context.arm_action {
         bones.push(Bone {
             sprite: "arrow_thinner.png",
             flip: true,
@@ -75,7 +83,7 @@ fn female(context: any) {
                 90.0 + ((context.throw_theta / pi) * 180.0)
             },
         })
-    }
+    };
     if let Some(point_theta) = context.point_theta {
         bones.push(Bone {
             sprite: "female_arm.png",
@@ -114,9 +122,9 @@ fn female(context: any) {
                 } else {
                     context.throw_theta / pi * 180.0 + -90
                 },
-            },
+            }
         })
-    }
+    };
 
     if context.arm_action == Throw {
         bones.push(Bone {
@@ -133,8 +141,8 @@ fn female(context: any) {
             } else {
                 ((-135.0) + ((context.throw_theta / pi) * (180.0)))
             },
-        });
-    }
+        })
+    };
 
     Skeleton {
         shape: Capsule {

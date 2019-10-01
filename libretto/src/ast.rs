@@ -847,6 +847,10 @@ fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<
             "cos" if args.is_empty() => Expr::Float(f.cos()),
             "tan" if args.is_empty() => Expr::Float(f.tan()),
             "abs" if args.is_empty() => Expr::Float(f.abs()),
+            "atan2" if args.len() == 1 => match args[0] {
+                Expr::Float(x) => Expr::Float(f.atan2(x)),
+                _ => return Err(EvalError::InvalidType("atan2 takes a float argument"))
+            },
             // "to_int" if args.is_empty() => Expr::Int(f as i32),
             _ => {
                 println!("{} - {:?}", name, args);

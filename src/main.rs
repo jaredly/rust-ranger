@@ -245,6 +245,24 @@ impl<'a> System<'a> for CameraFollowSys {
     }
 }
 
+#[cfg(test)]
+mod test {
+    #[test]
+    fn load_skeletons() {
+        let skel_file = "./assets/skeletons.ron";
+        let skel_file_new = "./assets/skeletons.lt.rs";
+
+        let mut skeletons = crate::skeletons::read(skel_file, skel_file_new).unwrap();
+        let sk = crate::skeletons::component::Skeleton::new("female");
+        let res = libretto::call_fn!(skeletons.new, "female", sk);
+        assert_eq!(
+            res,
+            Ok(())
+        )
+        // skeletons.unwrap();
+    }
+}
+
 fn main() {
     // screen
     let screen_w = config::with(|c| c.screen_size);
@@ -398,8 +416,9 @@ fn main() {
         .unwrap();
 
     let skel_file = "./assets/skeletons.ron";
+    let skel_file_new = "./assets/skeletons.lt.rs";
 
-    let skeletons = skeletons::read(skel_file).unwrap();
+    let skeletons = skeletons::read(skel_file, skel_file_new).unwrap();
     world.add_resource(skeletons);
 
     let should_close = false;
@@ -434,7 +453,7 @@ fn main() {
                 let skel_new = std::fs::metadata(skel_file).unwrap().modified().unwrap();
                 if skel_new > skel_change {
                     let mut skeletons = world.write_resource::<skeletons::Skeletons>();
-                    match skeletons::read(skel_file) {
+                    match skeletons::read(skel_file, skel_file_new) {
                         Ok(skel) => {
                             println!("Reload skeletons");
                             *skeletons = skel;
