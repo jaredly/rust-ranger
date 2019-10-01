@@ -32,14 +32,14 @@ impl LocalVars {
     fn new() -> Self {
         LocalVars(vec![Locals {
             vbls: vec![],
-            fns: vec![]
+            fns: vec![],
         }])
     }
 
     fn push(&mut self) {
         self.0.push(Locals {
             vbls: vec![],
-            fns: vec![]
+            fns: vec![],
         });
     }
     fn pop(&mut self) {
@@ -63,7 +63,6 @@ impl LocalVars {
     fn check_fn(&mut self, key: &str) -> bool {
         self.last().fns.contains(&key.to_owned())
     }
-
 }
 
 impl Statement {
@@ -75,7 +74,11 @@ impl Statement {
         }
     }
 
-    pub fn move_nonlocal_vars(&mut self, local_vars: &mut LocalVars, scope: &mut Scope) -> Result<(), EvalError> {
+    pub fn move_nonlocal_vars(
+        &mut self,
+        local_vars: &mut LocalVars,
+        scope: &mut Scope,
+    ) -> Result<(), EvalError> {
         match self {
             Statement::Let(name, v) => {
                 v.move_nonlocal_vars(local_vars, scope)?;
@@ -124,7 +127,10 @@ pub struct Pos {
 
 impl Default for Pos {
     fn default() -> Self {
-        Pos {start: (0,0), end: (0,0)}
+        Pos {
+            start: (0, 0),
+            end: (0, 0),
+        }
     }
 }
 
@@ -243,7 +249,13 @@ pub enum IfCond {
 
 impl From<ExprDesc> for Expr {
     fn from(desc: ExprDesc) -> Self {
-        Expr { desc, pos: Pos { start: (0, 0), end: (0, 0) } }
+        Expr {
+            desc,
+            pos: Pos {
+                start: (0, 0),
+                end: (0, 0),
+            },
+        }
     }
 }
 
@@ -305,7 +317,10 @@ pub enum EvalErrorDesc {
 
 impl From<EvalErrorDesc> for EvalError {
     fn from(other: EvalErrorDesc) -> Self {
-        EvalError { desc: other, pos: Pos::default() }
+        EvalError {
+            desc: other,
+            pos: Pos::default(),
+        }
     }
 }
 
@@ -322,7 +337,10 @@ impl Expr {
 
     pub fn clear_pos(mut self) -> Self {
         let empty = crate::ast::Pos::default();
-        let _ = self.walk::<(), _>(&|e: &mut Expr|{e.pos = empty; Ok(())});
+        let _ = self.walk::<(), _>(&|e: &mut Expr| {
+            e.pos = empty;
+            Ok(())
+        });
         self
     }
 
@@ -337,8 +355,7 @@ impl Expr {
             | ExprDesc::Char(_)
             | ExprDesc::Ident(_)
             | ExprDesc::Unit => (),
-            ExprDesc::Tuple(items) |
-            ExprDesc::Array(items) => {
+            ExprDesc::Tuple(items) | ExprDesc::Array(items) => {
                 for item in items {
                     item.walk(f)?;
                 }
@@ -365,14 +382,14 @@ impl Expr {
             }
 
             // some computation!
-            ExprDesc::Plus(a, b) |
-            ExprDesc::Minus(a, b) |
-            ExprDesc::Times(a, b) |
-            ExprDesc::Divide(a, b) |
-            ExprDesc::Eq(a, b) |
-            ExprDesc::Neq(a, b) |
-            ExprDesc::Lt(a, b) |
-            ExprDesc::Gt(a, b) => {
+            ExprDesc::Plus(a, b)
+            | ExprDesc::Minus(a, b)
+            | ExprDesc::Times(a, b)
+            | ExprDesc::Divide(a, b)
+            | ExprDesc::Eq(a, b)
+            | ExprDesc::Neq(a, b)
+            | ExprDesc::Lt(a, b)
+            | ExprDesc::Gt(a, b) => {
                 a.walk(f)?;
                 b.walk(f)?;
             }
@@ -403,7 +420,7 @@ impl Expr {
                     match cond {
                         IfCond::Value(value) => {
                             value.walk(f)?;
-                        },
+                        }
                         IfCond::IfLet(pattern, value) => {
                             value.walk(f)?;
                         }
@@ -413,7 +430,7 @@ impl Expr {
                     None => (),
                     Some(mut block) => {
                         block.walk(f)?;
-                    },
+                    }
                 }
             }
 
@@ -436,8 +453,7 @@ impl Expr {
             | ExprDesc::String(_)
             | ExprDesc::Char(_)
             | ExprDesc::Unit => Ok(()),
-            ExprDesc::Tuple(items) |
-            ExprDesc::Array(items) => {
+            ExprDesc::Tuple(items) | ExprDesc::Array(items) => {
                 for item in items {
                     item.eval(scope)?;
                 }
@@ -456,9 +472,7 @@ impl Expr {
                 Ok(())
             }
             ExprDesc::Ident(name) => match scope.move_raw(&name) {
-                None => {
-                    Err(EvalErrorDesc::MissingReference(name.to_string()).with_pos(self.pos))
-                },
+                None => Err(EvalErrorDesc::MissingReference(name.to_string()).with_pos(self.pos)),
                 Some(expr) => {
                     *self = expr;
                     Ok(())
@@ -494,7 +508,9 @@ impl Expr {
                 self.desc = match (&mut a.as_mut().desc, &mut b.as_mut().desc) {
                     (ExprDesc::Int(a), ExprDesc::Int(b)) => ExprDesc::Int(*a - *b),
                     (ExprDesc::Float(a), ExprDesc::Float(b)) => ExprDesc::Float(*a - *b),
-                    _ => return Err(EvalErrorDesc::InvalidType("Cannot subtract").with_pos(self.pos)),
+                    _ => {
+                        return Err(EvalErrorDesc::InvalidType("Cannot subtract").with_pos(self.pos))
+                    }
                 };
                 Ok(())
             }
@@ -504,7 +520,9 @@ impl Expr {
                 self.desc = match (&mut a.as_mut().desc, &mut b.as_mut().desc) {
                     (ExprDesc::Int(a), ExprDesc::Int(b)) => ExprDesc::Int(*a * *b),
                     (ExprDesc::Float(a), ExprDesc::Float(b)) => ExprDesc::Float(*a * *b),
-                    _ => return Err(EvalErrorDesc::InvalidType("Cannot multiply").with_pos(self.pos)),
+                    _ => {
+                        return Err(EvalErrorDesc::InvalidType("Cannot multiply").with_pos(self.pos))
+                    }
                 };
                 Ok(())
             }
@@ -540,7 +558,9 @@ impl Expr {
                 self.desc = match (&mut a.as_mut().desc, &mut b.as_mut().desc) {
                     (ExprDesc::Int(a), ExprDesc::Int(b)) => ExprDesc::Bool(*a < *b),
                     (ExprDesc::Float(a), ExprDesc::Float(b)) => ExprDesc::Bool(*a < *b),
-                    _ => return Err(EvalErrorDesc::InvalidType("Cannot compare").with_pos(self.pos)),
+                    _ => {
+                        return Err(EvalErrorDesc::InvalidType("Cannot compare").with_pos(self.pos))
+                    }
                 };
                 Ok(())
             }
@@ -551,7 +571,9 @@ impl Expr {
                 self.desc = match (&mut a.as_mut().desc, &mut b.as_mut().desc) {
                     (ExprDesc::Int(a), ExprDesc::Int(b)) => ExprDesc::Bool(*a > *b),
                     (ExprDesc::Float(a), ExprDesc::Float(b)) => ExprDesc::Bool(*a > *b),
-                    _ => return Err(EvalErrorDesc::InvalidType("Cannot compare").with_pos(self.pos)),
+                    _ => {
+                        return Err(EvalErrorDesc::InvalidType("Cannot compare").with_pos(self.pos))
+                    }
                 };
                 Ok(())
             }
@@ -609,14 +631,21 @@ impl Expr {
                                 }
                             }
                             let mut target = match scope.get_raw_mut(&name) {
-                                None => return Err(EvalErrorDesc::MissingReference(name.to_owned()).with_pos(self.pos)),
+                                None => {
+                                    return Err(EvalErrorDesc::MissingReference(name.to_owned())
+                                        .with_pos(self.pos))
+                                }
                                 Some(v) => v,
                             };
                             let mut items = items.into_iter();
                             let mut owned = loop {
                                 if let Some((name, args)) = items.next() {
                                     if let Some(args) = args {
-                                        break member_function(target, name, std::mem::replace(args, vec![]))?;
+                                        break member_function(
+                                            target,
+                                            name,
+                                            std::mem::replace(args, vec![]),
+                                        )?;
                                     } else {
                                         target = member_access(target, name)?;
                                     }
@@ -637,7 +666,10 @@ impl Expr {
                             return Ok(());
                         } else {
                             match scope.move_raw(&name) {
-                                None => return Err(EvalErrorDesc::MissingReference(name.to_owned()).with_pos(self.pos)),
+                                None => {
+                                    return Err(EvalErrorDesc::MissingReference(name.to_owned())
+                                        .with_pos(self.pos))
+                                }
                                 Some(v) => v,
                             }
                         }
@@ -669,17 +701,25 @@ impl Expr {
                                 ExprDesc::Bool(true) => {
                                     body.eval(scope)?;
                                     self.desc = std::mem::replace(body, ExprDesc::Unit);
-                                    return Ok(())
-                                },
+                                    return Ok(());
+                                }
                                 ExprDesc::Bool(false) => {
                                     println!("if cond faaallthrough {:?}", value);
                                     ()
-                                },
-                                _ => return Err(EvalErrorDesc::InvalidType("If condition must be a bool").with_pos(self.pos)),
+                                }
+                                _ => {
+                                    return Err(EvalErrorDesc::InvalidType(
+                                        "If condition must be a bool",
+                                    )
+                                    .with_pos(self.pos))
+                                }
                             };
-                        },
+                        }
                         IfCond::IfLet(pattern, value) => {
-                            if let Some(bindings) = match_pattern(std::mem::replace(pattern, Pattern::Any), std::mem::replace(value, ExprDesc::Unit.into())) {
+                            if let Some(bindings) = match_pattern(
+                                std::mem::replace(pattern, Pattern::Any),
+                                std::mem::replace(value, ExprDesc::Unit.into()),
+                            ) {
                                 scope.push();
                                 // let mut sub = scope.sub();
                                 for (name, value) in bindings {
@@ -688,7 +728,7 @@ impl Expr {
                                 body.eval(scope)?;
                                 self.desc = std::mem::replace(body, ExprDesc::Unit);
                                 scope.pop();
-                                return Ok(())
+                                return Ok(());
                             }
                         }
                     }
@@ -697,12 +737,12 @@ impl Expr {
                     None => {
                         self.desc = ExprDesc::Unit;
                         Ok(())
-                    },
+                    }
                     Some(mut block) => {
                         block.eval(scope)?;
                         *self = *block;
                         Ok(())
-                    },
+                    }
                 }
             }
 
@@ -710,7 +750,9 @@ impl Expr {
                 value.eval(scope)?;
                 for (pattern, body) in cases {
                     // TODO don't need to clone here, could return the value if unused
-                    if let Some(bindings) = match_pattern(std::mem::replace(pattern, Pattern::Any), *value.clone()) {
+                    if let Some(bindings) =
+                        match_pattern(std::mem::replace(pattern, Pattern::Any), *value.clone())
+                    {
                         scope.push();
                         // let mut sub = scope.sub();
                         for (name, value) in bindings {
@@ -727,7 +769,11 @@ impl Expr {
         }
     }
 
-    pub fn move_nonlocal_vars(&mut self, local_vars: &mut LocalVars, scope: &mut Scope) -> Result<(), EvalError> {
+    pub fn move_nonlocal_vars(
+        &mut self,
+        local_vars: &mut LocalVars,
+        scope: &mut Scope,
+    ) -> Result<(), EvalError> {
         match &mut self.desc {
             ExprDesc::Float(_)
             | ExprDesc::Moved
@@ -736,8 +782,7 @@ impl Expr {
             | ExprDesc::String(_)
             | ExprDesc::Char(_)
             | ExprDesc::Unit => Ok(()),
-            ExprDesc::Tuple(items) |
-            ExprDesc::Array(items) => {
+            ExprDesc::Tuple(items) | ExprDesc::Array(items) => {
                 for item in items {
                     item.move_nonlocal_vars(local_vars, scope)?;
                 }
@@ -758,14 +803,17 @@ impl Expr {
             ExprDesc::Ident(name) => {
                 if !local_vars.check(name) {
                     match scope.move_raw(&name) {
-                        None => return Err(EvalErrorDesc::MissingReference(name.to_string()).with_pos(self.pos)),
+                        None => {
+                            return Err(EvalErrorDesc::MissingReference(name.to_string())
+                                .with_pos(self.pos))
+                        }
                         Some(expr) => {
                             *self = expr;
                         }
                     }
                 }
                 Ok(())
-            },
+            }
             ExprDesc::Struct(_name, items) => {
                 for (_key, value) in items {
                     value.move_nonlocal_vars(local_vars, scope)?;
@@ -780,14 +828,14 @@ impl Expr {
             }
 
             // some computation!
-            ExprDesc::Plus(a, b) |
-            ExprDesc::Minus(a, b) |
-            ExprDesc::Times(a, b) |
-            ExprDesc::Divide(a, b) |
-            ExprDesc::Eq(a, b) |
-            ExprDesc::Neq(a, b) |
-            ExprDesc::Lt(a, b) |
-            ExprDesc::Gt(a, b) => {
+            ExprDesc::Plus(a, b)
+            | ExprDesc::Minus(a, b)
+            | ExprDesc::Times(a, b)
+            | ExprDesc::Divide(a, b)
+            | ExprDesc::Eq(a, b)
+            | ExprDesc::Neq(a, b)
+            | ExprDesc::Lt(a, b)
+            | ExprDesc::Gt(a, b) => {
                 a.move_nonlocal_vars(local_vars, scope)?;
                 b.move_nonlocal_vars(local_vars, scope)?;
                 Ok(())
@@ -826,9 +874,10 @@ impl Expr {
                                 // its a clone
                                 *self = ExprDesc::MemberAccess(
                                     Box::new(expr),
-                                    std::mem::replace(items, vec![])
-                                ).with_pos(self.pos);
-                                return Ok(())
+                                    std::mem::replace(items, vec![]),
+                                )
+                                .with_pos(self.pos);
+                                return Ok(());
                             }
                         }
                     }
@@ -842,7 +891,7 @@ impl Expr {
                     match cond {
                         IfCond::Value(_) => {
                             body.move_nonlocal_vars(local_vars, scope)?;
-                        },
+                        }
                         IfCond::IfLet(pattern, _value) => {
                             let mut bindings = vec![];
                             pattern_names(pattern, &mut bindings);
@@ -854,7 +903,7 @@ impl Expr {
                             }
                             body.move_nonlocal_vars(local_vars, scope)?;
                             local_vars.pop();
-                            return Ok(())
+                            return Ok(());
                         }
                     }
                 }
@@ -881,22 +930,18 @@ impl Expr {
             }
         }
     }
-
 }
 
 impl ExprDesc {
     pub fn with_span(self, span: &pest::Span) -> Expr {
         Expr {
             desc: self,
-            pos: span.into()
+            pos: span.into(),
         }
     }
 
     pub fn with_pos(self, pos: Pos) -> Expr {
-        Expr {
-            desc: self,
-            pos,
-        }
+        Expr { desc: self, pos }
     }
 
     pub fn match_pos(self, other: &Expr) -> Expr {
@@ -907,11 +952,13 @@ impl ExprDesc {
     }
     pub fn needs_evaluation(&self) -> bool {
         match self {
-            ExprDesc::Float(_) | ExprDesc::Int(_) | ExprDesc::Bool(_) | ExprDesc::String(_) | ExprDesc::Char(_) => {
-                false
-            }
+            ExprDesc::Float(_)
+            | ExprDesc::Int(_)
+            | ExprDesc::Bool(_)
+            | ExprDesc::String(_)
+            | ExprDesc::Char(_) => false,
             ExprDesc::NamedTuple(_, items) | ExprDesc::Array(items) | ExprDesc::Tuple(items) => {
-                items.iter().any(|e|e.desc.needs_evaluation())
+                items.iter().any(|e| e.desc.needs_evaluation())
             }
             ExprDesc::Struct(_, items) | ExprDesc::Object(items) => {
                 items.iter().any(|(_, expr)| expr.desc.needs_evaluation())
@@ -923,7 +970,6 @@ impl ExprDesc {
             _ => true,
         }
     }
-
 }
 
 /// TODO this allocates a bunch of empty vectors
@@ -931,12 +977,48 @@ fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
     match (pattern, value) {
         (Pattern::Any, _) => Some(vec![]),
         (Pattern::Ident(name), value) => Some(vec![(name, value)]),
-        (Pattern::Const(Const::Bool(b)), Expr{desc: ExprDesc::Bool(bb), ..}) if b == bb => Some(vec![]),
-        (Pattern::Const(Const::Int(b)), Expr {desc: ExprDesc::Int(bb), ..}) if b == bb => Some(vec![]),
-        (Pattern::Const(Const::Float(b)), Expr {desc: ExprDesc::Float(bb), ..}) if b == bb => Some(vec![]),
-        (Pattern::Const(Const::String(ref b)), Expr {desc: ExprDesc::String(ref bb), ..}) if b == bb => Some(vec![]),
-        (Pattern::Const(Const::Char(b)), Expr {desc: ExprDesc::Char(bb), ..}) if b == bb => Some(vec![]),
-        (Pattern::Tuple(name, items), Expr {desc: ExprDesc::NamedTuple(bname, bitems), ..}) => {
+        (
+            Pattern::Const(Const::Bool(b)),
+            Expr {
+                desc: ExprDesc::Bool(bb),
+                ..
+            },
+        ) if b == bb => Some(vec![]),
+        (
+            Pattern::Const(Const::Int(b)),
+            Expr {
+                desc: ExprDesc::Int(bb),
+                ..
+            },
+        ) if b == bb => Some(vec![]),
+        (
+            Pattern::Const(Const::Float(b)),
+            Expr {
+                desc: ExprDesc::Float(bb),
+                ..
+            },
+        ) if b == bb => Some(vec![]),
+        (
+            Pattern::Const(Const::String(ref b)),
+            Expr {
+                desc: ExprDesc::String(ref bb),
+                ..
+            },
+        ) if b == bb => Some(vec![]),
+        (
+            Pattern::Const(Const::Char(b)),
+            Expr {
+                desc: ExprDesc::Char(bb),
+                ..
+            },
+        ) if b == bb => Some(vec![]),
+        (
+            Pattern::Tuple(name, items),
+            Expr {
+                desc: ExprDesc::NamedTuple(bname, bitems),
+                ..
+            },
+        ) => {
             if name == bname && items.len() == bitems.len() {
                 let mut bindings = vec![];
                 for (pat, val) in items.iter().zip(bitems) {
@@ -951,7 +1033,13 @@ fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
                 None
             }
         }
-        (Pattern::Struct(name, items), Expr {desc: ExprDesc::Struct(bname, bitems), ..}) => {
+        (
+            Pattern::Struct(name, items),
+            Expr {
+                desc: ExprDesc::Struct(bname, bitems),
+                ..
+            },
+        ) => {
             if name != bname {
                 return None;
             }
@@ -995,12 +1083,12 @@ fn pattern_names(pattern: &Pattern, vbls: &mut Vec<String>) {
     }
 }
 
-
-
 fn member_move<'a>(value: Expr, name: &str) -> Result<Expr, EvalErrorDesc> {
     Ok(match name.parse::<usize>() {
         Ok(index) => match value.desc {
-            ExprDesc::Array(mut children) | ExprDesc::NamedTuple(_, mut children) => children.remove(index),
+            ExprDesc::Array(mut children) | ExprDesc::NamedTuple(_, mut children) => {
+                children.remove(index)
+            }
             _ => {
                 return Err(EvalErrorDesc::InvalidType(
                     "Can only get index of array or namedtuple",
@@ -1053,9 +1141,13 @@ fn member_access<'a>(value: &'a mut Expr, name: &str) -> Result<&'a mut Expr, Ev
     })
 }
 
-fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<Expr, EvalErrorDesc> {
+fn member_function(
+    value: &mut Expr,
+    name: &str,
+    mut args: Vec<Expr>,
+) -> Result<Expr, EvalErrorDesc> {
     if name == "clone" {
-        return Ok(value.clone())
+        return Ok(value.clone());
     }
     Ok(match &mut value.desc {
         ExprDesc::Array(items) => match name.as_ref() {
@@ -1065,7 +1157,9 @@ fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<
                     items.push(args.remove(0));
                     ExprDesc::Unit
                 } else {
-                    return Err(EvalErrorDesc::InvalidType("vec.push() takes a single argument"));
+                    return Err(EvalErrorDesc::InvalidType(
+                        "vec.push() takes a single argument",
+                    ));
                 }
             }
             _ => {
@@ -1080,7 +1174,7 @@ fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<
             "abs" if args.is_empty() => ExprDesc::Float(f.abs()),
             "atan2" if args.len() == 1 => match args[0].desc {
                 ExprDesc::Float(x) => ExprDesc::Float(f.atan2(x)),
-                _ => return Err(EvalErrorDesc::InvalidType("atan2 takes a float argument"))
+                _ => return Err(EvalErrorDesc::InvalidType("atan2 takes a float argument")),
             },
             // "to_int" if args.is_empty() => ExprDesc::Int(f as i32),
             _ => {
@@ -1097,7 +1191,10 @@ fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<
         },
         _ => {
             println!("other {:?} : {} - {:?}", value, name, args);
-            return Err(EvalErrorDesc::InvalidType("Can only do fns on floats and ints"));
+            return Err(EvalErrorDesc::InvalidType(
+                "Can only do fns on floats and ints",
+            ));
         }
-    }.match_pos(value))
+    }
+    .match_pos(value))
 }

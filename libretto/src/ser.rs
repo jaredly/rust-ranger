@@ -1,4 +1,4 @@
-use crate::ast::{ExprDesc, Expr};
+use crate::ast::{Expr, ExprDesc};
 
 use serde::{ser, Serialize};
 
@@ -170,10 +170,7 @@ impl ser::Serializer for Serializer {
     where
         T: ?Sized + Serialize,
     {
-        Ok(ExprDesc::NamedTuple(
-            name.to_owned(),
-            vec![value.serialize(self)?],
-        ).into())
+        Ok(ExprDesc::NamedTuple(name.to_owned(), vec![value.serialize(self)?]).into())
     }
 
     // Note that newtype variant (and all of the other variant serialization
@@ -191,10 +188,7 @@ impl ser::Serializer for Serializer {
     where
         T: ?Sized + Serialize,
     {
-        Ok(ExprDesc::NamedTuple(
-            variant.to_owned(),
-            vec![value.serialize(self)?],
-        ).into())
+        Ok(ExprDesc::NamedTuple(variant.to_owned(), vec![value.serialize(self)?]).into())
     }
 
     // Now we get to the serialization of compound types.

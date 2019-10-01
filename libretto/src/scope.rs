@@ -1,4 +1,4 @@
-use crate::ast::{Args, EvalError, ExprDesc, Expr, EvalErrorDesc, Pos};
+use crate::ast::{Args, EvalError, EvalErrorDesc, Expr, ExprDesc, Pos};
 use std::collections::HashMap;
 
 #[macro_export]
@@ -45,26 +45,38 @@ impl Scope {
         self.0.remove(0);
     }
 
-    pub fn call_fn_raw(&mut self, name: &str, args: Vec<Expr>, pos: Pos) -> Result<Expr, EvalError> {
+    pub fn call_fn_raw(
+        &mut self,
+        name: &str,
+        args: Vec<Expr>,
+        pos: Pos,
+    ) -> Result<Expr, EvalError> {
         let mut scopesi = self.0.iter();
         let (fargs, mut body) = loop {
             if let Some(scope) = scopesi.next() {
                 if let Some(f) = scope.fns.get(name) {
                     if f.0.len() != args.len() {
-                        return Err(EvalErrorDesc::FunctionWrongNumberArgs(f.0.len(), args.len()).with_pos(pos))
+                        return Err(
+                            EvalErrorDesc::FunctionWrongNumberArgs(f.0.len(), args.len())
+                                .with_pos(pos),
+                        );
                     }
-                    break f.clone()
+                    break f.clone();
                 }
             } else {
                 if name == "log" {
-                    let args = args.into_iter().map(|m|match m.desc {
-                        ExprDesc::String(s) => s,
-                        _ => format!("{:?}", m)
-                    }).collect::<Vec<String>>().concat();
+                    let args = args
+                        .into_iter()
+                        .map(|m| match m.desc {
+                            ExprDesc::String(s) => s,
+                            _ => format!("{:?}", m),
+                        })
+                        .collect::<Vec<String>>()
+                        .concat();
                     println!("{}", args);
-                    return Ok(ExprDesc::Unit.into())
+                    return Ok(ExprDesc::Unit.into());
                 }
-                return Err(EvalErrorDesc::MissingReference(name.to_owned()).with_pos(pos))
+                return Err(EvalErrorDesc::MissingReference(name.to_owned()).with_pos(pos));
             }
         };
         self.push();
@@ -74,9 +86,8 @@ impl Scope {
         }
         body.eval(self)?;
         self.pop();
-        return Ok(body)
+        return Ok(body);
     }
-
 
     pub fn get_fn(&self, key: &str) -> Option<&(Args, Expr)> {
         self.0[0].fns.get(key)
@@ -126,10 +137,10 @@ impl Scope {
                     | ExprDesc::String(_)
                     | ExprDesc::Char(_)
                     | ExprDesc::Unit => x.clone(),
-                    _ => ExprDesc::Moved.match_pos(&x)
+                    _ => ExprDesc::Moved.match_pos(&x),
                 };
                 scope.vbls.insert(key.to_owned(), replacement);
-                return Some(x)
+                return Some(x);
             }
         }
         None
@@ -169,7 +180,7 @@ impl Scope {
         // println!("Looking for {} in {} ", key, self.show());
         for scope in self.0.iter_mut() {
             if let Some(x) = scope.vbls.get_mut(key) {
-                return Some(x)
+                return Some(x);
             }
         }
         None
@@ -196,11 +207,11 @@ impl Scope {
         for scope in self.0.iter() {
             match scope.vbls.get(key) {
                 None => (),
-                Some(x) => return Some(x)
+                Some(x) => return Some(x),
             }
         }
         None
-        // self.vbls.get(key) 
+        // self.vbls.get(key)
         // match self.vbls.get(key) {
         //     None => match self.parent {
         //         None => match key {
@@ -220,7 +231,8 @@ impl Scope {
     where
         T: serde::Serialize,
     {
-        self.0[0].vbls
+        self.0[0]
+            .vbls
             .insert(key.to_owned(), crate::ser::to_expr(&value)?);
         Ok(())
     }
@@ -229,7 +241,6 @@ impl Scope {
         // println!("Setting {} in {}", key, self.show());
         self.0[0].vbls.insert(key.to_owned(), value);
     }
-
 }
 
 impl SingleScope {
@@ -243,10 +254,21 @@ impl SingleScope {
     }
     pub fn globals() -> Self {
         let mut scope = Self::empty();
-        scope.vbls.insert("e".to_owned(), ExprDesc::Float(std::f32::consts::E).into());
-        scope.vbls.insert("pi".to_owned(), ExprDesc::Float(std::f32::consts::PI).into());
-        scope.vbls.insert("tau".to_owned(), ExprDesc::Float(std::f32::consts::PI * 2.0).into());
-        scope.vbls.insert("half_pi".to_owned(), ExprDesc::Float(std::f32::consts::FRAC_PI_2).into());
+        scope
+            .vbls
+            .insert("e".to_owned(), ExprDesc::Float(std::f32::consts::E).into());
+        scope.vbls.insert(
+            "pi".to_owned(),
+            ExprDesc::Float(std::f32::consts::PI).into(),
+        );
+        scope.vbls.insert(
+            "tau".to_owned(),
+            ExprDesc::Float(std::f32::consts::PI * 2.0).into(),
+        );
+        scope.vbls.insert(
+            "half_pi".to_owned(),
+            ExprDesc::Float(std::f32::consts::FRAC_PI_2).into(),
+        );
         scope
     }
 }

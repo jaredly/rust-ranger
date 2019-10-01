@@ -46,12 +46,8 @@ mod tests {
         assert_eq!(
             parser::process_expr("Hello { one: 2 }")
                 .unwrap()
-                .into_eval(&mut Scope::new())
-                ,
-            Ok(ExprDesc::Struct(
-                "Hello".to_string(),
-                vec![("one".to_string(), 2.into()),]
-            ).into())
+                .into_eval(&mut Scope::new()),
+            Ok(ExprDesc::Struct("Hello".to_string(), vec![("one".to_string(), 2.into()),]).into())
         );
     }
 
@@ -60,38 +56,41 @@ mod tests {
         assert_eq!(
             parser::process_expr("Hello ( 2, 3 )")
                 .unwrap()
-                .into_eval(&mut Scope::new())
-                ,
-            Ok(ExprDesc::NamedTuple(
-                "Hello".to_string(),
-                vec![2.into(), 3.into(),]
-            ).into())
+                .into_eval(&mut Scope::new()),
+            Ok(ExprDesc::NamedTuple("Hello".to_string(), vec![2.into(), 3.into(),]).into())
         );
     }
 
     #[test]
     fn plus_minus() {
         assert_eq!(
-            parser::process_expr("1 + 2 - 3")
-                ,
+            parser::process_expr("1 + 2 - 3"),
             Ok(ExprDesc::Block(
                 vec![],
-                Box::new(ExprDesc::Minus(
-                    Box::new(ExprDesc::Plus(Box::new(1.into()), Box::new(2.into()),).into()),
-                    Box::new(3.into()),
-                ).into())
-            ).into())
+                Box::new(
+                    ExprDesc::Minus(
+                        Box::new(ExprDesc::Plus(Box::new(1.into()), Box::new(2.into()),).into()),
+                        Box::new(3.into()),
+                    )
+                    .into()
+                )
+            )
+            .into())
         );
 
         assert_eq!(
             parser::process_expr("1 - 2 + 3"),
             Ok(ExprDesc::Block(
                 vec![],
-                Box::new(ExprDesc::Plus(
-                    Box::new(ExprDesc::Minus(Box::new(1.into()), Box::new(2.into()),).into()),
-                    Box::new(3.into()),
-                ).into())
-            ).into())
+                Box::new(
+                    ExprDesc::Plus(
+                        Box::new(ExprDesc::Minus(Box::new(1.into()), Box::new(2.into()),).into()),
+                        Box::new(3.into()),
+                    )
+                    .into()
+                )
+            )
+            .into())
         );
 
         assert_eq!(
@@ -114,15 +113,19 @@ mod tests {
             parser::process_expr(r##" Point {x: 3, y: 5, name: "awesome"} "##),
             Ok(ExprDesc::Block(
                 vec![],
-                Box::new(ExprDesc::Struct(
-                    "Point".into(),
-                    vec![
-                        ("x".into(), (3).into()),
-                        ("y".into(), (5).into()),
-                        ("name".into(), ("awesome".to_owned()).into()),
-                    ]
-                ).into())
-            ).into())
+                Box::new(
+                    ExprDesc::Struct(
+                        "Point".into(),
+                        vec![
+                            ("x".into(), (3).into()),
+                            ("y".into(), (5).into()),
+                            ("name".into(), ("awesome".to_owned()).into()),
+                        ]
+                    )
+                    .into()
+                )
+            )
+            .into())
         );
     }
 
@@ -132,17 +135,33 @@ mod tests {
             parser::process_expr("1 - 2 * 3 + 5 == 4"),
             Ok(ExprDesc::Block(
                 vec![],
-                Box::new(ExprDesc::Eq(
-                    Box::new(ExprDesc::Plus(
-                        Box::new(ExprDesc::Minus(
-                            Box::new((1).into()),
-                            Box::new(ExprDesc::Times(Box::new((2).into()), Box::new((3).into())).into())
-                        ).into()),
-                        Box::new((5).into())
-                    ).into()),
-                    Box::new((4).into())
-                ).into())
-            ).into())
+                Box::new(
+                    ExprDesc::Eq(
+                        Box::new(
+                            ExprDesc::Plus(
+                                Box::new(
+                                    ExprDesc::Minus(
+                                        Box::new((1).into()),
+                                        Box::new(
+                                            ExprDesc::Times(
+                                                Box::new((2).into()),
+                                                Box::new((3).into())
+                                            )
+                                            .into()
+                                        )
+                                    )
+                                    .into()
+                                ),
+                                Box::new((5).into())
+                            )
+                            .into()
+                        ),
+                        Box::new((4).into())
+                    )
+                    .into()
+                )
+            )
+            .into())
         );
     }
 

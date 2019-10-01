@@ -4,7 +4,7 @@ use pest_derive::*;
 
 use unescape;
 
-use crate::ast::{Const, ExprDesc, Expr, Pos, IfCond, Pattern, Statement, Type};
+use crate::ast::{Const, Expr, ExprDesc, IfCond, Pattern, Pos, Statement, Type};
 
 #[grammar = "../grammar.pest"]
 #[derive(Parser)]
@@ -51,7 +51,8 @@ pub fn parse_const(pair: Pair<Rule>) -> Expr {
                 pair.as_rule()
             ));
         }
-    }.with_span(&pair.as_span())
+    }
+    .with_span(&pair.as_span())
 }
 
 fn parse_pair(pair: Pair<Rule>) -> (String, Expr) {
@@ -177,7 +178,8 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                 };
                 match first.as_rule() {
                     Rule::block => {
-                        return ExprDesc::IfChain(middles, Some(Box::new(parse_expr(first)))).with_pos(pos)
+                        return ExprDesc::IfChain(middles, Some(Box::new(parse_expr(first))))
+                            .with_pos(pos)
                     }
                     Rule::if_cond => {
                         middles.push((parse_if_cond(first), parse_expr(items.next().unwrap())))
@@ -219,7 +221,7 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                 })
                 .collect();
             if access.is_empty() {
-                return first
+                return first;
             } else {
                 ExprDesc::MemberAccess(Box::new(first), access)
             }
@@ -229,11 +231,11 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
         Rule::tuple => {
             let mut items: Vec<Expr> = pair.into_inner().map(parse_expr).collect();
             if items.len() == 1 {
-                return items.remove(0)
+                return items.remove(0);
             } else {
                 ExprDesc::Tuple(items)
             }
-        },
+        }
         Rule::const_ => return parse_const(pair.into_inner().next().unwrap()),
         Rule::option => ExprDesc::Option(Box::new(pair.into_inner().next().map(parse_expr))),
         Rule::ident => ExprDesc::Ident(pair.as_str().to_string()),
@@ -262,7 +264,8 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                 pair.as_rule()
             ));
         }
-    }.with_pos(pos)
+    }
+    .with_pos(pos)
 }
 
 macro_rules! make_ops {
@@ -331,8 +334,7 @@ pub fn parse_expr(pair: Pair<Rule>) -> Expr {
 pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
     let pair = pair.into_inner().next().unwrap();
     match pair.as_rule() {
-        Rule::const_binding |
-        Rule::let_binding => {
+        Rule::const_binding | Rule::let_binding => {
             let mut items = pair.into_inner();
             let ident = items.next().unwrap().as_str().to_owned();
             let value = parse_expr(items.next().unwrap());
@@ -400,7 +402,7 @@ pub fn process_expr(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
                         let mut pos = Pos::from(&item);
                         pos.start = (0, 0);
                         return Ok(ExprDesc::Block(items, Box::new(parse_expr(item))).with_pos(pos));
-                    },
+                    }
                     _ => (),
                 }
             }

@@ -3,7 +3,7 @@ use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, Variant
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
 
-use crate::ast::{self, ExprDesc, Expr};
+use crate::ast::{self, Expr, ExprDesc};
 
 pub struct Deserializer<'de> {
     input: &'de ast::ExprDesc,
@@ -69,7 +69,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
                 None => visitor.visit_none(),
                 Some(s) => visitor.visit_some(Deserializer::from_expr(&s)),
             },
-            s => Err(Error::Unevaluated(format!("{:?}", s)))
+            s => Err(Error::Unevaluated(format!("{:?}", s))),
         }
     }
 
@@ -160,9 +160,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         V: Visitor<'de>,
     {
         match self.input {
-            ExprDesc::Tuple(contents) => {
-                visitor.visit_seq(Items::new(contents))
-            }
+            ExprDesc::Tuple(contents) => visitor.visit_seq(Items::new(contents)),
             _ => Err(Error::ExpectedSequence),
         }
     }

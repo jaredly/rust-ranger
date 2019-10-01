@@ -11,7 +11,8 @@ struct Point {
 
 #[test]
 fn example() {
-    let expr = libretto::eval_expr(r##" Point {x: 3, y: 5, t: (2, 3.2), name: "awesome"} "##).unwrap();
+    let expr =
+        libretto::eval_expr(r##" Point {x: 3, y: 5, t: (2, 3.2), name: "awesome"} "##).unwrap();
     assert_eq!(
         Ok(Point {
             x: 3,
@@ -34,7 +35,8 @@ fn example() {
 
 #[test]
 fn example_eval() {
-    let expr = libretto::eval_expr(r##" Point {x: 3 + 4, y: 5, t: (2, 3.2), name: "awesome"} "##).unwrap();
+    let expr =
+        libretto::eval_expr(r##" Point {x: 3 + 4, y: 5, t: (2, 3.2), name: "awesome"} "##).unwrap();
     assert_eq!(
         Ok(Point {
             x: 7,
@@ -50,11 +52,13 @@ fn example_eval() {
 fn example_eval_pass() {
     let mut scope = libretto::Scope::new();
     scope.set("heads", 5).unwrap();
-    let expr = libretto::process_expr(r##" Point {x: 3 + 4 + heads, y: 5, t: (2, 3.2), name: "awesome"} "##)
-        .unwrap()
-        .into_eval(&mut scope)
-        .ok()
-        .unwrap();
+    let expr = libretto::process_expr(
+        r##" Point {x: 3 + 4 + heads, y: 5, t: (2, 3.2), name: "awesome"} "##,
+    )
+    .unwrap()
+    .into_eval(&mut scope)
+    .ok()
+    .unwrap();
     assert_eq!(
         Ok(Point {
             x: 12,
