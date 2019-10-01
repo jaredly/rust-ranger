@@ -124,7 +124,7 @@ fn female(context: any, velocity: any) {
                 } else {
                     context.throw_theta / pi * 180.0 + -90
                 },
-            }
+            },
         })
     };
 

@@ -34,7 +34,7 @@ pattern = {"_" | const_ | struct_pattern | tuple_pattern | ident}
 tuple_pattern = {upper_ident ~ ("(" ~ (pattern ~ ("," ~ pattern)* )? ~ ")")? }
 struct_pattern = {upper_ident ~ "{" ~ ident ~ (":" ~ pattern)? ~ ("," ~ ident ~ (":" ~ pattern)?)* ~ "}" }
 
-match_ = {"match" ~ value ~ "{" ~ pattern ~ "=>" ~ value ~ ("," ~ pattern ~ "=>" ~ value)* ~ "}"}
+match_ = {"match" ~ value ~ "{" ~ pattern ~ "=>" ~ value ~ ("," ~ pattern ~ "=>" ~ value)* ~ ","? ~ "}"}
 
 op_item = _{
     unit

@@ -117,7 +117,7 @@ impl<'a> System<'a> for ArrowSys {
         (
             entities,
             rl,
-            zoom_camera,
+            _zoom_camera,
             mut physics_world,
             mut arrow,
             mut skeletons,
@@ -153,8 +153,8 @@ impl<'a> System<'a> for ArrowSys {
                             let size = 0.05;
 
                             // things that make it a ball
-                            let ball_shape = Ball::new(size);
-                            let drawable = Drawable::Sprite {
+                            let _ball_shape = Ball::new(size);
+                            let _drawable = Drawable::Sprite {
                                 name: "ore_coal.png".to_owned(),
                                 scale: 5.0 * size,
                             };

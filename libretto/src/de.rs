@@ -129,12 +129,14 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        let pos = self.input.pos;
         if let ExprDesc::Struct(sname, _items) = &self.input.desc {
             if sname != name {
                 Err(ErrorDesc::WrongName(name.to_owned(), sname.to_owned())
                     .with_pos(self.input.pos))
             } else {
                 visitor.visit_newtype_struct(self)
+                    .map_err(|e| e.with_pos(pos))
                 // TODO?
                 // visitor.visit_newtype_struct(Deserializer::from_expr(ExprDesc::Object(self.items)))
             }
@@ -153,6 +155,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         match &self.input.desc {
             ExprDesc::Array(contents) | ExprDesc::NamedTuple(_, contents) => {
                 visitor.visit_seq(Items::new(contents))
+                    .map_err(|e| e.with_pos(self.input.pos))
             }
             _ => Err(ErrorDesc::ExpectedSequence.with_pos(self.input.pos)),
         }
@@ -164,7 +167,9 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         V: Visitor<'de>,
     {
         match &self.input.desc {
-            ExprDesc::Tuple(contents) => visitor.visit_seq(Items::new(contents)),
+            ExprDesc::Tuple(contents) => visitor.visit_seq(Items::new(contents))
+                    .map_err(|e| e.with_pos(self.input.pos))
+            ,
             _ => Err(ErrorDesc::ExpectedSequence.with_pos(self.input.pos)),
         }
     }
@@ -201,6 +206,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     {
         if let ExprDesc::Object(items) = &self.input.desc {
             visitor.visit_map(Pairs::new(items))
+                    .map_err(|e| e.with_pos(self.input.pos))
         } else {
             Err(ErrorDesc::ExpectedMap.with_pos(self.input.pos))
         }
@@ -252,30 +258,10 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        // if let ExprDesc::
-        // if variants.contains(x: &T)
         visitor.visit_enum(Enum::new(self.input))
-        // if self.peek_char()? == '"' {
-        //     // Visit a unit variant.
-        //     visitor.visit_enum(self.parse_string()?.into_deserializer())
-        // } else if self.next_char()? == '{' {
-        //     // Visit a newtype variant, tuple variant, or struct variant.
-        //     let value = visitor.visit_enum(Enum::new(self))?;
-        //     // Parse the matching close brace.
-        //     if self.next_char()? == '}' {
-        //         Ok(value)
-        //     } else {
-        //         Err(ErrorDesc::ExpectedMapEnd)
-        //     }
-        // } else {
-        //     Err(ErrorDesc::ExpectedEnum)
-        // }
+                    .map_err(|e| e.with_pos(self.input.pos))
     }
 
-    // An identifier in Serde is the type that identifies a field of a struct or
-    // the variant of an enum. In JSON, struct fields and enum variants are
-    // represented as strings. In other formats they may be represented as
-    // numeric indices.
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -283,17 +269,6 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         self.deserialize_str(visitor)
     }
 
-    // Like `deserialize_any` but indicates to the `Deserializer` that it makes
-    // no difference which `Visitor` method is called because the data is
-    // ignored.
-    //
-    // Some deserializers are able to implement this more efficiently than
-    // `deserialize_any`, for example by rapidly skipping over matched
-    // delimiters without paying close attention to the data in between.
-    //
-    // Some formats are not able to implement this at all. Formats that can
-    // implement `deserialize_any` and `deserialize_ignored_any` are known as
-    // self-describing.
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,

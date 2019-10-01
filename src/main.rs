@@ -40,7 +40,7 @@ fn make_blocks(
     world: &mut World,
     physics_world: &mut PhysicsWorld<f32>,
     ground_handle: DefaultBodyHandle,
-    phys_w: f32,
+    _phys_w: f32,
     phys_h: f32,
 ) {
     let w = WORLD_WIDTH / BLOCK_SIZE;
@@ -223,7 +223,7 @@ impl<'a> System<'a> for CameraFollowSys {
         &mut self,
         (mut camera, config, zoom_camera, physics, players, colliders): Self::SystemData,
     ) {
-        let view_width = config.screen_size as f32 / zoom_camera.0.zoom;
+        let _view_width = config.screen_size as f32 / zoom_camera.0.zoom;
         let offset = config.screen_size as f32 / zoom_camera.0.zoom / 2.0;
         let margin = offset / 6.0;
         for (_player, collider) in (&players, &colliders).join() {

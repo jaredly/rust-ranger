@@ -110,7 +110,7 @@ impl<'a> System<'a> for Draw {
     ) {
         use raylib::core::drawing::RaylibDraw;
 
-        let pickup_key = rl.is_key_down(raylib::consts::KeyboardKey::KEY_C);
+        let _pickup_key = rl.is_key_down(raylib::consts::KeyboardKey::KEY_C);
 
         let mut rd0 = rl.begin_drawing(&self.thread);
         rd0.clear_background(raylib::color::Color::WHITE);
@@ -194,7 +194,7 @@ impl<'a> System<'a> for Draw {
                 }
             }
 
-            for (entity, collider, skeleton, body) in
+            for (_entity, collider, skeleton, body) in
                 (&entities, &colliders, &skeletons, &bodies).join()
             {
                 if let Some(collider) = physics.collider(collider.0) {

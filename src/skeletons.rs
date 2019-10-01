@@ -1,9 +1,9 @@
 use ron::de::from_reader;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use std::{collections::HashMap, fs::File};
 
 pub mod component {
-    use serde::{Deserialize, Serialize};
+    use serde::{Serialize};
 
     #[derive(Copy, Clone, PartialEq, Serialize)]
     pub enum Facing {
@@ -101,9 +101,9 @@ pub mod component {
             WriteStorage<'a, Skeleton>,
         );
 
-        fn run(&mut self, (tick, physics_world, bodies, mut skeletons): Self::SystemData) {
+        fn run(&mut self, (tick, _physics_world, bodies, mut skeletons): Self::SystemData) {
             let tick = tick.0.as_micros() as f32 / 1000.0;
-            for (body, skeleton) in (&bodies, &mut skeletons).join() {
+            for (_body, skeleton) in (&bodies, &mut skeletons).join() {
                 // let v = physics_world
                 //     .rigid_body(body.0)
                 //     .unwrap()
@@ -294,16 +294,16 @@ pub mod draw {
     impl OldSkeleton {
         pub fn draw_new(
             &self,
-            state: &component::Skeleton,
-            shared: &Shared,
-            shared_bones: &HashMap<String, Simple<Bone>>,
-            fns: &Fns,
-            rd: &mut crate::draw::DrawHandle,
-            sheet: &crate::sprites::SpriteSheet,
-            velocity: nphysics2d::math::Velocity<f32>,
-            position: na::Point2<f32>,
-            rotation: f32,
-            scale: f32,
+            _state: &component::Skeleton,
+            _shared: &Shared,
+            _shared_bones: &HashMap<String, Simple<Bone>>,
+            _fns: &Fns,
+            _rd: &mut crate::draw::DrawHandle,
+            _sheet: &crate::sprites::SpriteSheet,
+            _velocity: nphysics2d::math::Velocity<f32>,
+            _position: na::Point2<f32>,
+            _rotation: f32,
+            _scale: f32,
         ) -> Result<(), libretto::Error> {
             Ok(())
         }
