@@ -7,7 +7,7 @@ mod parser;
 mod scope;
 mod ser;
 
-pub use ast::{Expr, ExprDesc};
+pub use ast::{Expr, ExprDesc, Pos};
 pub use de::from_expr;
 pub use error::Error;
 pub use parser::{process_expr, process_file};

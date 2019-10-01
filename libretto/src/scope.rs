@@ -1,4 +1,4 @@
-use crate::ast::{Args, EvalError, ExprDesc, Expr};
+use crate::ast::{Args, EvalError, ExprDesc, Expr, EvalErrorDesc, Pos};
 use std::collections::HashMap;
 
 #[macro_export]
@@ -15,7 +15,7 @@ macro_rules! call_fn {
       // }
 
       let args = vec![$( libretto::to_expr(&$arg).unwrap() ),*];
-      match $scope.call_fn_raw($name, args) {
+      match $scope.call_fn_raw($name, args, libretto::Pos::default()) {
         Err(e) => Err(e.into()),
         Ok(result) => libretto::from_expr(&result)
       }
@@ -45,13 +45,13 @@ impl Scope {
         self.0.remove(0);
     }
 
-    pub fn call_fn_raw(&mut self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
+    pub fn call_fn_raw(&mut self, name: &str, args: Vec<Expr>, pos: Pos) -> Result<Expr, EvalError> {
         let mut scopesi = self.0.iter();
         let (fargs, mut body) = loop {
             if let Some(scope) = scopesi.next() {
                 if let Some(f) = scope.fns.get(name) {
                     if f.0.len() != args.len() {
-                        return Err(EvalError::FunctionWrongNumberArgs(f.0.len(), args.len()))
+                        return Err(EvalErrorDesc::FunctionWrongNumberArgs(f.0.len(), args.len()).with_pos(pos))
                     }
                     break f.clone()
                 }
@@ -64,7 +64,7 @@ impl Scope {
                     println!("{}", args);
                     return Ok(ExprDesc::Unit.into())
                 }
-                return Err(EvalError::MissingReference(name.to_owned()))
+                return Err(EvalErrorDesc::MissingReference(name.to_owned()).with_pos(pos))
             }
         };
         self.push();
