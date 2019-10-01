@@ -3,7 +3,7 @@ use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, Variant
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
 
-use crate::ast::{self, Expr};
+use crate::ast::{self, Expr, FullExpr};
 
 pub struct Deserializer<'de> {
     input: &'de ast::Expr,
@@ -297,23 +297,23 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
 }
 
 struct Items<'a> {
-    contents: &'a [Expr],
+    contents: &'a [FullExpr],
     index: usize,
 }
 
 impl<'a, 'de> Items<'a> {
-    fn new(contents: &'a [Expr]) -> Self {
+    fn new(contents: &'a [FullExpr]) -> Self {
         Items { contents, index: 0 }
     }
 }
 
 struct Pairs<'a> {
-    contents: &'a [(String, Expr)],
+    contents: &'a [(String, FullExpr)],
     index: usize,
 }
 
 impl<'a, 'de> Pairs<'a> {
-    fn new(contents: &'a [(String, Expr)]) -> Self {
+    fn new(contents: &'a [(String, FullExpr)]) -> Self {
         Pairs { contents, index: 0 }
     }
 }

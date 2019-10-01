@@ -1,4 +1,4 @@
-use crate::ast::{Args, EvalError, Expr};
+use crate::ast::{Args, EvalError, Expr, FullExpr};
 use std::collections::HashMap;
 
 #[macro_export]
@@ -26,8 +26,8 @@ macro_rules! call_fn {
 #[derive(Debug, PartialEq)]
 pub struct SingleScope {
     id: usize,
-    vbls: HashMap<String, Expr>,
-    fns: HashMap<String, (Args, Expr)>,
+    vbls: HashMap<String, FullExpr>,
+    fns: HashMap<String, (Args, FullExpr)>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -45,7 +45,7 @@ impl Scope {
         self.0.remove(0);
     }
 
-    pub fn call_fn_raw(&mut self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
+    pub fn call_fn_raw(&mut self, name: &str, args: Vec<FullExpr>) -> Result<FullExpr, EvalError> {
         let mut scopesi = self.0.iter();
         let (fargs, mut body) = loop {
             if let Some(scope) = scopesi.next() {
@@ -57,12 +57,12 @@ impl Scope {
                 }
             } else {
                 if name == "log" {
-                    let args = args.into_iter().map(|m|match m {
+                    let args = args.into_iter().map(|m|match m.desc {
                         Expr::String(s) => s,
                         _ => format!("{:?}", m)
                     }).collect::<Vec<String>>().concat();
                     println!("{}", args);
-                    return Ok(Expr::Unit)
+                    return Ok(Expr::Unit.into())
                 }
                 return Err(EvalError::MissingReference(name.to_owned()))
             }
@@ -78,11 +78,11 @@ impl Scope {
     }
 
 
-    pub fn get_fn(&self, key: &str) -> Option<&(Args, Expr)> {
+    pub fn get_fn(&self, key: &str) -> Option<&(Args, FullExpr)> {
         self.0[0].fns.get(key)
     }
 
-    pub fn set_fn(&mut self, key: &str, args: Args, body: Expr) {
+    pub fn set_fn(&mut self, key: &str, args: Args, body: FullExpr) {
         self.0[0].fns.insert(key.to_owned(), (args, body));
     }
 
@@ -115,18 +115,18 @@ impl Scope {
         format!("{:?}", self)
     }
 
-    pub fn move_raw(&mut self, key: &str) -> Option<Expr> {
+    pub fn move_raw(&mut self, key: &str) -> Option<FullExpr> {
         // println!("Looking for {} in {} ", key, self.show());
         for scope in self.0.iter_mut() {
             if let Some(x) = scope.vbls.remove(key) {
-                let replacement = match x {
+                let replacement = match x.desc {
                     Expr::Float(_)
                     | Expr::Int(_)
                     | Expr::Bool(_)
                     | Expr::String(_)
                     | Expr::Char(_)
                     | Expr::Unit => x.clone(),
-                    _ => Expr::Moved
+                    _ => Expr::Moved.match_pos(&x)
                 };
                 scope.vbls.insert(key.to_owned(), replacement);
                 return Some(x)
@@ -165,7 +165,7 @@ impl Scope {
         // }
     }
 
-    pub fn get_raw_mut(&mut self, key: &str) -> Option<&mut Expr> {
+    pub fn get_raw_mut(&mut self, key: &str) -> Option<&mut FullExpr> {
         // println!("Looking for {} in {} ", key, self.show());
         for scope in self.0.iter_mut() {
             if let Some(x) = scope.vbls.get_mut(key) {
@@ -191,7 +191,7 @@ impl Scope {
         // }
     }
 
-    pub fn get_raw(&self, key: &str) -> Option<&Expr> {
+    pub fn get_raw(&self, key: &str) -> Option<&FullExpr> {
         // println!("Looking for {} in {} ", key, self.show());
         for scope in self.0.iter() {
             match scope.vbls.get(key) {
@@ -225,7 +225,7 @@ impl Scope {
         Ok(())
     }
 
-    pub fn set_raw(&mut self, key: &str, value: Expr) {
+    pub fn set_raw(&mut self, key: &str, value: FullExpr) {
         // println!("Setting {} in {}", key, self.show());
         self.0[0].vbls.insert(key.to_owned(), value);
     }
@@ -243,10 +243,10 @@ impl SingleScope {
     }
     pub fn globals() -> Self {
         let mut scope = Self::empty();
-        scope.vbls.insert("e".to_owned(), Expr::Float(std::f32::consts::E));
-        scope.vbls.insert("pi".to_owned(), Expr::Float(std::f32::consts::PI));
-        scope.vbls.insert("tau".to_owned(), Expr::Float(std::f32::consts::PI * 2.0));
-        scope.vbls.insert("half_pi".to_owned(), Expr::Float(std::f32::consts::FRAC_PI_2));
+        scope.vbls.insert("e".to_owned(), Expr::Float(std::f32::consts::E).into());
+        scope.vbls.insert("pi".to_owned(), Expr::Float(std::f32::consts::PI).into());
+        scope.vbls.insert("tau".to_owned(), Expr::Float(std::f32::consts::PI * 2.0).into());
+        scope.vbls.insert("half_pi".to_owned(), Expr::Float(std::f32::consts::FRAC_PI_2).into());
         scope
     }
 }

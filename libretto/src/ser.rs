@@ -1,4 +1,4 @@
-use crate::ast::Expr;
+use crate::ast::{Expr, FullExpr};
 
 use serde::{ser, Serialize};
 
@@ -11,7 +11,7 @@ pub struct Serializer;
 // Rust types the serializer is able to produce as output.
 //
 // This basic serializer supports only `to_string`.
-pub fn to_expr<T>(value: &T) -> Result<Expr>
+pub fn to_expr<T>(value: &T) -> Result<FullExpr>
 where
     T: Serialize,
 {
@@ -25,7 +25,7 @@ impl ser::Serializer for Serializer {
     // within the `Serializer` instance, as happens here. Serializers that build
     // in-memory data structures may be simplified by using `Ok` to propagate
     // the data structure around.
-    type Ok = Expr;
+    type Ok = FullExpr;
 
     // The error type when some error occurs during serialization.
     type Error = Error;
@@ -46,7 +46,7 @@ impl ser::Serializer for Serializer {
     // of the primitive types of the data model and map it to JSON by appending
     // into the output string.
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
-        Ok(Expr::Bool(v))
+        Ok(Expr::Bool(v).into())
     }
 
     // JSON does not distinguish between different sizes of integers, so all
@@ -68,7 +68,7 @@ impl ser::Serializer for Serializer {
     // Not particularly efficient but this is example code anyway. A more
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
-        Ok(Expr::Int(v as i32))
+        Ok(Expr::Int(v as i32).into())
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
@@ -84,7 +84,7 @@ impl ser::Serializer for Serializer {
     }
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
-        Ok(Expr::Int(v as i32))
+        Ok(Expr::Int(v as i32).into())
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
@@ -92,20 +92,20 @@ impl ser::Serializer for Serializer {
     }
 
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
-        Ok(Expr::Float(v as f32))
+        Ok(Expr::Float(v as f32).into())
     }
 
     // Serialize a char as a single-character string. Other formats may
     // represent this differently.
     fn serialize_char(self, v: char) -> Result<Self::Ok> {
-        Ok(Expr::Char(v))
+        Ok(Expr::Char(v).into())
     }
 
     // This only works for strings that don't require escape sequences but you
     // get the idea. For example it would emit invalid JSON if the input string
     // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-        Ok(Expr::String(v.to_owned()))
+        Ok(Expr::String(v.to_owned()).into())
     }
 
     // Serialize a byte array as an array of bytes. Could also use a base64
@@ -123,7 +123,7 @@ impl ser::Serializer for Serializer {
 
     // An absent optional is represented as the JSON `null`.
     fn serialize_none(self) -> Result<Self::Ok> {
-        Ok(Expr::Option(Box::new(None)))
+        Ok(Expr::Option(Box::new(None)).into())
     }
 
     // A present optional is represented as just the contained value. Note that
@@ -135,20 +135,20 @@ impl ser::Serializer for Serializer {
     where
         T: ?Sized + Serialize,
     {
-        Ok(Expr::Option(Box::new(Some(value.serialize(self)?))))
+        Ok(Expr::Option(Box::new(Some(value.serialize(self)?))).into())
     }
 
     // In Serde, unit means an anonymous value containing no data. Map this to
     // JSON as `null`.
     fn serialize_unit(self) -> Result<Self::Ok> {
-        Ok(Expr::Unit)
+        Ok(Expr::Unit.into())
     }
 
     // Unit struct means a named value containing no data. Again, since there is
     // no data, map this to JSON as `null`. There is no need to serialize the
     // name in most formats.
     fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok> {
-        Ok(Expr::NamedTuple(name.to_owned(), vec![]))
+        Ok(Expr::NamedTuple(name.to_owned(), vec![]).into())
     }
 
     // When serializing a unit variant (or any other kind of variant), formats
@@ -161,7 +161,7 @@ impl ser::Serializer for Serializer {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        Ok(Expr::NamedTuple(variant.to_owned(), vec![]))
+        Ok(Expr::NamedTuple(variant.to_owned(), vec![]).into())
     }
 
     // As is done here, serializers are encouraged to treat newtype structs as
@@ -173,7 +173,7 @@ impl ser::Serializer for Serializer {
         Ok(Expr::NamedTuple(
             name.to_owned(),
             vec![value.serialize(self)?],
-        ))
+        ).into())
     }
 
     // Note that newtype variant (and all of the other variant serialization
@@ -194,7 +194,7 @@ impl ser::Serializer for Serializer {
         Ok(Expr::NamedTuple(
             variant.to_owned(),
             vec![value.serialize(self)?],
-        ))
+        ).into())
     }
 
     // Now we get to the serialization of compound types.
@@ -267,7 +267,7 @@ impl ser::Serializer for Serializer {
 }
 
 pub struct SeqTracker {
-    items: Vec<Expr>,
+    items: Vec<FullExpr>,
 }
 impl SeqTracker {
     fn new() -> Self {
@@ -284,7 +284,7 @@ impl SeqTracker {
 // is called on the Serializer.
 impl ser::SerializeSeq for SeqTracker {
     // Must match the `Ok` type of the serializer.
-    type Ok = Expr;
+    type Ok = FullExpr;
     // Must match the `Error` type of the serializer.
     type Error = Error;
 
@@ -299,12 +299,12 @@ impl ser::SerializeSeq for SeqTracker {
 
     // Close the sequence.
     fn end(self) -> Result<Self::Ok> {
-        Ok(Expr::Array(self.items))
+        Ok(Expr::Array(self.items).into())
     }
 }
 
 pub struct TupleTracker {
-    items: Vec<Expr>,
+    items: Vec<FullExpr>,
 }
 impl TupleTracker {
     fn new() -> Self {
@@ -314,7 +314,7 @@ impl TupleTracker {
 
 // Same thing but for tuples.
 impl<'a> ser::SerializeTuple for TupleTracker {
-    type Ok = Expr;
+    type Ok = FullExpr;
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
@@ -326,13 +326,13 @@ impl<'a> ser::SerializeTuple for TupleTracker {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Ok(Expr::Tuple(self.items))
+        Ok(Expr::Tuple(self.items).into())
     }
 }
 
 pub struct TupleStructTracker {
     name: String,
-    items: Vec<Expr>,
+    items: Vec<FullExpr>,
 }
 impl TupleStructTracker {
     fn new(name: String) -> Self {
@@ -345,7 +345,7 @@ impl TupleStructTracker {
 
 // Same thing but for tuple structs.
 impl ser::SerializeTupleStruct for TupleStructTracker {
-    type Ok = Expr;
+    type Ok = FullExpr;
     type Error = Error;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
@@ -357,7 +357,7 @@ impl ser::SerializeTupleStruct for TupleStructTracker {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Ok(Expr::NamedTuple(self.name, self.items))
+        Ok(Expr::NamedTuple(self.name, self.items).into())
     }
 }
 
@@ -371,7 +371,7 @@ impl ser::SerializeTupleStruct for TupleStructTracker {
 // So the `end` method in this impl is responsible for closing both the `]` and
 // the `}`.
 impl<'a> ser::SerializeTupleVariant for TupleStructTracker {
-    type Ok = Expr;
+    type Ok = FullExpr;
     type Error = Error;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
@@ -383,13 +383,13 @@ impl<'a> ser::SerializeTupleVariant for TupleStructTracker {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Ok(Expr::NamedTuple(self.name, self.items))
+        Ok(Expr::NamedTuple(self.name, self.items).into())
     }
 }
 
 pub struct MapTracker {
     key: Option<String>,
-    items: Vec<(String, Expr)>,
+    items: Vec<(String, FullExpr)>,
 }
 impl MapTracker {
     fn new() -> Self {
@@ -401,7 +401,7 @@ impl MapTracker {
 }
 
 impl ser::SerializeMap for MapTracker {
-    type Ok = Expr;
+    type Ok = FullExpr;
     type Error = Error;
 
     // The Serde data model allows map keys to be any serializable type. JSON
@@ -416,7 +416,7 @@ impl ser::SerializeMap for MapTracker {
     where
         T: ?Sized + Serialize,
     {
-        match key.serialize(Serializer)? {
+        match key.serialize(Serializer)?.desc {
             Expr::String(name) | Expr::Ident(name) => self.key = Some(name),
             _ => unimplemented!(),
         }
@@ -445,13 +445,13 @@ impl ser::SerializeMap for MapTracker {
         if self.key.is_some() {
             panic!("Unused key");
         }
-        Ok(Expr::Object(self.items))
+        Ok(Expr::Object(self.items).into())
     }
 }
 
 pub struct StructTracker {
     name: String,
-    items: Vec<(String, Expr)>,
+    items: Vec<(String, FullExpr)>,
 }
 impl StructTracker {
     fn new(name: String) -> Self {
@@ -465,7 +465,7 @@ impl StructTracker {
 // Structs are like maps in which the keys are constrained to be compile-time
 // constant strings.
 impl<'a> ser::SerializeStruct for StructTracker {
-    type Ok = Expr;
+    type Ok = FullExpr;
     type Error = Error;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
@@ -478,14 +478,14 @@ impl<'a> ser::SerializeStruct for StructTracker {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Ok(Expr::Struct(self.name, self.items))
+        Ok(Expr::Struct(self.name, self.items).into())
     }
 }
 
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
 impl<'a> ser::SerializeStructVariant for StructTracker {
-    type Ok = Expr;
+    type Ok = FullExpr;
     type Error = Error;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
@@ -498,7 +498,7 @@ impl<'a> ser::SerializeStructVariant for StructTracker {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Ok(Expr::Struct(self.name, self.items))
+        Ok(Expr::Struct(self.name, self.items).into())
     }
 }
 

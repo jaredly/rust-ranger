@@ -384,7 +384,7 @@ pub fn parse_block(pair: Pair<Rule>) -> Expr {
     unreachable!()
 }
 
-pub fn process_expr(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
+pub fn process_expr(text: &str) -> Result<FullExpr, pest::error::Error<Rule>> {
     match MainParser::parse(Rule::expr, text) {
         Ok(v) => {
             let mut items = vec![];

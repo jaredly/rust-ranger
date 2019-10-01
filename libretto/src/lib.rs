@@ -37,7 +37,7 @@ mod tests {
             parser::process_expr("vec![1,2,3]")
                 .unwrap()
                 .into_eval(&mut Scope::new()),
-            Ok(Expr::Array(vec![Expr::Int(1), Expr::Int(2), Expr::Int(3),]))
+            Ok(Expr::Array(vec![Expr::Int(1).into(), Expr::Int(2).into(), Expr::Int(3).into(),]).into())
         );
     }
 
@@ -49,8 +49,8 @@ mod tests {
                 .into_eval(&mut Scope::new()),
             Ok(Expr::Struct(
                 "Hello".to_string(),
-                vec![("one".to_string(), Expr::Int(2)),]
-            ))
+                vec![("one".to_string(), Expr::Int(2).into()),]
+            ).into())
         );
     }
 
@@ -62,7 +62,7 @@ mod tests {
                 .into_eval(&mut Scope::new()),
             Ok(Expr::NamedTuple(
                 "Hello".to_string(),
-                vec![Expr::Int(2), Expr::Int(3),]
+                vec![Expr::Int(2).into(), Expr::Int(3).into(),]
             ))
         );
     }
@@ -74,9 +74,9 @@ mod tests {
             Ok(Expr::Block(
                 vec![],
                 Box::new(Expr::Minus(
-                    Box::new(Expr::Plus(Box::new(Expr::Int(1)), Box::new(Expr::Int(2)),)),
-                    Box::new(Expr::Int(3)),
-                ))
+                    Box::new(Expr::Plus(Box::new(Expr::Int(1).into()), Box::new(Expr::Int(2).into()),).into()),
+                    Box::new(Expr::Int(3).into()),
+                ).into())
             ))
         );
 
@@ -85,9 +85,9 @@ mod tests {
             Ok(Expr::Block(
                 vec![],
                 Box::new(Expr::Plus(
-                    Box::new(Expr::Minus(Box::new(Expr::Int(1)), Box::new(Expr::Int(2)),)),
-                    Box::new(Expr::Int(3)),
-                ))
+                    Box::new(Expr::Minus(Box::new(Expr::Int(1).into()), Box::new(Expr::Int(2).into()),).into()),
+                    Box::new(Expr::Int(3).into()),
+                ).into())
             ))
         );
 
@@ -96,11 +96,11 @@ mod tests {
                 .unwrap()
                 .into_eval(&mut Scope::new()),
             Ok(Expr::Array(vec![
-                Expr::String("o\nne".to_string()),
-                Expr::String("t\"w\\no".to_string()),
-                Expr::Char('a'),
-                Expr::Char('\n'),
-                Expr::String("😅".to_string()),
+                Expr::String("o\nne".to_string()).into(),
+                Expr::String("t\"w\\no".to_string()).into(),
+                Expr::Char('a').into(),
+                Expr::Char('\n').into(),
+                Expr::String("😅".to_string()).into(),
             ]))
         );
     }
@@ -114,12 +114,12 @@ mod tests {
                 Box::new(Expr::Struct(
                     "Point".into(),
                     vec![
-                        ("x".into(), Expr::Int(3)),
-                        ("y".into(), Expr::Int(5)),
-                        ("name".into(), Expr::String("awesome".into())),
+                        ("x".into(), Expr::Int(3).into()),
+                        ("y".into(), Expr::Int(5).into()),
+                        ("name".into(), Expr::String("awesome".into()).into()),
                     ]
-                ))
-            ))
+                ).into())
+            ).into())
         );
     }
 
@@ -132,14 +132,14 @@ mod tests {
                 Box::new(Expr::Eq(
                     Box::new(Expr::Plus(
                         Box::new(Expr::Minus(
-                            Box::new(Expr::Int(1)),
-                            Box::new(Expr::Times(Box::new(Expr::Int(2)), Box::new(Expr::Int(3))))
-                        )),
-                        Box::new(Expr::Int(5))
-                    )),
-                    Box::new(Expr::Int(4))
-                ))
-            ))
+                            Box::new(Expr::Int(1).into()),
+                            Box::new(Expr::Times(Box::new(Expr::Int(2).into()), Box::new(Expr::Int(3).into())).into())
+                        ).into()),
+                        Box::new(Expr::Int(5).into())
+                    ).into()),
+                    Box::new(Expr::Int(4).into())
+                ).into())
+            ).into())
         );
     }
 

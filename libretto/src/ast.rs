@@ -18,9 +18,9 @@ impl<T> TryMap<T> for Vec<T> {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(String, Expr),
-    Expr(Expr),
-    FnDefn(String, Args, Expr),
+    Let(String, FullExpr),
+    Expr(FullExpr),
+    FnDefn(String, Args, FullExpr),
 }
 
 pub struct Locals {
@@ -70,11 +70,11 @@ impl Statement {
     pub fn move_nonlocal_vars(&mut self, local_vars: &mut LocalVars, scope: &mut Scope) -> Result<(), EvalError> {
         match self {
             Statement::Let(name, v) => {
-                v.move_nonlocal_vars(local_vars, scope)?;
+                v.desc.move_nonlocal_vars(local_vars, scope)?;
                 local_vars.add(name);
             }
             Statement::Expr(e) => {
-                e.move_nonlocal_vars(local_vars, scope)?;
+                e.desc.move_nonlocal_vars(local_vars, scope)?;
             }
             Statement::FnDefn(name, _args, _body) => {
                 local_vars.add_fn(name);
@@ -109,6 +109,39 @@ pub enum Type {
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub struct Pos {
+    start: (usize, usize),
+    end: (usize, usize),
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct FullExpr {
+    pub desc: Expr,
+    pub pos: Pos,
+}
+
+impl FullExpr {
+    pub fn into_eval(mut self, scope: &mut Scope) -> Result<Self, EvalError> {
+        self.eval(scope)?;
+        Ok(self)
+    }
+}
+
+impl std::ops::DerefMut for FullExpr {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.desc
+    }
+}
+
+impl std::ops::Deref for FullExpr {
+    type Target = Expr;
+
+    fn deref(&self) -> &Self::Target {
+        &self.desc
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Float(f32),
     Int(i32),
@@ -116,35 +149,35 @@ pub enum Expr {
     Char(char),
     String(String),
 
-    Array(Vec<Expr>),
-    Tuple(Vec<Expr>),
-    Object(Vec<(String, Expr)>),
-    Option(Box<Option<Expr>>),
+    Array(Vec<FullExpr>),
+    Tuple(Vec<FullExpr>),
+    Object(Vec<(String, FullExpr)>),
+    Option(Box<Option<FullExpr>>),
     Ident(String),
 
     Unit,
-    Struct(String, Vec<(String, Expr)>),
-    NamedTuple(String, Vec<Expr>),
+    Struct(String, Vec<(String, FullExpr)>),
+    NamedTuple(String, Vec<FullExpr>),
 
-    Plus(Box<Expr>, Box<Expr>),
-    Minus(Box<Expr>, Box<Expr>),
-    Times(Box<Expr>, Box<Expr>),
-    Divide(Box<Expr>, Box<Expr>),
+    Plus(Box<FullExpr>, Box<FullExpr>),
+    Minus(Box<FullExpr>, Box<FullExpr>),
+    Times(Box<FullExpr>, Box<FullExpr>),
+    Divide(Box<FullExpr>, Box<FullExpr>),
 
-    Eq(Box<Expr>, Box<Expr>),
-    Neq(Box<Expr>, Box<Expr>),
-    Lt(Box<Expr>, Box<Expr>),
-    Gt(Box<Expr>, Box<Expr>),
+    Eq(Box<FullExpr>, Box<FullExpr>),
+    Neq(Box<FullExpr>, Box<FullExpr>),
+    Lt(Box<FullExpr>, Box<FullExpr>),
+    Gt(Box<FullExpr>, Box<FullExpr>),
 
-    MemberAccess(Box<Expr>, Vec<(String, Option<Vec<Expr>>)>),
-    Cast(Box<Expr>, Type),
+    MemberAccess(Box<FullExpr>, Vec<(String, Option<Vec<FullExpr>>)>),
+    Cast(Box<FullExpr>, Type),
 
-    Block(Vec<Statement>, Box<Expr>),
-    // Lambda(Args, Box<Expr>),
-    FnCall(String, Vec<Expr>),
+    Block(Vec<Statement>, Box<FullExpr>),
+    // Lambda(Args, Box<FullExpr>),
+    FnCall(String, Vec<FullExpr>),
 
-    IfChain(Vec<(IfCond, Expr)>, Option<Box<Expr>>),
-    Match(Box<Expr>, Vec<(Pattern, Expr)>),
+    IfChain(Vec<(IfCond, FullExpr)>, Option<Box<FullExpr>>),
+    Match(Box<FullExpr>, Vec<(Pattern, FullExpr)>),
 
     Moved,
 }
@@ -169,8 +202,14 @@ pub enum Pattern {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum IfCond {
-    Value(Expr),
-    IfLet(Pattern, Expr),
+    Value(FullExpr),
+    IfLet(Pattern, FullExpr),
+}
+
+impl From<Expr> for FullExpr {
+    fn from(desc: Expr) -> Self {
+        FullExpr { desc, pos: Pos { start: (0, 0), end: (0, 0) } }
+    }
 }
 
 impl From<f32> for Expr {
@@ -200,7 +239,7 @@ impl From<String> for Expr {
 }
 impl<T> From<Vec<T>> for Expr
 where
-    T: Into<Expr>,
+    T: Into<FullExpr>,
 {
     fn from(i: Vec<T>) -> Self {
         Expr::Array(i.into_iter().map(|t| t.into()).collect())
@@ -217,192 +256,9 @@ pub enum EvalError {
     Unmatched,
 }
 
-impl Expr {
-    pub fn move_nonlocal_vars(&mut self, local_vars: &mut LocalVars, scope: &mut Scope) -> Result<(), EvalError> {
-        match self {
-            Expr::Float(_)
-            | Expr::Moved
-            | Expr::Int(_)
-            | Expr::Bool(_)
-            | Expr::String(_)
-            | Expr::Char(_)
-            | Expr::Unit => Ok(()),
-            Expr::Tuple(items) |
-            Expr::Array(items) => {
-                for item in items {
-                    item.move_nonlocal_vars(local_vars, scope)?;
-                }
-                Ok(())
-            }
-            Expr::Object(items) => {
-                for (_key, value) in items {
-                    value.move_nonlocal_vars(local_vars, scope)?;
-                }
-                Ok(())
-            }
-            Expr::Option(item) => {
-                if let Some(v) = &mut *item.as_mut() {
-                    v.move_nonlocal_vars(local_vars, scope)?;
-                }
-                Ok(())
-            }
-            Expr::Ident(name) => {
-                if !local_vars.check(name) {
-                    match scope.move_raw(&name) {
-                        None => return Err(EvalError::MissingReference(name.to_string())),
-                        Some(expr) => {
-                            *self = expr;
-                        }
-                    }
-                }
-                Ok(())
-            },
-            Expr::Struct(_name, items) => {
-                for (_key, value) in items {
-                    value.move_nonlocal_vars(local_vars, scope)?;
-                }
-                Ok(())
-            }
-            Expr::NamedTuple(_name, items) => {
-                for item in items {
-                    item.move_nonlocal_vars(local_vars, scope)?;
-                }
-                Ok(())
-            }
-
-            // some computation!
-            Expr::Plus(a, b) |
-            Expr::Minus(a, b) |
-            Expr::Times(a, b) |
-            Expr::Divide(a, b) |
-            Expr::Eq(a, b) |
-            Expr::Neq(a, b) |
-            Expr::Lt(a, b) |
-            Expr::Gt(a, b) => {
-                a.move_nonlocal_vars(local_vars, scope)?;
-                b.move_nonlocal_vars(local_vars, scope)?;
-                Ok(())
-            }
-
-            //
-            Expr::Block(stmts, last) => {
-                local_vars.push();
-                for stmt in stmts {
-                    stmt.move_nonlocal_vars(local_vars, scope)?;
-                }
-                last.move_nonlocal_vars(local_vars, scope)?;
-                local_vars.pop();
-                Ok(())
-            }
-
-            Expr::FnCall(_name, args) => {
-                for arg in args.iter_mut() {
-                    arg.move_nonlocal_vars(local_vars, scope)?;
-                }
-                Ok(())
-            }
-
-            Expr::Cast(expr, _typ) => {
-                expr.move_nonlocal_vars(local_vars, scope)?;
-                Ok(())
-            }
-
-            Expr::MemberAccess(expr, items) => {
-                // if it's a .clone(), then don't move. Otherwise, we go ahead and move.
-                if let Expr::Ident(ident) = expr.as_mut() {
-                    if let Some(args) = &items[0].1 {
-                        if items[0].0 == "clone" && args.is_empty() {
-                            if let Some(expr) = scope.move_raw(ident) {
-                                items.remove(0);
-                                // its a clone
-                                *self = Expr::MemberAccess(
-                                    Box::new(expr),
-                                    std::mem::replace(items, vec![])
-                                );
-                                return Ok(())
-                            }
-                        }
-                    }
-                }
-                expr.move_nonlocal_vars(local_vars, scope)?;
-                Ok(())
-            }
-
-            Expr::IfChain(chain, else_) => {
-                for (cond, body) in chain {
-                    match cond {
-                        IfCond::Value(_) => {
-                            body.move_nonlocal_vars(local_vars, scope)?;
-                        },
-                        IfCond::IfLet(pattern, _value) => {
-                            let mut bindings = vec![];
-                            pattern_names(pattern, &mut bindings);
-
-                            local_vars.push();
-                            // let mut sub = scope.sub();
-                            for name in bindings {
-                                local_vars.add(&name);
-                            }
-                            body.move_nonlocal_vars(local_vars, scope)?;
-                            local_vars.pop();
-                            return Ok(())
-                        }
-                    }
-                }
-                match else_.as_mut() {
-                    None => (),
-                    Some(expr) => expr.move_nonlocal_vars(local_vars, scope)?,
-                }
-                Ok(())
-            }
-
-            Expr::Match(value, cases) => {
-                value.eval(scope)?;
-                for (pattern, body) in cases {
-                    let mut bindings = vec![];
-                    pattern_names(pattern, &mut bindings);
-                    // TODO don't need to clone here, could return the value if unused
-                    local_vars.push();
-                    // let mut sub = scope.sub();
-                    for name in bindings {
-                        local_vars.add(&name);
-                    }
-                    body.move_nonlocal_vars(local_vars, scope)?;
-                    local_vars.pop();
-                    return Ok(());
-                }
-                Err(EvalError::Unmatched)
-            }
-
-        }
-    }
-
-    pub fn needs_evaluation(&self) -> bool {
-        match self {
-            Expr::Float(_) | Expr::Int(_) | Expr::Bool(_) | Expr::String(_) | Expr::Char(_) => {
-                false
-            }
-            Expr::NamedTuple(_, items) | Expr::Array(items) | Expr::Tuple(items) => {
-                items.iter().any(Expr::needs_evaluation)
-            }
-            Expr::Struct(_, items) | Expr::Object(items) => {
-                items.iter().any(|(_, expr)| expr.needs_evaluation())
-            }
-            Expr::Option(inner) => inner
-                .as_ref()
-                .as_ref()
-                .map_or(false, |expr| expr.needs_evaluation()),
-            _ => true,
-        }
-    }
-
-    pub fn into_eval(mut self, scope: &mut Scope) -> Result<Self, EvalError> {
-        self.eval(scope)?;
-        Ok(self)
-    }
-
+impl FullExpr {
     pub fn eval(&mut self, scope: &mut Scope) -> Result<(), EvalError> {
-        match self {
+        match &mut self.desc {
             Expr::Float(_)
             | Expr::Moved
             | Expr::Int(_)
@@ -453,9 +309,9 @@ impl Expr {
             Expr::Plus(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                *self = match (a.as_mut(), b.as_mut()) {
-                    (Expr::Int(a), Expr::Int(b)) => Expr::Int(*a + *b),
-                    (Expr::Float(a), Expr::Float(b)) => Expr::Float(*a + *b),
+                self.desc = match (a.as_mut().desc, b.as_mut().desc) {
+                    (Expr::Int(a), Expr::Int(b)) => Expr::Int(a + b),
+                    (Expr::Float(a), Expr::Float(b)) => Expr::Float(a + b),
                     _ => return Err(EvalError::InvalidType("Cannot add")),
                 };
                 Ok(())
@@ -463,9 +319,9 @@ impl Expr {
             Expr::Minus(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                *self = match (a.as_mut(), b.as_mut()) {
-                    (Expr::Int(a), Expr::Int(b)) => Expr::Int(*a - *b),
-                    (Expr::Float(a), Expr::Float(b)) => Expr::Float(*a - *b),
+                self.desc = match (a.as_mut().desc, b.as_mut().desc) {
+                    (Expr::Int(a), Expr::Int(b)) => Expr::Int(a - b),
+                    (Expr::Float(a), Expr::Float(b)) => Expr::Float(a - b),
                     _ => return Err(EvalError::InvalidType("Cannot subtract")),
                 };
                 Ok(())
@@ -473,9 +329,9 @@ impl Expr {
             Expr::Times(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                *self = match (a.as_mut(), b.as_mut()) {
-                    (Expr::Int(a), Expr::Int(b)) => Expr::Int(*a * *b),
-                    (Expr::Float(a), Expr::Float(b)) => Expr::Float(*a * *b),
+                self.desc = match (a.as_mut().desc, b.as_mut().desc) {
+                    (Expr::Int(a), Expr::Int(b)) => Expr::Int(a * b),
+                    (Expr::Float(a), Expr::Float(b)) => Expr::Float(a * b),
                     _ => return Err(EvalError::InvalidType("Cannot multiply")),
                 };
                 Ok(())
@@ -483,9 +339,9 @@ impl Expr {
             Expr::Divide(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                *self = match (a.as_mut(), b.as_mut()) {
-                    (Expr::Int(a), Expr::Int(b)) => Expr::Int(*a / *b),
-                    (Expr::Float(a), Expr::Float(b)) => Expr::Float(*a / *b),
+                self.desc = match (a.as_mut().desc, b.as_mut().desc) {
+                    (Expr::Int(a), Expr::Int(b)) => Expr::Int(a / b),
+                    (Expr::Float(a), Expr::Float(b)) => Expr::Float(a / b),
                     _ => return Err(EvalError::InvalidType("Cannot divide")),
                 };
                 Ok(())
@@ -494,23 +350,23 @@ impl Expr {
             Expr::Eq(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                *self = Expr::Bool(a == b);
+                self.desc = Expr::Bool(a == b);
                 Ok(())
             }
 
             Expr::Neq(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                *self = Expr::Bool(a != b);
+                self.desc = Expr::Bool(a != b);
                 Ok(())
             }
 
             Expr::Lt(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                *self = match (a.as_mut(), b.as_mut()) {
-                    (Expr::Int(a), Expr::Int(b)) => Expr::Bool(*a < *b),
-                    (Expr::Float(a), Expr::Float(b)) => Expr::Bool(*a < *b),
+                self.desc = match (a.as_mut().desc, b.as_mut().desc) {
+                    (Expr::Int(a), Expr::Int(b)) => Expr::Bool(a < b),
+                    (Expr::Float(a), Expr::Float(b)) => Expr::Bool(a < b),
                     _ => return Err(EvalError::InvalidType("Cannot compare")),
                 };
                 Ok(())
@@ -519,9 +375,9 @@ impl Expr {
             Expr::Gt(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                *self = match (a.as_mut(), b.as_mut()) {
-                    (Expr::Int(a), Expr::Int(b)) => Expr::Bool(*a > *b),
-                    (Expr::Float(a), Expr::Float(b)) => Expr::Bool(*a > *b),
+                self.desc = match (a.as_mut().desc, b.as_mut().desc) {
+                    (Expr::Int(a), Expr::Int(b)) => Expr::Bool(a > b),
+                    (Expr::Float(a), Expr::Float(b)) => Expr::Bool(a > b),
                     _ => return Err(EvalError::InvalidType("Cannot compare")),
                 };
                 Ok(())
@@ -541,7 +397,7 @@ impl Expr {
                 // println!("Block end");
                 last.eval(scope)?;
                 scope.pop();
-                *self = std::mem::replace(last, Expr::Unit);
+                self.desc = std::mem::replace(last, Expr::Unit);
                 Ok(())
             }
 
@@ -551,24 +407,24 @@ impl Expr {
                 }
                 println!("Fn Call {:?}", args);
                 let args = std::mem::replace(args, vec![]);
-                *self = scope.call_fn_raw(&name, args)?;
+                self.desc = scope.call_fn_raw(&name, args)?.desc;
                 Ok(())
             }
 
             Expr::Cast(expr, typ) => {
                 expr.eval(scope)?;
-                *self = match (expr.as_mut(), typ) {
-                    (Expr::Float(f), Type::I32) => Ok(Expr::Int(*f as i32)),
-                    (Expr::Float(f), Type::F32) => Ok(Expr::Float(*f)),
-                    (Expr::Int(i), Type::F32) => Ok(Expr::Float(*i as f32)),
-                    (Expr::Int(i), Type::I32) => Ok(Expr::Int(*i)),
+                self.desc = match (expr.as_mut().desc, typ) {
+                    (Expr::Float(f), Type::I32) => Ok(Expr::Int(f as i32)),
+                    (Expr::Float(f), Type::F32) => Ok(Expr::Float(f)),
+                    (Expr::Int(i), Type::F32) => Ok(Expr::Float(i as f32)),
+                    (Expr::Int(i), Type::I32) => Ok(Expr::Int(i)),
                     _ => Err(EvalError::InvalidType("Cannot cast")),
                 }?;
                 Ok(())
             }
 
             Expr::MemberAccess(expr, items) => {
-                let mut target = match expr.as_mut() {
+                let mut target = match expr.as_mut().desc {
                     Expr::Ident(name) => {
                         let can_borrow = items.iter().any(|(_, x)| x.is_some());
                         if can_borrow {
@@ -602,6 +458,7 @@ impl Expr {
                                     owned = member_move(owned, name)?;
                                 }
                             }
+                            // TODO preserve location?
                             *self = owned;
                             // do the borrow one I guess
                             return Ok(());
@@ -614,7 +471,7 @@ impl Expr {
                     }
                     _ => {
                         expr.eval(scope)?;
-                        std::mem::replace(&mut **expr, Expr::Unit)
+                        std::mem::replace(&mut **expr, Expr::Unit.into())
                     }
                 };
 
@@ -634,10 +491,10 @@ impl Expr {
                     match cond {
                         IfCond::Value(value) => {
                             value.eval(scope)?;
-                            match value {
+                            match value.desc {
                                 Expr::Bool(true) => {
                                     body.eval(scope)?;
-                                    *self = std::mem::replace(body, Expr::Unit);
+                                    self.desc = std::mem::replace(body, Expr::Unit);
                                     return Ok(())
                                 },
                                 Expr::Bool(false) => (),
@@ -645,14 +502,14 @@ impl Expr {
                             };
                         },
                         IfCond::IfLet(pattern, value) => {
-                            if let Some(bindings) = match_pattern(std::mem::replace(pattern, Pattern::Any), std::mem::replace(value, Expr::Unit)) {
+                            if let Some(bindings) = match_pattern(std::mem::replace(pattern, Pattern::Any), std::mem::replace(value, Expr::Unit.into())) {
                                 scope.push();
                                 // let mut sub = scope.sub();
                                 for (name, value) in bindings {
                                     scope.set_raw(&name, value)
                                 }
                                 body.eval(scope)?;
-                                *self = std::mem::replace(body, Expr::Unit);
+                                self.desc = std::mem::replace(body, Expr::Unit);
                                 scope.pop();
                                 return Ok(())
                             }
@@ -661,7 +518,7 @@ impl Expr {
                 }
                 match else_.take() {
                     None => {
-                        *self = Expr::Unit;
+                        self.desc = Expr::Unit;
                         Ok(())
                     },
                     Some(mut block) => {
@@ -683,7 +540,7 @@ impl Expr {
                             scope.set_raw(&name, value)
                         }
                         body.eval(scope)?;
-                        *self = std::mem::replace(body, Expr::Moved);
+                        self.desc = std::mem::replace(body, Expr::Moved);
                         scope.pop();
                         return Ok(());
                     }
@@ -692,13 +549,220 @@ impl Expr {
             }
         }
     }
+
+}
+
+impl Expr {
+    pub fn with_span(self, span: &pest::Span) -> FullExpr {
+        FullExpr {
+            desc: self,
+            pos: Pos {
+
+            start: span.start_pos().line_col(),
+            end: span.end_pos().line_col(),
+            }
+        }
+    }
+
+    pub fn with_pos(self, pos: Pos) -> FullExpr {
+        FullExpr {
+            desc: self,
+            pos,
+        }
+    }
+
+    pub fn match_pos(self, other: &FullExpr) -> FullExpr {
+        FullExpr {
+            desc: self,
+            pos: other.pos.clone(),
+        }
+    }
+
+    pub fn move_nonlocal_vars(&mut self, local_vars: &mut LocalVars, scope: &mut Scope) -> Result<(), EvalError> {
+        match self {
+            Expr::Float(_)
+            | Expr::Moved
+            | Expr::Int(_)
+            | Expr::Bool(_)
+            | Expr::String(_)
+            | Expr::Char(_)
+            | Expr::Unit => Ok(()),
+            Expr::Tuple(items) |
+            Expr::Array(items) => {
+                for item in items {
+                    item.desc.move_nonlocal_vars(local_vars, scope)?;
+                }
+                Ok(())
+            }
+            Expr::Object(items) => {
+                for (_key, value) in items {
+                    value.desc.move_nonlocal_vars(local_vars, scope)?;
+                }
+                Ok(())
+            }
+            Expr::Option(item) => {
+                if let Some(v) = &mut *item.as_mut() {
+                    v.desc.move_nonlocal_vars(local_vars, scope)?;
+                }
+                Ok(())
+            }
+            Expr::Ident(name) => {
+                if !local_vars.check(name) {
+                    match scope.move_raw(&name) {
+                        None => return Err(EvalError::MissingReference(name.to_string())),
+                        Some(expr) => {
+                            *self = expr.desc;
+                        }
+                    }
+                }
+                Ok(())
+            },
+            Expr::Struct(_name, items) => {
+                for (_key, value) in items {
+                    value.desc.move_nonlocal_vars(local_vars, scope)?;
+                }
+                Ok(())
+            }
+            Expr::NamedTuple(_name, items) => {
+                for item in items {
+                    item.desc.move_nonlocal_vars(local_vars, scope)?;
+                }
+                Ok(())
+            }
+
+            // some computation!
+            Expr::Plus(a, b) |
+            Expr::Minus(a, b) |
+            Expr::Times(a, b) |
+            Expr::Divide(a, b) |
+            Expr::Eq(a, b) |
+            Expr::Neq(a, b) |
+            Expr::Lt(a, b) |
+            Expr::Gt(a, b) => {
+                a.desc.move_nonlocal_vars(local_vars, scope)?;
+                b.desc.move_nonlocal_vars(local_vars, scope)?;
+                Ok(())
+            }
+
+            //
+            Expr::Block(stmts, last) => {
+                local_vars.push();
+                for stmt in stmts {
+                    stmt.move_nonlocal_vars(local_vars, scope)?;
+                }
+                last.desc.move_nonlocal_vars(local_vars, scope)?;
+                local_vars.pop();
+                Ok(())
+            }
+
+            Expr::FnCall(_name, args) => {
+                for arg in args.iter_mut() {
+                    arg.desc.move_nonlocal_vars(local_vars, scope)?;
+                }
+                Ok(())
+            }
+
+            Expr::Cast(expr, _typ) => {
+                expr.desc.move_nonlocal_vars(local_vars, scope)?;
+                Ok(())
+            }
+
+            Expr::MemberAccess(expr, items) => {
+                // if it's a .clone(), then don't move. Otherwise, we go ahead and move.
+                if let Expr::Ident(ident) = expr.as_mut().desc {
+                    if let Some(args) = &items[0].1 {
+                        if items[0].0 == "clone" && args.is_empty() {
+                            if let Some(expr) = scope.move_raw(&ident) {
+                                items.remove(0);
+                                // its a clone
+                                *self = Expr::MemberAccess(
+                                    Box::new(expr.into()),
+                                    std::mem::replace(items, vec![])
+                                );
+                                return Ok(())
+                            }
+                        }
+                    }
+                }
+                expr.desc.move_nonlocal_vars(local_vars, scope)?;
+                Ok(())
+            }
+
+            Expr::IfChain(chain, else_) => {
+                for (cond, body) in chain {
+                    match cond {
+                        IfCond::Value(_) => {
+                            body.desc.move_nonlocal_vars(local_vars, scope)?;
+                        },
+                        IfCond::IfLet(pattern, _value) => {
+                            let mut bindings = vec![];
+                            pattern_names(pattern, &mut bindings);
+
+                            local_vars.push();
+                            // let mut sub = scope.sub();
+                            for name in bindings {
+                                local_vars.add(&name);
+                            }
+                            body.desc.move_nonlocal_vars(local_vars, scope)?;
+                            local_vars.pop();
+                            return Ok(())
+                        }
+                    }
+                }
+                match else_.as_mut() {
+                    None => (),
+                    Some(expr) => expr.desc.move_nonlocal_vars(local_vars, scope)?,
+                }
+                Ok(())
+            }
+
+            Expr::Match(value, cases) => {
+                value.eval(scope)?;
+                for (pattern, body) in cases {
+                    let mut bindings = vec![];
+                    pattern_names(pattern, &mut bindings);
+                    // TODO don't need to clone here, could return the value if unused
+                    local_vars.push();
+                    // let mut sub = scope.sub();
+                    for name in bindings {
+                        local_vars.add(&name);
+                    }
+                    body.desc.move_nonlocal_vars(local_vars, scope)?;
+                    local_vars.pop();
+                    return Ok(());
+                }
+                Err(EvalError::Unmatched)
+            }
+
+        }
+    }
+
+    pub fn needs_evaluation(&self) -> bool {
+        match self {
+            Expr::Float(_) | Expr::Int(_) | Expr::Bool(_) | Expr::String(_) | Expr::Char(_) => {
+                false
+            }
+            Expr::NamedTuple(_, items) | Expr::Array(items) | Expr::Tuple(items) => {
+                items.iter().any(|e|e.desc.needs_evaluation())
+            }
+            Expr::Struct(_, items) | Expr::Object(items) => {
+                items.iter().any(|(_, expr)| expr.desc.needs_evaluation())
+            }
+            Expr::Option(inner) => inner
+                .as_ref()
+                .as_ref()
+                .map_or(false, |expr| expr.desc.needs_evaluation()),
+            _ => true,
+        }
+    }
+
 }
 
 /// TODO this allocates a bunch of empty vectors
-fn match_pattern(pattern: Pattern, value: Expr) -> Option<Vec<(String, Expr)>> {
-    match (pattern, value) {
+fn match_pattern(pattern: Pattern, value: FullExpr) -> Option<Vec<(String, FullExpr)>> {
+    match (pattern, value.desc) {
         (Pattern::Any, _) => Some(vec![]),
-        (Pattern::Ident(name), value) => Some(vec![(name, value)]),
+        (Pattern::Ident(name), _) => Some(vec![(name, value)]),
         (Pattern::Const(Const::Bool(b)), Expr::Bool(bb)) if b == bb => Some(vec![]),
         (Pattern::Const(Const::Int(b)), Expr::Int(bb)) if b == bb => Some(vec![]),
         (Pattern::Const(Const::Float(b)), Expr::Float(bb)) if b == bb => Some(vec![]),
@@ -765,9 +829,9 @@ fn pattern_names(pattern: &Pattern, vbls: &mut Vec<String>) {
 
 
 
-fn member_move<'a>(value: Expr, name: &str) -> Result<Expr, EvalError> {
+fn member_move<'a>(value: FullExpr, name: &str) -> Result<FullExpr, EvalError> {
     Ok(match name.parse::<usize>() {
-        Ok(index) => match value {
+        Ok(index) => match value.desc {
             Expr::Array(mut children) | Expr::NamedTuple(_, mut children) => children.remove(index),
             _ => {
                 return Err(EvalError::InvalidType(
@@ -775,7 +839,7 @@ fn member_move<'a>(value: Expr, name: &str) -> Result<Expr, EvalError> {
                 ))
             }
         },
-        Err(_) => match value {
+        Err(_) => match value.desc {
             Expr::Object(children) | Expr::Struct(_, children) => {
                 for (sname, child) in children {
                     if sname == name {
@@ -793,9 +857,9 @@ fn member_move<'a>(value: Expr, name: &str) -> Result<Expr, EvalError> {
     })
 }
 
-fn member_access<'a>(value: &'a mut Expr, name: &str) -> Result<&'a mut Expr, EvalError> {
+fn member_access<'a>(value: &'a mut FullExpr, name: &str) -> Result<&'a mut FullExpr, EvalError> {
     Ok(match name.parse::<usize>() {
-        Ok(index) => match value {
+        Ok(index) => match value.desc {
             Expr::Array(children) | Expr::NamedTuple(_, children) => &mut children[index],
             _ => {
                 return Err(EvalError::InvalidType(
@@ -803,7 +867,7 @@ fn member_access<'a>(value: &'a mut Expr, name: &str) -> Result<&'a mut Expr, Ev
                 ))
             }
         },
-        Err(_) => match value {
+        Err(_) => match &mut value.desc {
             Expr::Object(children) | Expr::Struct(_, children) => {
                 let mut found = false;
                 for (sname, child) in children {
@@ -822,11 +886,11 @@ fn member_access<'a>(value: &'a mut Expr, name: &str) -> Result<&'a mut Expr, Ev
     })
 }
 
-fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<Expr, EvalError> {
+fn member_function(value: &mut FullExpr, name: &str, mut args: Vec<FullExpr>) -> Result<FullExpr, EvalError> {
     if name == "clone" {
         return Ok(value.clone())
     }
-    Ok(match value {
+    Ok(match &mut value.desc {
         Expr::Array(items) => match name.as_ref() {
             "len" if args.is_empty() => Expr::Int(items.len() as i32),
             "push" => {
@@ -847,7 +911,7 @@ fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<
             "cos" if args.is_empty() => Expr::Float(f.cos()),
             "tan" if args.is_empty() => Expr::Float(f.tan()),
             "abs" if args.is_empty() => Expr::Float(f.abs()),
-            "atan2" if args.len() == 1 => match args[0] {
+            "atan2" if args.len() == 1 => match args[0].desc {
                 Expr::Float(x) => Expr::Float(f.atan2(x)),
                 _ => return Err(EvalError::InvalidType("atan2 takes a float argument"))
             },
@@ -868,5 +932,5 @@ fn member_function(value: &mut Expr, name: &str, mut args: Vec<Expr>) -> Result<
             println!("other {:?} : {} - {:?}", value, name, args);
             return Err(EvalError::InvalidType("Can only do fns on floats and ints"));
         }
-    })
+    }.match_pos(value))
 }
