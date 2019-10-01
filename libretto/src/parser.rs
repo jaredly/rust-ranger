@@ -4,7 +4,7 @@ use pest_derive::*;
 
 use unescape;
 
-use crate::ast::{Const, Expr, IfCond, Pattern, Statement, Type};
+use crate::ast::{Const, ExprDesc, Expr, Pos, IfCond, Pattern, Statement, Type};
 
 #[grammar = "../grammar.pest"]
 #[derive(Parser)]
@@ -31,19 +31,19 @@ fn unescape_string(string: &str) -> String {
 
 pub fn parse_const(pair: Pair<Rule>) -> Expr {
     match pair.as_rule() {
-        Rule::float => Expr::Float(pair.as_str().parse::<f32>().unwrap()),
-        Rule::signed_int => Expr::Int(pair.as_str().parse::<i32>().unwrap()),
-        Rule::bool => Expr::Bool(pair.as_str().parse::<bool>().unwrap()),
+        Rule::float => ExprDesc::Float(pair.as_str().parse::<f32>().unwrap()),
+        Rule::signed_int => ExprDesc::Int(pair.as_str().parse::<i32>().unwrap()),
+        Rule::bool => ExprDesc::Bool(pair.as_str().parse::<bool>().unwrap()),
         Rule::char => {
             let str = pair.as_str();
-            Expr::Char(
+            ExprDesc::Char(
                 unescape::unescape(&str[1..str.len() - 1])
                     .unwrap()
                     .parse::<char>()
                     .unwrap(),
             )
         }
-        Rule::string => Expr::String(unescape_string(pair.as_str())),
+        Rule::string => ExprDesc::String(unescape_string(pair.as_str())),
         _ => {
             panic!(format!(
                 "Unreachable const {}, {:?}",
@@ -51,7 +51,7 @@ pub fn parse_const(pair: Pair<Rule>) -> Expr {
                 pair.as_rule()
             ));
         }
-    }
+    }.with_span(&pair.as_span())
 }
 
 fn parse_pair(pair: Pair<Rule>) -> (String, Expr) {
@@ -147,13 +147,14 @@ fn parse_if_cond(pair: Pair<Rule>) -> IfCond {
 }
 
 pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
+    let pos = Pos::from(&pair);
     match pair.as_rule() {
         Rule::cast => {
             let mut items = pair.into_inner();
             let first = parse_op_item(items.next().unwrap());
             match items.next() {
-                None => first,
-                Some(pair) => Expr::Cast(
+                None => return first,
+                Some(pair) => ExprDesc::Cast(
                     Box::new(first),
                     match pair.as_str() {
                         "i32" => Type::I32,
@@ -176,7 +177,7 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                 };
                 match first.as_rule() {
                     Rule::block => {
-                        return Expr::IfChain(middles, Some(Box::new(parse_expr(first))))
+                        return ExprDesc::IfChain(middles, Some(Box::new(parse_expr(first)))).with_pos(pos)
                     }
                     Rule::if_cond => {
                         middles.push((parse_if_cond(first), parse_expr(items.next().unwrap())))
@@ -184,7 +185,7 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                     _ => unreachable!(),
                 }
             }
-            Expr::IfChain(middles, None)
+            ExprDesc::IfChain(middles, None)
         }
 
         Rule::match_ => {
@@ -199,7 +200,7 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                 let body = parse_expr(items.next().unwrap());
                 cases.push((pattern, body))
             }
-            Expr::Match(Box::new(value), cases)
+            ExprDesc::Match(Box::new(value), cases)
         }
 
         Rule::subject => {
@@ -218,41 +219,41 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                 })
                 .collect();
             if access.is_empty() {
-                first
+                return first
             } else {
-                Expr::MemberAccess(Box::new(first), access)
+                ExprDesc::MemberAccess(Box::new(first), access)
             }
         }
-        Rule::object => Expr::Object(pair.into_inner().map(parse_pair).collect()),
-        Rule::array => Expr::Array(pair.into_inner().map(parse_expr).collect()),
+        Rule::object => ExprDesc::Object(pair.into_inner().map(parse_pair).collect()),
+        Rule::array => ExprDesc::Array(pair.into_inner().map(parse_expr).collect()),
         Rule::tuple => {
             let mut items: Vec<Expr> = pair.into_inner().map(parse_expr).collect();
             if items.len() == 1 {
-                items.remove(0)
+                return items.remove(0)
             } else {
-                Expr::Tuple(items)
+                ExprDesc::Tuple(items)
             }
         },
-        Rule::const_ => parse_const(pair.into_inner().next().unwrap()),
-        Rule::option => Expr::Option(Box::new(pair.into_inner().next().map(parse_expr))),
-        Rule::ident => Expr::Ident(pair.as_str().to_string()),
-        Rule::upper_ident => Expr::NamedTuple(pair.as_str().to_string(), vec![]),
-        Rule::value => parse_expr(pair),
-        Rule::unit => Expr::Unit,
+        Rule::const_ => return parse_const(pair.into_inner().next().unwrap()),
+        Rule::option => ExprDesc::Option(Box::new(pair.into_inner().next().map(parse_expr))),
+        Rule::ident => ExprDesc::Ident(pair.as_str().to_string()),
+        Rule::upper_ident => ExprDesc::NamedTuple(pair.as_str().to_string(), vec![]),
+        Rule::value => return parse_expr(pair),
+        Rule::unit => ExprDesc::Unit,
         Rule::struct_ => {
             let mut items = pair.into_inner();
             let key = items.next().unwrap().as_str().to_string();
-            Expr::Struct(key, items.map(parse_pair).collect())
+            ExprDesc::Struct(key, items.map(parse_pair).collect())
         }
         Rule::named_tuple => {
             let mut items = pair.into_inner();
             let key = items.next().unwrap().as_str().to_string();
-            Expr::NamedTuple(key, items.map(parse_expr).collect())
+            ExprDesc::NamedTuple(key, items.map(parse_expr).collect())
         }
         Rule::fncall => {
             let mut items = pair.into_inner();
             let key = items.next().unwrap().as_str().to_string();
-            Expr::FnCall(key, items.map(parse_expr).collect())
+            ExprDesc::FnCall(key, items.map(parse_expr).collect())
         }
         _ => {
             panic!(format!(
@@ -261,7 +262,7 @@ pub fn parse_op_item(pair: Pair<Rule>) -> Expr {
                 pair.as_rule()
             ));
         }
-    }
+    }.with_pos(pos)
 }
 
 macro_rules! make_ops {
@@ -276,10 +277,13 @@ macro_rules! make_ops {
                         let (left, right) = items.split_at(i);
                         let mut right = right.to_vec();
                         let (_op, expr) = right.remove(0);
+                        let left = $current((first, left.to_vec()));
+                        let right = $next((expr, right.to_vec()));
+                        let pos = Pos { start: left.pos.start, end: right.pos.end };
                         return $constr(
-                            Box::new($current((first, left.to_vec()))),
-                            Box::new($next((expr, right.to_vec()))),
-                        );
+                            Box::new(left),
+                            Box::new(right),
+                        ).with_pos(pos);
                     }
                 )*
             }
@@ -289,9 +293,9 @@ macro_rules! make_ops {
     };
 }
 
-make_ops!(make_op_tree, make_op_2; "==", Expr::Eq; "!=", Expr::Neq; "<", Expr::Lt; ">", Expr::Gt);
-make_ops!(make_op_2, make_op_3; "-", Expr::Minus; "+", Expr::Plus);
-make_ops!(make_op_3, make_op_4; "*", Expr::Times; "/", Expr::Divide);
+make_ops!(make_op_tree, make_op_2; "==", ExprDesc::Eq; "!=", ExprDesc::Neq; "<", ExprDesc::Lt; ">", ExprDesc::Gt);
+make_ops!(make_op_2, make_op_3; "-", ExprDesc::Minus; "+", ExprDesc::Plus);
+make_ops!(make_op_3, make_op_4; "*", ExprDesc::Times; "/", ExprDesc::Divide);
 
 fn make_op_4(input: (Expr, Vec<(&str, Expr)>)) -> Expr {
     if !input.1.is_empty() {
@@ -334,7 +338,7 @@ pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
             let value = parse_expr(items.next().unwrap());
             Statement::Let(ident, value)
         }
-        Rule::value => Statement::Expr(parse_expr(pair)),
+        Rule::value => Statement::ExprDesc(parse_expr(pair)),
         Rule::fndefn => {
             let mut items = pair.into_inner();
             let ident = items.next().unwrap().as_str().to_owned();
@@ -374,24 +378,29 @@ pub fn process_file(text: &str) -> Result<Vec<Statement>, pest::error::Error<Rul
 
 pub fn parse_block(pair: Pair<Rule>) -> Expr {
     let mut items = vec![];
+    let pos = Pos::from(&pair);
     for item in pair.into_inner() {
         match item.as_rule() {
             Rule::statement => items.push(parse_stmt(item)),
-            Rule::value => return Expr::Block(items, Box::new(parse_expr(item))),
+            Rule::value => return ExprDesc::Block(items, Box::new(parse_expr(item))).with_pos(pos),
             _ => (),
         }
     }
     unreachable!()
 }
 
-pub fn process_expr(text: &str) -> Result<FullExpr, pest::error::Error<Rule>> {
+pub fn process_expr(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
     match MainParser::parse(Rule::expr, text) {
         Ok(v) => {
             let mut items = vec![];
             for item in v {
                 match item.as_rule() {
                     Rule::statement => items.push(parse_stmt(item)),
-                    Rule::value => return Ok(Expr::Block(items, Box::new(parse_expr(item)))),
+                    Rule::value => {
+                        let mut pos = Pos::from(&item);
+                        pos.start = (0, 0);
+                        return Ok(ExprDesc::Block(items, Box::new(parse_expr(item))).with_pos(pos));
+                    },
                     _ => (),
                 }
             }
@@ -401,7 +410,7 @@ pub fn process_expr(text: &str) -> Result<FullExpr, pest::error::Error<Rule>> {
             // for item in v {
             //     items.push(parse_stmt(item));
             // }
-            // Ok(Expr::Block(items, Box::new(parse_expr(last))))
+            // Ok(ExprDesc::Block(items, Box::new(parse_expr(last))))
             unreachable!()
         }
         Err(e) => Err(e),

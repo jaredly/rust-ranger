@@ -1,4 +1,4 @@
-use crate::ast::{Args, EvalError, Expr, FullExpr};
+use crate::ast::{Args, EvalError, ExprDesc, Expr};
 use std::collections::HashMap;
 
 #[macro_export]
@@ -26,8 +26,8 @@ macro_rules! call_fn {
 #[derive(Debug, PartialEq)]
 pub struct SingleScope {
     id: usize,
-    vbls: HashMap<String, FullExpr>,
-    fns: HashMap<String, (Args, FullExpr)>,
+    vbls: HashMap<String, Expr>,
+    fns: HashMap<String, (Args, Expr)>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -45,7 +45,7 @@ impl Scope {
         self.0.remove(0);
     }
 
-    pub fn call_fn_raw(&mut self, name: &str, args: Vec<FullExpr>) -> Result<FullExpr, EvalError> {
+    pub fn call_fn_raw(&mut self, name: &str, args: Vec<Expr>) -> Result<Expr, EvalError> {
         let mut scopesi = self.0.iter();
         let (fargs, mut body) = loop {
             if let Some(scope) = scopesi.next() {
@@ -58,11 +58,11 @@ impl Scope {
             } else {
                 if name == "log" {
                     let args = args.into_iter().map(|m|match m.desc {
-                        Expr::String(s) => s,
+                        ExprDesc::String(s) => s,
                         _ => format!("{:?}", m)
                     }).collect::<Vec<String>>().concat();
                     println!("{}", args);
-                    return Ok(Expr::Unit.into())
+                    return Ok(ExprDesc::Unit.into())
                 }
                 return Err(EvalError::MissingReference(name.to_owned()))
             }
@@ -78,15 +78,15 @@ impl Scope {
     }
 
 
-    pub fn get_fn(&self, key: &str) -> Option<&(Args, FullExpr)> {
+    pub fn get_fn(&self, key: &str) -> Option<&(Args, Expr)> {
         self.0[0].fns.get(key)
     }
 
-    pub fn set_fn(&mut self, key: &str, args: Args, body: FullExpr) {
+    pub fn set_fn(&mut self, key: &str, args: Args, body: Expr) {
         self.0[0].fns.insert(key.to_owned(), (args, body));
     }
 
-    // pub fn call_fn<'de, T>(&self, name: &str, args: Vec<Expr>) -> crate::error::Result<T>
+    // pub fn call_fn<'de, T>(&self, name: &str, args: Vec<ExprDesc>) -> crate::error::Result<T>
     // where
     //   T: serde::Deserialize<'de>,
     // {
@@ -115,18 +115,18 @@ impl Scope {
         format!("{:?}", self)
     }
 
-    pub fn move_raw(&mut self, key: &str) -> Option<FullExpr> {
+    pub fn move_raw(&mut self, key: &str) -> Option<Expr> {
         // println!("Looking for {} in {} ", key, self.show());
         for scope in self.0.iter_mut() {
             if let Some(x) = scope.vbls.remove(key) {
                 let replacement = match x.desc {
-                    Expr::Float(_)
-                    | Expr::Int(_)
-                    | Expr::Bool(_)
-                    | Expr::String(_)
-                    | Expr::Char(_)
-                    | Expr::Unit => x.clone(),
-                    _ => Expr::Moved.match_pos(&x)
+                    ExprDesc::Float(_)
+                    | ExprDesc::Int(_)
+                    | ExprDesc::Bool(_)
+                    | ExprDesc::String(_)
+                    | ExprDesc::Char(_)
+                    | ExprDesc::Unit => x.clone(),
+                    _ => ExprDesc::Moved.match_pos(&x)
                 };
                 scope.vbls.insert(key.to_owned(), replacement);
                 return Some(x)
@@ -136,10 +136,10 @@ impl Scope {
         // match self.0[0].vbls.remove(key) {
         //     // None => match self.parent {
         //     //     None => match key {
-        //     //         "e" => Some(Expr::Float(std::f32::consts::E)),
-        //     //         "pi" => Some(Expr::Float(std::f32::consts::PI)),
-        //     //         "tau" => Some(Expr::Float(std::f32::consts::PI * 2.0)),
-        //     //         "half_pi" => Some(Expr::Float(std::f32::consts::FRAC_PI_2)),
+        //     //         "e" => Some(ExprDesc::Float(std::f32::consts::E)),
+        //     //         "pi" => Some(ExprDesc::Float(std::f32::consts::PI)),
+        //     //         "tau" => Some(ExprDesc::Float(std::f32::consts::PI * 2.0)),
+        //     //         "half_pi" => Some(ExprDesc::Float(std::f32::consts::FRAC_PI_2)),
         //     //         _ => None,
         //     //     },
         //     //     Some(parent) => {
@@ -151,13 +151,13 @@ impl Scope {
         //     None => None,
         //     Some(v) => {
         //         let replacement = match v {
-        //             Expr::Float(_)
-        //             | Expr::Int(_)
-        //             | Expr::Bool(_)
-        //             | Expr::String(_)
-        //             | Expr::Char(_)
-        //             | Expr::Unit => v.clone(),
-        //             _ => Expr::Moved
+        //             ExprDesc::Float(_)
+        //             | ExprDesc::Int(_)
+        //             | ExprDesc::Bool(_)
+        //             | ExprDesc::String(_)
+        //             | ExprDesc::Char(_)
+        //             | ExprDesc::Unit => v.clone(),
+        //             _ => ExprDesc::Moved
         //         };
         //         self.0[0].vbls.insert(key.to_owned(), replacement);
         //         Some(v)
@@ -165,7 +165,7 @@ impl Scope {
         // }
     }
 
-    pub fn get_raw_mut(&mut self, key: &str) -> Option<&mut FullExpr> {
+    pub fn get_raw_mut(&mut self, key: &str) -> Option<&mut Expr> {
         // println!("Looking for {} in {} ", key, self.show());
         for scope in self.0.iter_mut() {
             if let Some(x) = scope.vbls.get_mut(key) {
@@ -176,10 +176,10 @@ impl Scope {
         // match self.vbls.get_mut(key) {
         //     // None => match self.parent {
         //     //     None => match key {
-        //     //         // "e" => Some(&mut Expr::Float(std::f32::consts::E)),
-        //     //         // "pi" => Some(&mut Expr::Float(std::f32::consts::PI)),
-        //     //         // "tau" => Some(&mut Expr::Float(std::f32::consts::PI * 2.0)),
-        //     //         // "half_pi" => Some(&mut Expr::Float(std::f32::consts::FRAC_PI_2)),
+        //     //         // "e" => Some(&mut ExprDesc::Float(std::f32::consts::E)),
+        //     //         // "pi" => Some(&mut ExprDesc::Float(std::f32::consts::PI)),
+        //     //         // "tau" => Some(&mut ExprDesc::Float(std::f32::consts::PI * 2.0)),
+        //     //         // "half_pi" => Some(&mut ExprDesc::Float(std::f32::consts::FRAC_PI_2)),
         //     //         _ => None,
         //     //     },
         //     //     Some(parent) => {
@@ -191,7 +191,7 @@ impl Scope {
         // }
     }
 
-    pub fn get_raw(&self, key: &str) -> Option<&FullExpr> {
+    pub fn get_raw(&self, key: &str) -> Option<&Expr> {
         // println!("Looking for {} in {} ", key, self.show());
         for scope in self.0.iter() {
             match scope.vbls.get(key) {
@@ -204,10 +204,10 @@ impl Scope {
         // match self.vbls.get(key) {
         //     None => match self.parent {
         //         None => match key {
-        //             "e" => Some(&Expr::Float(std::f32::consts::E)),
-        //             "pi" => Some(&Expr::Float(std::f32::consts::PI)),
-        //             "tau" => Some(&Expr::Float(std::f32::consts::PI * 2.0)),
-        //             "half_pi" => Some(&Expr::Float(std::f32::consts::FRAC_PI_2)),
+        //             "e" => Some(&ExprDesc::Float(std::f32::consts::E)),
+        //             "pi" => Some(&ExprDesc::Float(std::f32::consts::PI)),
+        //             "tau" => Some(&ExprDesc::Float(std::f32::consts::PI * 2.0)),
+        //             "half_pi" => Some(&ExprDesc::Float(std::f32::consts::FRAC_PI_2)),
         //             _ => None,
         //         },
         //         Some(parent) => parent.get_raw(key),
@@ -225,7 +225,7 @@ impl Scope {
         Ok(())
     }
 
-    pub fn set_raw(&mut self, key: &str, value: FullExpr) {
+    pub fn set_raw(&mut self, key: &str, value: Expr) {
         // println!("Setting {} in {}", key, self.show());
         self.0[0].vbls.insert(key.to_owned(), value);
     }
@@ -243,10 +243,10 @@ impl SingleScope {
     }
     pub fn globals() -> Self {
         let mut scope = Self::empty();
-        scope.vbls.insert("e".to_owned(), Expr::Float(std::f32::consts::E).into());
-        scope.vbls.insert("pi".to_owned(), Expr::Float(std::f32::consts::PI).into());
-        scope.vbls.insert("tau".to_owned(), Expr::Float(std::f32::consts::PI * 2.0).into());
-        scope.vbls.insert("half_pi".to_owned(), Expr::Float(std::f32::consts::FRAC_PI_2).into());
+        scope.vbls.insert("e".to_owned(), ExprDesc::Float(std::f32::consts::E).into());
+        scope.vbls.insert("pi".to_owned(), ExprDesc::Float(std::f32::consts::PI).into());
+        scope.vbls.insert("tau".to_owned(), ExprDesc::Float(std::f32::consts::PI * 2.0).into());
+        scope.vbls.insert("half_pi".to_owned(), ExprDesc::Float(std::f32::consts::FRAC_PI_2).into());
         scope
     }
 }

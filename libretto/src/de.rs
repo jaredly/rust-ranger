@@ -3,10 +3,10 @@ use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, Variant
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
 
-use crate::ast::{self, Expr, FullExpr};
+use crate::ast::{self, ExprDesc, Expr};
 
 pub struct Deserializer<'de> {
-    input: &'de ast::Expr,
+    input: &'de ast::ExprDesc,
 }
 
 impl<'de> Deserializer<'de> {
@@ -14,7 +14,7 @@ impl<'de> Deserializer<'de> {
     // That way basic use cases are satisfied by something like
     // `serde_json::from_str(...)` while advanced use cases that require a
     // deserializer can make one with `serde_json::Deserializer::from_str(...)`.
-    pub fn from_expr(input: &'de ast::Expr) -> Self {
+    pub fn from_expr(input: &'de ast::ExprDesc) -> Self {
         Deserializer { input }
     }
 }
@@ -24,7 +24,7 @@ impl<'de> Deserializer<'de> {
 // depending on what Rust types the deserializer is able to consume as input.
 //
 // This basic deserializer supports only `from_str`.
-pub fn from_expr<'a, T>(s: &'a ast::Expr) -> Result<T>
+pub fn from_expr<'a, T>(s: &'a ast::ExprDesc) -> Result<T>
 where
     T: Deserialize<'a>,
 {
@@ -60,12 +60,12 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         V: Visitor<'de>,
     {
         match self.input {
-            Expr::Float(f) => visitor.visit_f32(*f),
-            Expr::Int(i) => visitor.visit_i32(*i),
-            Expr::Bool(b) => visitor.visit_bool(*b),
-            Expr::Char(c) => visitor.visit_char(*c),
-            Expr::String(s) => visitor.visit_borrowed_str(s),
-            Expr::Option(inner) => match &**inner {
+            ExprDesc::Float(f) => visitor.visit_f32(*f),
+            ExprDesc::Int(i) => visitor.visit_i32(*i),
+            ExprDesc::Bool(b) => visitor.visit_bool(*b),
+            ExprDesc::Char(c) => visitor.visit_char(*c),
+            ExprDesc::String(s) => visitor.visit_borrowed_str(s),
+            ExprDesc::Option(inner) => match &**inner {
                 None => visitor.visit_none(),
                 Some(s) => visitor.visit_some(Deserializer::from_expr(&s)),
             },
@@ -97,7 +97,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let Expr::Unit = self.input {
+        if let ExprDesc::Unit = self.input {
             visitor.visit_unit()
         } else {
             Err(Error::ExpectedUnit)
@@ -109,7 +109,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let Expr::NamedTuple(tname, contents) = self.input {
+        if let ExprDesc::NamedTuple(tname, contents) = self.input {
             if name != tname {
                 Err(Error::WrongName(name.to_owned(), tname.to_owned()))
             } else if !contents.is_empty() {
@@ -126,13 +126,13 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let Expr::Struct(sname, _items) = self.input {
+        if let ExprDesc::Struct(sname, _items) = self.input {
             if sname != name {
                 Err(Error::WrongName(name.to_owned(), sname.to_owned()))
             } else {
                 visitor.visit_newtype_struct(self)
                 // TODO?
-                // visitor.visit_newtype_struct(Deserializer::from_expr(Expr::Object(self.items)))
+                // visitor.visit_newtype_struct(Deserializer::from_expr(ExprDesc::Object(self.items)))
             }
         } else {
             Err(Error::ExpectedStruct)
@@ -147,7 +147,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         V: Visitor<'de>,
     {
         match self.input {
-            Expr::Array(contents) | Expr::NamedTuple(_, contents) => {
+            ExprDesc::Array(contents) | ExprDesc::NamedTuple(_, contents) => {
                 visitor.visit_seq(Items::new(contents))
             }
             _ => Err(Error::ExpectedSequence),
@@ -160,7 +160,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         V: Visitor<'de>,
     {
         match self.input {
-            Expr::Tuple(contents) => {
+            ExprDesc::Tuple(contents) => {
                 visitor.visit_seq(Items::new(contents))
             }
             _ => Err(Error::ExpectedSequence),
@@ -176,7 +176,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let Expr::NamedTuple(tname, contents) = self.input {
+        if let ExprDesc::NamedTuple(tname, contents) = self.input {
             if name != tname {
                 Err(Error::WrongName(name.to_owned(), tname.to_owned()))
             } else if contents.len() != len {
@@ -196,7 +196,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let Expr::Object(items) = self.input {
+        if let ExprDesc::Object(items) = self.input {
             visitor.visit_map(Pairs::new(items))
         } else {
             Err(Error::ExpectedMap)
@@ -226,7 +226,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         V: Visitor<'de>,
     {
         // self.deserialize_map(visitor)
-        if let Expr::Struct(name, items) = self.input {
+        if let ExprDesc::Struct(name, items) = self.input {
             if name == ename {
                 visitor.visit_map(Pairs::new(items))
             } else {
@@ -246,7 +246,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        // if let Expr::
+        // if let ExprDesc::
         // if variants.contains(x: &T)
         visitor.visit_enum(Enum::new(self.input))
         // if self.peek_char()? == '"' {
@@ -297,23 +297,23 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
 }
 
 struct Items<'a> {
-    contents: &'a [FullExpr],
+    contents: &'a [Expr],
     index: usize,
 }
 
 impl<'a, 'de> Items<'a> {
-    fn new(contents: &'a [FullExpr]) -> Self {
+    fn new(contents: &'a [Expr]) -> Self {
         Items { contents, index: 0 }
     }
 }
 
 struct Pairs<'a> {
-    contents: &'a [(String, FullExpr)],
+    contents: &'a [(String, Expr)],
     index: usize,
 }
 
 impl<'a, 'de> Pairs<'a> {
-    fn new(contents: &'a [(String, FullExpr)]) -> Self {
+    fn new(contents: &'a [(String, Expr)]) -> Self {
         Pairs { contents, index: 0 }
     }
 }
@@ -406,11 +406,11 @@ impl<'a> MapAccess<'a> for Pairs<'a> {
 
 struct Enum<'a> {
     // name: &'a str,
-    expr: &'a Expr,
+    expr: &'a ExprDesc,
 }
 
 impl<'a> Enum<'a> {
-    fn new(expr: &'a Expr) -> Self {
+    fn new(expr: &'a ExprDesc) -> Self {
         Enum { expr }
     }
 }
@@ -432,7 +432,7 @@ impl<'a> EnumAccess<'a> for Enum<'a> {
         // currently inside of a map. The seed will be deserializing itself from
         // the key of the map.
         match self.expr {
-            Expr::NamedTuple(name, _) | Expr::Struct(name, _) => {
+            ExprDesc::NamedTuple(name, _) | ExprDesc::Struct(name, _) => {
                 let val = seed.deserialize(KeyDeserializer::from_str(name))?;
                 Ok((val, self))
             }
@@ -456,7 +456,7 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     // should have been the plain string case handled in `deserialize_enum`.
     fn unit_variant(self) -> Result<()> {
         match self.expr {
-            Expr::NamedTuple(_, v) if v.is_empty() => Ok(()),
+            ExprDesc::NamedTuple(_, v) if v.is_empty() => Ok(()),
             _ => Err(Error::ExpectedEnum),
         }
     }
@@ -467,7 +467,7 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     where
         T: DeserializeSeed<'a>,
     {
-        if let Expr::NamedTuple(_, v) = self.expr {
+        if let ExprDesc::NamedTuple(_, v) = self.expr {
             if v.len() == 1 {
                 seed.deserialize(Deserializer::from_expr(&v[0]))
             } else {
@@ -484,7 +484,7 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     where
         V: Visitor<'a>,
     {
-        if let Expr::NamedTuple(_, v) = self.expr {
+        if let ExprDesc::NamedTuple(_, v) = self.expr {
             if len == v.len() {
                 de::Deserializer::deserialize_seq(Deserializer::from_expr(self.expr), visitor)
             } else {
