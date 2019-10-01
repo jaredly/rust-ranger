@@ -177,6 +177,8 @@ pub struct Bone {
 pub mod new {
     use super::*;
 
+    fn one() -> f32 { 1.0 }
+    fn zero() -> f32 { 1.0 }
 
     #[derive(Debug, Deserialize, Clone, PartialEq)]
     pub struct Bone {
@@ -187,9 +189,9 @@ pub mod new {
         pub pivot_offset: (f32, f32),
         // #[serde(default = "if_facing_right")]
         pub flip: bool,
-        // #[serde(default = "Animated::one")]
+        #[serde(default = "one")]
         pub scale: f32,
-        // #[serde(default = "Animated::zero")]
+        #[serde(default = "zero")]
         pub rotation: f32,
     }
 

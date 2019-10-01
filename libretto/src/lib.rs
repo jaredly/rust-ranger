@@ -9,7 +9,7 @@ mod ser;
 
 pub use ast::{Expr, ExprDesc, Pos};
 pub use de::from_expr;
-pub use error::Error;
+pub use error::{Error, DeserializeError, DeserializeErrorDesc};
 pub use parser::{process_expr, process_file};
 pub use scope::Scope;
 pub use ser::to_expr;

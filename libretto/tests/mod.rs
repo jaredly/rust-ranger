@@ -10,6 +10,16 @@ struct Point {
 }
 
 #[test]
+fn missing() {
+    let expr =
+        libretto::eval_expr(r##" Point {x: 3, y: 5, t: (2, 3.2)} "##).unwrap();
+    assert_eq!(
+        Err(libretto::DeserializeErrorDesc::Message("hi".to_owned()).with_pos(libretto::Pos::default())),
+        libretto::from_expr::<Point>(&expr)
+    );
+}
+
+#[test]
 fn example() {
     let expr =
         libretto::eval_expr(r##" Point {x: 3, y: 5, t: (2, 3.2), name: "awesome"} "##).unwrap();
@@ -230,5 +240,35 @@ res
             .unwrap()
         ),
         Ok(vec![5, 2, 3])
+    )
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+enum Party {
+    Big,
+    Tall(usize),
+    Popular { people: usize, reach: f32 },
+}
+
+#[test]
+fn enumm() {
+    assert_eq!(
+        libretto::from_expr::<Vec<Party>>(
+            &libretto::eval_expr(
+                r##"
+                vec![
+                    Big,
+                    Tall(3),
+                    Popular{people: 12, reach: 2.3}
+                ]
+                "##
+            )
+            .unwrap()
+        ),
+        Ok(vec![
+            Party::Big,
+            Party::Tall(3),
+            Party::Popular{people: 12, reach: 2.3},
+        ])
     )
 }

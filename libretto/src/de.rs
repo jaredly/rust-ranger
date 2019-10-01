@@ -228,7 +228,7 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         // self.deserialize_map(visitor)
         if let ExprDesc::Struct(name, items) = &self.input.desc {
             if name == ename {
-                visitor.visit_map(Pairs::new(items))
+                visitor.visit_map(Pairs::new(items)).map_err(|e|e.with_pos(self.input.pos))
             } else {
                 Err(ErrorDesc::WrongName(ename.to_string(), name.to_string()).with_pos(self.input.pos))
             }
@@ -501,7 +501,11 @@ impl<'a> VariantAccess<'a> for Enum<'a> {
     where
         V: Visitor<'a>,
     {
-        de::Deserializer::deserialize_map(Deserializer::from_expr(self.expr), visitor)
+        if let ExprDesc::Struct(_name, items) = &self.expr.desc {
+            visitor.visit_map(Pairs::new(items))
+        } else {
+            Err(ErrorDesc::ExpectedStruct.with_pos(self.expr.pos))
+        }
     }
 }
 

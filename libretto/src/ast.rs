@@ -126,6 +126,12 @@ pub struct Pos {
     pub end: (usize, usize),
 }
 
+impl Pos {
+    pub fn is_empty(&self) -> bool {
+        self.start == (0, 0) && self.end == (0, 0)
+    }
+}
+
 impl Default for Pos {
     fn default() -> Self {
         Pos {

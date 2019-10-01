@@ -69,6 +69,13 @@ pub enum DeserializeErrorDesc {
     EvalError(EvalError),
     WrongName(String, String),
     WrongTupleLength(usize, usize),
+    // WrongStructLength(usize, usize),
+}
+
+impl DeserializeError {
+    pub fn with_pos(self, pos: Pos) -> DeserializeError {
+        DeserializeError { pos: if self.pos.is_empty() { pos } else { self.pos }, desc: self.desc }
+    }
 }
 
 impl DeserializeErrorDesc {
@@ -169,6 +176,7 @@ impl StdError for DeserializeError {
             DeserializeErrorDesc::ExpectedNamedTuple => "Expected a named tuple",
             DeserializeErrorDesc::WrongName(_found, _expected) => "Wrong struct name",
             DeserializeErrorDesc::WrongTupleLength(_expected, _found) => "Wrong namedtuple length",
+            // DeserializeErrorDesc::WrongStructLength(_expected, _found) => "Wrong struct length",
             DeserializeErrorDesc::Message(ref message) => message,
         }
     }

@@ -38,6 +38,7 @@ fn female(context: any, velocity: any) {
             offset: (vx_sin * -0.05, leg_pos + body_offset * -1.0),
             pivot_offset: (0.0, -0.3),
             rotation: vx_sin * 5.0,
+            flip: context.facing == Right,
         },
         // front leg
         Bone {
@@ -45,6 +46,7 @@ fn female(context: any, velocity: any) {
             offset: (vx_sin * 0.05, leg_pos + body_offset * -1.0),
             pivot_offset: (0.0, -0.3),
             rotation: vx_sin * -5.0,
+            flip: context.facing == Right,
         },
         // body
         Bone {
