@@ -309,6 +309,7 @@ impl PartialEq for EvalError {
 pub enum EvalErrorDesc {
     InvalidType(&'static str),
     MissingMember(String),
+    CannotGetMember(String, &'static str),
     MissingReference(String),
     FunctionValue,
     FunctionWrongNumberArgs(usize, usize),
@@ -647,7 +648,7 @@ impl Expr {
                                             std::mem::replace(args, vec![]),
                                         )?;
                                     } else {
-                                        target = member_access(target, name)?;
+                                        target = member_access(target, name, self.pos)?;
                                     }
                                 } else {
                                     unreachable!()
@@ -657,7 +658,7 @@ impl Expr {
                                 if let Some(args) = args.take() {
                                     owned = member_function(&mut owned, name, args)?;
                                 } else {
-                                    owned = member_move(owned, name)?;
+                                    owned = member_move(owned, name, self.pos)?;
                                 }
                             }
                             // TODO preserve location?
@@ -684,7 +685,7 @@ impl Expr {
                     if let Some(args) = args.take() {
                         target = member_function(&mut target, name, args)?;
                     } else {
-                        target = member_move(target, name)?;
+                        target = member_move(target, name, self.pos)?;
                     }
                 }
                 *self = target;
@@ -933,6 +934,47 @@ impl Expr {
 }
 
 impl ExprDesc {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            ExprDesc::Float(_) => "float",
+            ExprDesc::Int(_) => "int",
+            ExprDesc::Bool(_) => "bool",
+            ExprDesc::Char(_) => "char",
+            ExprDesc::String(_) => "string",
+
+            ExprDesc::Array(_) => "array",
+            ExprDesc::Tuple(_) => "tuple",
+            ExprDesc::Object(_) => "object",
+            ExprDesc::Option(_) => "option",
+            ExprDesc::Ident(_) => "ident",
+
+            ExprDesc::Unit => "unit",
+            ExprDesc::Struct(_, _) => "struct",
+            ExprDesc::NamedTuple(_, _) => "named tuple",
+
+            ExprDesc::Plus(_, _) => "plus",
+            ExprDesc::Minus(_, _) => "minus",
+            ExprDesc::Times(_, _) => "times",
+            ExprDesc::Divide(_, _) => "divide",
+
+            ExprDesc::Eq(_, _) => "==",
+            ExprDesc::Neq(_, _) => "!=",
+            ExprDesc::Lt(_, _) => "<",
+            ExprDesc::Gt(_, _) => ">",
+
+            ExprDesc::MemberAccess(_, _) => "member access",
+            ExprDesc::Cast(_, _) => " as ",
+
+            ExprDesc::Block(_, _) => "block",
+            ExprDesc::FnCall(_, _) => "call()",
+
+            ExprDesc::IfChain(_, _) => "if",
+            ExprDesc::Match(_, _) => "match",
+
+            ExprDesc::Moved => "moved value",
+        }
+    }
+
     pub fn with_span(self, span: &pest::Span) -> Expr {
         Expr {
             desc: self,
@@ -1083,7 +1125,7 @@ fn pattern_names(pattern: &Pattern, vbls: &mut Vec<String>) {
     }
 }
 
-fn member_move<'a>(value: Expr, name: &str) -> Result<Expr, EvalErrorDesc> {
+fn member_move<'a>(value: Expr, name: &str, pos: Pos) -> Result<Expr, EvalError> {
     Ok(match name.parse::<usize>() {
         Ok(index) => match value.desc {
             ExprDesc::Array(mut children) | ExprDesc::NamedTuple(_, mut children) => {
@@ -1092,7 +1134,7 @@ fn member_move<'a>(value: Expr, name: &str) -> Result<Expr, EvalErrorDesc> {
             _ => {
                 return Err(EvalErrorDesc::InvalidType(
                     "Can only get index of array or namedtuple",
-                ))
+                ).with_pos(pos))
             }
         },
         Err(_) => match value.desc {
@@ -1102,25 +1144,27 @@ fn member_move<'a>(value: Expr, name: &str) -> Result<Expr, EvalErrorDesc> {
                         return Ok(child);
                     }
                 }
-                return Err(EvalErrorDesc::MissingMember(name.to_owned()));
+                return Err(EvalErrorDesc::MissingMember(name.to_owned()).with_pos(pos));
             }
             _ => {
-                return Err(EvalErrorDesc::InvalidType(
-                    "Can only get member of object or struct",
-                ))
+                return Err(EvalErrorDesc::CannotGetMember(
+                    name.to_owned(),
+                    value.desc.kind(),
+                ).with_pos(pos))
             }
         },
     })
 }
 
-fn member_access<'a>(value: &'a mut Expr, name: &str) -> Result<&'a mut Expr, EvalErrorDesc> {
+fn member_access<'a>(value: &'a mut Expr, name: &str, pos: Pos) -> Result<&'a mut Expr, EvalError> {
+    let kind = value.desc.kind();
     Ok(match name.parse::<usize>() {
         Ok(index) => match &mut value.desc {
             ExprDesc::Array(children) | ExprDesc::NamedTuple(_, children) => &mut children[index],
             _ => {
                 return Err(EvalErrorDesc::InvalidType(
                     "Can only get index of array or namedtuple",
-                ))
+                ).with_pos(pos))
             }
         },
         Err(_) => match &mut value.desc {
@@ -1130,12 +1174,13 @@ fn member_access<'a>(value: &'a mut Expr, name: &str) -> Result<&'a mut Expr, Ev
                         return Ok(child);
                     }
                 }
-                return Err(EvalErrorDesc::MissingMember(name.to_owned()));
+                return Err(EvalErrorDesc::MissingMember(name.to_owned()).with_pos(pos));
             }
             _ => {
-                return Err(EvalErrorDesc::InvalidType(
-                    "Can only get member of object or struct",
-                ))
+                return Err(EvalErrorDesc::CannotGetMember(
+                    name.to_owned(),
+                    kind,
+                ).with_pos(pos))
             }
         },
     })
