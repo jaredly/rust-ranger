@@ -1,5 +1,5 @@
-use crate::scope::Scope;
 use crate::error::{EvalError, EvalErrorDesc};
+use crate::scope::Scope;
 
 pub type Args = Vec<String>;
 
@@ -510,7 +510,7 @@ impl Expr {
             ExprDesc::Eq(a, b) => {
                 a.eval(scope)?;
                 b.eval(scope)?;
-                println!("Eq check: {:?} == {:?}", a, b);
+                // println!("Eq check: {:?} == {:?}", a, b);
                 self.desc = ExprDesc::Bool(a == b);
                 Ok(())
             }
@@ -570,7 +570,7 @@ impl Expr {
                 for arg in args.iter_mut() {
                     arg.eval(scope)?;
                 }
-                println!("Fn Call {:?}", args);
+                // println!("Fn Call {:?}", args);
                 let args = std::mem::replace(args, vec![]);
                 self.desc = scope.call_fn_raw(&name, args, self.pos)?.desc;
                 Ok(())
@@ -591,7 +591,6 @@ impl Expr {
             ExprDesc::MemberAccess(expr, items) => {
                 let mut target = match &mut expr.as_mut().desc {
                     ExprDesc::Ident(name) => {
-
                         // If I don't want to auto-clone, re-enable this stuff
                         // let can_borrow = items.iter().any(|(_, x)| x.is_some());
                         // if can_borrow {
@@ -625,7 +624,7 @@ impl Expr {
                             } else {
                                 // ok now we auto-clone
                                 *self = target.clone();
-                                return Ok(())
+                                return Ok(());
                             }
                         };
                         for (name, args) in items {
@@ -671,7 +670,7 @@ impl Expr {
                 for (cond, body) in chain {
                     match cond {
                         IfCond::Value(value) => {
-                            println!("if cond {:?}", value);
+                            // println!("if cond {:?}", value);
                             value.eval(scope)?;
                             match value.desc {
                                 ExprDesc::Bool(true) => {
@@ -680,7 +679,7 @@ impl Expr {
                                     return Ok(());
                                 }
                                 ExprDesc::Bool(false) => {
-                                    println!("if cond faaallthrough {:?}", value);
+                                    // println!("if cond faaallthrough {:?}", value);
                                     ()
                                 }
                                 _ => {
@@ -1107,9 +1106,10 @@ fn member_move<'a>(value: Expr, name: &str, pos: Pos) -> Result<Expr, EvalError>
                 children.remove(index)
             }
             _ => {
-                return Err(EvalErrorDesc::InvalidType(
-                    "Can only get index of array or namedtuple",
-                ).with_pos(pos))
+                return Err(
+                    EvalErrorDesc::InvalidType("Can only get index of array or namedtuple")
+                        .with_pos(pos),
+                )
             }
         },
         Err(_) => match value.desc {
@@ -1123,10 +1123,10 @@ fn member_move<'a>(value: Expr, name: &str, pos: Pos) -> Result<Expr, EvalError>
             }
             ExprDesc::Moved => return Err(EvalErrorDesc::MemberMovedValue.with_pos(pos)),
             _ => {
-                return Err(EvalErrorDesc::CannotGetMember(
-                    name.to_owned(),
-                    value.desc.kind(),
-                ).with_pos(pos))
+                return Err(
+                    EvalErrorDesc::CannotGetMember(name.to_owned(), value.desc.kind())
+                        .with_pos(pos),
+                )
             }
         },
     })
@@ -1138,9 +1138,10 @@ fn member_access<'a>(value: &'a mut Expr, name: &str, pos: Pos) -> Result<&'a mu
         Ok(index) => match &mut value.desc {
             ExprDesc::Array(children) | ExprDesc::NamedTuple(_, children) => &mut children[index],
             _ => {
-                return Err(EvalErrorDesc::InvalidType(
-                    "Can only get index of array or namedtuple",
-                ).with_pos(pos))
+                return Err(
+                    EvalErrorDesc::InvalidType("Can only get index of array or namedtuple")
+                        .with_pos(pos),
+                )
             }
         },
         Err(_) => match &mut value.desc {
@@ -1153,12 +1154,7 @@ fn member_access<'a>(value: &'a mut Expr, name: &str, pos: Pos) -> Result<&'a mu
                 return Err(EvalErrorDesc::MissingMember(name.to_owned()).with_pos(pos));
             }
             ExprDesc::Moved => return Err(EvalErrorDesc::MemberMovedValue.with_pos(pos)),
-            _ => {
-                return Err(EvalErrorDesc::CannotGetMember(
-                    name.to_owned(),
-                    kind,
-                ).with_pos(pos))
-            }
+            _ => return Err(EvalErrorDesc::CannotGetMember(name.to_owned(), kind).with_pos(pos)),
         },
     })
 }

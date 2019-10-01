@@ -1,4 +1,4 @@
-use crate::error::{DeserializeErrorDesc as ErrorDesc, DeserializeError as Error};
+use crate::error::{DeserializeError as Error, DeserializeErrorDesc as ErrorDesc};
 use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
@@ -113,7 +113,8 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     {
         if let ExprDesc::NamedTuple(tname, contents) = &self.input.desc {
             if name != tname {
-                Err(ErrorDesc::WrongName(name.to_owned(), tname.to_owned()).with_pos(self.input.pos))
+                Err(ErrorDesc::WrongName(name.to_owned(), tname.to_owned())
+                    .with_pos(self.input.pos))
             } else if !contents.is_empty() {
                 Err(ErrorDesc::WrongTupleLength(0, contents.len()).with_pos(self.input.pos))
             } else {
@@ -130,7 +131,8 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     {
         if let ExprDesc::Struct(sname, _items) = &self.input.desc {
             if sname != name {
-                Err(ErrorDesc::WrongName(name.to_owned(), sname.to_owned()).with_pos(self.input.pos))
+                Err(ErrorDesc::WrongName(name.to_owned(), sname.to_owned())
+                    .with_pos(self.input.pos))
             } else {
                 visitor.visit_newtype_struct(self)
                 // TODO?
@@ -178,7 +180,8 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
     {
         if let ExprDesc::NamedTuple(tname, contents) = &self.input.desc {
             if name != tname {
-                Err(ErrorDesc::WrongName(name.to_owned(), tname.to_owned()).with_pos(self.input.pos))
+                Err(ErrorDesc::WrongName(name.to_owned(), tname.to_owned())
+                    .with_pos(self.input.pos))
             } else if contents.len() != len {
                 Err(ErrorDesc::WrongTupleLength(len, contents.len()).with_pos(self.input.pos))
             } else {
@@ -228,9 +231,12 @@ impl<'de, 'a> de::Deserializer<'de> for Deserializer<'de> {
         // self.deserialize_map(visitor)
         if let ExprDesc::Struct(name, items) = &self.input.desc {
             if name == ename {
-                visitor.visit_map(Pairs::new(items)).map_err(|e|e.with_pos(self.input.pos))
+                visitor
+                    .visit_map(Pairs::new(items))
+                    .map_err(|e| e.with_pos(self.input.pos))
             } else {
-                Err(ErrorDesc::WrongName(ename.to_string(), name.to_string()).with_pos(self.input.pos))
+                Err(ErrorDesc::WrongName(ename.to_string(), name.to_string())
+                    .with_pos(self.input.pos))
             }
         } else {
             Err(ErrorDesc::ExpectedMap.with_pos(self.input.pos))

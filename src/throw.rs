@@ -165,9 +165,10 @@ impl<'a> System<'a> for ArrowSys {
                                 scale: 0.5,
                             };
 
-                            let mut vec = (start - end) * crate::config::with(|config|config.throw_mul);
+                            let mut vec =
+                                (start - end) * crate::config::with(|config| config.throw_mul);
                             let amt = vec.norm_squared().sqrt();
-                            let max = crate::config::with(|config|config.throw_max);
+                            let max = crate::config::with(|config| config.throw_max);
                             if amt > max {
                                 vec.x *= max / amt;
                                 vec.y *= max / amt;
@@ -229,13 +230,13 @@ impl<'a> System<'a> for ArrowSys {
                     skeleton.arm_action = crate::skeletons::component::ArmAction::None;
                     return;
                 }
-                            let mut vec = (initial - end) * crate::config::with(|config|config.throw_mul);
-                            let amt = vec.norm_squared().sqrt();
-                            let max = crate::config::with(|config|config.throw_max);
-                            if amt > max {
-                                vec.x *= max / amt;
-                                vec.y *= max / amt;
-                            }
+                let mut vec = (initial - end) * crate::config::with(|config| config.throw_mul);
+                let amt = vec.norm_squared().sqrt();
+                let max = crate::config::with(|config| config.throw_max);
+                if amt > max {
+                    vec.x *= max / amt;
+                    vec.y *= max / amt;
+                }
                 skeleton.arm_action = crate::skeletons::component::ArmAction::Throw(vec);
             } else {
                 skeleton.arm_action = crate::skeletons::component::ArmAction::None;

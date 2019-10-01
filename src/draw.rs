@@ -50,33 +50,23 @@ fn draw_shape(
             raylib::math::Rectangle::new(
                 offset.translation.x - size.x - margin,
                 offset.translation.y - size.y - margin,
-size.x * 2.0 + margin * 2.0, size.y * 2.0 + margin * 2.0
+                size.x * 2.0 + margin * 2.0,
+                size.y * 2.0 + margin * 2.0,
             ),
-            raylib::math::Vector2::new(
-                0.0,
-                0.0,
-            ),
+            raylib::math::Vector2::new(0.0, 0.0),
             offset.rotation.angle(),
             fill,
         );
     } else if let Some(s) = shape.as_shape::<shape::Capsule<f32>>() {
         let x = offset.translation.x;
         let y = offset.translation.y;
-        let w= s.radius() * 2.0 + margin * 2.0;
+        let w = s.radius() * 2.0 + margin * 2.0;
         let h = s.height() + s.radius() * 2.0 + margin * 2.0;
         rd.draw_rectangle_pro(
-            raylib::math::Rectangle::new(
-                x,
-                y,
-                w,
-                h,
-            ),
-            raylib::math::Vector2::new(
-                w / 2.0,
-                h / 2.0
-            ),
+            raylib::math::Rectangle::new(x, y, w, h),
+            raylib::math::Vector2::new(w / 2.0, h / 2.0),
             offset.rotation.angle() * 180.0 / std::f32::consts::PI,
-            fill
+            fill,
         );
     } else if let Some(s) = shape.as_shape::<shape::Compound<f32>>() {
         for &(t, ref s) in s.shapes().iter() {
@@ -216,15 +206,7 @@ impl<'a> System<'a> for Draw {
                         .velocity();
                     let p = collider.position().translation.vector + offset;
                     let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;
-                    match skeleton_map.draw(
-                        &skeleton,
-                        &mut rd,
-                        &sheet,
-                        v,
-                        p.into(),
-                        r,
-                        1.0,
-                    ) {
+                    match skeleton_map.draw(&skeleton, &mut rd, &sheet, v, p.into(), r, 1.0) {
                         Ok(()) => (),
                         Err(err) => println!("Failed to draw! Scripting error {:?}", err),
                     };

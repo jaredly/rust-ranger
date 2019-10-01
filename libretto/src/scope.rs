@@ -74,7 +74,7 @@ impl Scope {
                         })
                         .collect::<Vec<String>>()
                         .concat();
-                    println!("{}", args);
+                    println!("{} at {}:{}", args, pos.start.0, pos.start.1);
                     return Ok(ExprDesc::Unit.into());
                 }
                 return Err(EvalErrorDesc::MissingReference(name.to_owned()).with_pos(pos));

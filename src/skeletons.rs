@@ -1,9 +1,9 @@
 use ron::de::from_reader;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs::File};
 
 pub mod component {
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
 
     #[derive(Copy, Clone, PartialEq, Serialize)]
     pub enum Facing {
@@ -177,8 +177,12 @@ pub struct Bone {
 pub mod new {
     use super::*;
 
-    fn one() -> f32 { 1.0 }
-    fn zero() -> f32 { 1.0 }
+    fn one() -> f32 {
+        1.0
+    }
+    fn zero() -> f32 {
+        1.0
+    }
 
     #[derive(Debug, Deserialize, Clone, PartialEq)]
     pub struct Bone {
@@ -206,14 +210,16 @@ pub mod new {
     impl Default for Skeleton {
         fn default() -> Self {
             Skeleton {
-                shape: Shape::Capsule { width: 1.0, height: 1.0 },
+                shape: Shape::Capsule {
+                    width: 1.0,
+                    height: 1.0,
+                },
                 scale: 1.0,
                 offset: (0.0, 0.0),
-                bones: vec![]
+                bones: vec![],
             }
         }
     }
-
 }
 
 #[derive(Debug, Deserialize, PartialEq)]

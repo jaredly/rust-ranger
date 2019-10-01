@@ -11,10 +11,16 @@ struct Point {
 
 #[test]
 fn missing() {
-    let expr =
-        libretto::eval_expr(r##" Point {x: 3, y: 5, t: (2, 3.2)} "##).unwrap();
+    let expr = libretto::eval_expr(r##" Point {x: 3, y: 5, t: (2, 3.2)} "##).unwrap();
     assert_eq!(
-        Err(libretto::DeserializeErrorDesc::Message("hi".to_owned()).with_pos(libretto::Pos::default())),
+        Err(
+            libretto::DeserializeErrorDesc::Message("missing field `name`".to_owned()).with_pos(
+                libretto::Pos {
+                    start: (0, 0),
+                    end: (1, 34)
+                }
+            )
+        ),
         libretto::from_expr::<Point>(&expr)
     );
 }
@@ -268,7 +274,10 @@ fn enumm() {
         Ok(vec![
             Party::Big,
             Party::Tall(3),
-            Party::Popular{people: 12, reach: 2.3},
+            Party::Popular {
+                people: 12,
+                reach: 2.3
+            },
         ])
     )
 }

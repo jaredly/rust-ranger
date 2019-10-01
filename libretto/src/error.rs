@@ -1,7 +1,6 @@
+use crate::ast::Pos;
 use serde::{de, ser};
 use std::error::Error as StdError;
-use crate::ast::Pos;
-
 
 #[derive(Debug, Clone)]
 pub struct EvalError {
@@ -42,17 +41,17 @@ impl EvalErrorDesc {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DeserializeError {
     pos: Pos,
-    desc: DeserializeErrorDesc
+    desc: DeserializeErrorDesc,
 }
 
-impl PartialEq for DeserializeError {
-    fn eq(&self, other: &Self) -> bool {
-        self.desc == other.desc
-    }
-}
+// impl PartialEq for DeserializeError {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.desc == other.desc
+//     }
+// }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeserializeErrorDesc {
@@ -74,7 +73,10 @@ pub enum DeserializeErrorDesc {
 
 impl DeserializeError {
     pub fn with_pos(self, pos: Pos) -> DeserializeError {
-        DeserializeError { pos: if self.pos.is_empty() { pos } else { self.pos }, desc: self.desc }
+        DeserializeError {
+            pos: if self.pos.is_empty() { pos } else { self.pos },
+            desc: self.desc,
+        }
     }
 }
 
@@ -102,7 +104,10 @@ impl From<DeserializeError> for Error {
 
 impl From<DeserializeErrorDesc> for DeserializeError {
     fn from(desc: DeserializeErrorDesc) -> Self {
-        DeserializeError { pos: Pos::default(), desc }
+        DeserializeError {
+            pos: Pos::default(),
+            desc,
+        }
     }
 }
 
@@ -120,7 +125,6 @@ impl From<EvalError> for DeserializeError {
         DeserializeErrorDesc::EvalError(other).with_pos(pos)
     }
 }
-
 
 impl From<pest::error::Error<crate::parser::Rule>> for Error {
     fn from(other: pest::error::Error<crate::parser::Rule>) -> Error {
