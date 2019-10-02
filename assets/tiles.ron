@@ -1,0 +1,19 @@
+{
+    "dirt": Tile(
+        sprite: "dirt.png",
+        produces: [
+            // weight, count
+            ([(1, 4)], "dirt"),
+            // some likelyhood of producing some rocks
+            ([(3, 0), (2, 1), (1, 2)], "rock"),
+        ],
+        hardness: 1,
+    ),
+    "rock": Tile(
+        sprite: "rock.png",
+        produces: [
+            ([(1, 4)], "rock"),
+        ],
+        hardness: 10,
+    ),
+}

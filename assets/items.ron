@@ -1,7 +1,83 @@
 {
-    "arrow": Arrow(
-        throw: Some(ThrowConfig(fletched: true, launcher: Some("bow"))),
-        
+    // Ok, so for the items list
+    // By default, you'll "hold" the item in the stack with the least damage.
+    // But if you click on the item stack that's already held, it opens a popover
+    // showing the items, from least to most damaged, and you can manually select more
+    // damaged one.
+    // Although I think you should be holding the last one you picked up...
+    "apple": Object(
+        sprites: [(0.0, "apple.png"), (30.0, "apple_damaged.png"), (70.0, "apple_rotten.png")],
+        kinds: [
+            Projectile(launcher: Hand, damage: 1),
+            Edible(5.0),
+        ],
+        damage: 5,
+        breaks: [(1, "apple_mush")],
+    ),
+    "apple_mush": Object(
+        sprites: [(0.0, "apple_mush.png")],
+        kinds: [Fertilizer],
+    ),
+    "rock": Object(
+        // TODO what if I want randomly different sprites? not dependent on damage level.
+        // Maybe I'll have randomness for all sprites? e.g. "rock.png" will refer to any of rock_%d.png?
+        sprites: [(0.0, "rock.png"), (50.0, "rock_cracked.png")],
+        kinds: [
+            Projectile(launcher: Hand, damage: 10),
+            HandWeapon(damage: 5),
+        ]
+        breaks: [(1, "gravel")],
+    ),
+    "sharp_rock": Object(
+        sprites: [(0.0, "rock_sharp.png"), (50.0, "rock_sharp_cracked.png")],
+        recipes: [
+            // Crafting! How to do it?
+            // Should all recipes be available by default?
+            // Should they be revealed as you level up your crafting skill?
+            // Should they be revealed as you encounter the required materials?
+            // I guess... I could say "some recipes are only available after you've
+            // seen the thing in the wild" (like apple_mush).
 
-    )
+            // So when you see it for the first time, there's a message like
+            // "you disovereed apple mush. After inspecting it closely, you're pretty
+            // sure you know how to make it (open crafting window for a new recipe)"
+
+                // maybe you should "inspect" it manually? Like if you don't inspect it,
+                // it doesn't automatically give it to you? Might need to play with that.
+
+            // If there are ingredients you haven't seen yet, then the recipe has
+            // question marks. When you find the ingredient, there's an alert "oh! this
+            // is the missing ingredient for making {item}"
+
+            // Umm maybe all ingredients are viewable in your crafting menu, but they've
+            // got question marks?
+            // And mousing over will tell you what you need.
+
+            // How to discover recipes for things that you can't find in the wild?
+            // If you get 'sufficient experience' with all of the ingredients, then
+            // you can "discover" a recipe. Something like "after crafting extensively
+            // with wood, stone, and string, you discover how to make an ax!"
+
+            // So it's like "you need to have used "rock" 10 times, "string" 5 times,
+            // and "wood" 20 times.
+            Recipe(ingredients: [(2, "rock")], difficulty: 0)
+        ],
+        kinds: [
+            Projectile(launcher: Hand, damage: 10),
+            HandWeapon(damage: 20),
+            Sharp,
+        ]
+    ),
+    "arrow": Object(
+        sprites: [(0.0, "arrow.png")],
+        kinds: [
+            Projectile(fletched: true, launcher: Bow, damage: 20)
+        ],
+    ),
+    "bow": Object(
+        sprite: [(0.0, "bow.png"), (50.0, "bow_dingy.png")],
+        kinds: [
+            Bow
+        ],
+    ),
 }

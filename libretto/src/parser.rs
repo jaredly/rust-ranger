@@ -414,13 +414,6 @@ pub fn process_expr(text: &str) -> Result<Expr, pest::error::Error<Rule>> {
                     _ => (),
                 }
             }
-            // let mut v: Vec<Pair<_>> = v.into_iter().collect();
-            // let last = v.pop().unwrap();
-            // println!("Number {} {:?}", v.len(), last);
-            // for item in v {
-            //     items.push(parse_stmt(item));
-            // }
-            // Ok(ExprDesc::Block(items, Box::new(parse_expr(last))))
             unreachable!()
         }
         Err(e) => Err(e),
