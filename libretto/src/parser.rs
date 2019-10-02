@@ -104,9 +104,17 @@ fn parse_pattern(pattern: Pair<Rule>) -> Pattern {
         Rule::const_ => Pattern::Const(parse_const_const(pattern)),
         Rule::ident => Pattern::Ident(pattern.as_str().to_owned()),
         Rule::tuple_pattern => {
+            let inner = pattern.into_inner();
+            let mut items: Vec<Pattern> = inner.map(parse_pattern).collect();
+            if items.len() == 1 {
+                return items.remove(0)
+            }
+            Pattern::Tuple(items)
+        }
+        Rule::tuple_struct_pattern => {
             let mut inner = pattern.into_inner();
             let first = inner.next().unwrap();
-            Pattern::Tuple(
+            Pattern::TupleStruct(
                 first.as_str().to_owned(),
                 inner.map(parse_pattern).collect(),
             )

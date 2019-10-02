@@ -244,7 +244,8 @@ pub enum Pattern {
     Ident(String),
     Const(Const),
     Any,
-    Tuple(String, Vec<Pattern>),
+    TupleStruct(String, Vec<Pattern>),
+    Tuple(Vec<Pattern>),
     Struct(String, Vec<(String, Pattern)>),
 }
 
@@ -1030,7 +1031,7 @@ fn match_pattern(pattern: Pattern, value: Expr, pos: Pos) -> Result<Option<Vec<(
             },
         ) => if b == bb {Some(vec![])}else{None},
 
-        (Pattern::Tuple(name, mut items), Expr {desc: ExprDesc::Option(contents), ..}) => {
+        (Pattern::TupleStruct(name, mut items), Expr {desc: ExprDesc::Option(contents), ..}) => {
             if name == "None" {
                 if let None = *contents.as_ref() {
                     Some(vec![])
@@ -1049,17 +1050,14 @@ fn match_pattern(pattern: Pattern, value: Expr, pos: Pos) -> Result<Option<Vec<(
         },
 
         (
-            Pattern::Tuple(name, items),
+            Pattern::Tuple(items),
             Expr {
-                desc: ExprDesc::NamedTuple(bname, bitems),
+                desc: ExprDesc::Tuple(bitems),
                 ..
             },
         ) => {
-            if name != bname {
-                return Ok(None);
-            }
             if items.len() != bitems.len() {
-                return Err(EvalErrorDesc::InvalidType("Wrong number of ").with_pos(pos))
+                return Err(EvalErrorDesc::InvalidType("Wrong number of tuple items").with_pos(pos))
             }
 
             let mut bindings = vec![];
@@ -1072,6 +1070,32 @@ fn match_pattern(pattern: Pattern, value: Expr, pos: Pos) -> Result<Option<Vec<(
             }
             Some(bindings)
         }
+
+        (
+            Pattern::TupleStruct(name, items),
+            Expr {
+                desc: ExprDesc::NamedTuple(bname, bitems),
+                ..
+            },
+        ) => {
+            if name != bname {
+                return Ok(None);
+            }
+            if items.len() != bitems.len() {
+                return Err(EvalErrorDesc::InvalidType("Wrong number of namedtuple items").with_pos(pos))
+            }
+
+            let mut bindings = vec![];
+            for (pat, val) in items.iter().zip(bitems) {
+                if let Some(inner) = match_pattern(pat.clone(), val, pos)? {
+                    bindings.extend(inner)
+                } else {
+                    return Ok(None);
+                }
+            }
+            Some(bindings)
+        }
+
         (
             Pattern::Struct(name, pitems),
             Expr {
@@ -1110,7 +1134,8 @@ fn pattern_names(pattern: &Pattern, vbls: &mut Vec<String>) {
         Pattern::Any => (),
         Pattern::Ident(name) => vbls.push(name.to_owned()),
         Pattern::Const(_) => (),
-        Pattern::Tuple(_name, items) => {
+        Pattern::Tuple(items) |
+        Pattern::TupleStruct(_, items) => {
             for item in items {
                 pattern_names(item, vbls);
             }

@@ -96,7 +96,7 @@ fn female(context: any, velocity: any) {
             flip: context.facing == Right,
             offset: ((0.0), (-0.02)),
             pivot_offset: ((0), (-0.3)),
-            rotation: (((vector_theta(vec) / pi) * (180)) + (90)),
+            rotation: (((vector_theta(vec) / pi) * (180.0)) + (90.0)),
         })
     } else {
         bones.push(match context.arm_action {
