@@ -24,7 +24,6 @@ mod config;
 mod draw;
 mod groups;
 mod player;
-mod scripting;
 mod skeletons;
 mod sprites;
 mod throw;
@@ -248,12 +247,11 @@ impl<'a> System<'a> for CameraFollowSys {
 mod test {
     #[test]
     fn load_skeletons() {
-        let skel_file = "./assets/skeletons.ron";
-        let skel_file_new = "./assets/skeletons.lt.rs";
+        let skel_file = "./assets/skeletons.lt.rs";
 
-        let mut skeletons = crate::skeletons::read(skel_file, skel_file_new).unwrap();
+        let mut skeletons = crate::skeletons::read(skel_file).unwrap();
         let sk = crate::skeletons::component::Skeleton::new("female");
-        let res = libretto::call_fn!(skeletons.new, "female", sk, na::Vector2::new(0.0, 0.0));
+        let res = libretto::call_fn!(skeletons.scope, "female", sk, na::Vector2::new(0.0, 0.0));
         assert_eq!(res, Ok(crate::skeletons::new::Skeleton::default()))
         // skeletons.unwrap();
     }
@@ -411,15 +409,13 @@ fn main() {
         .modified()
         .unwrap();
 
-    let skel_file = "./assets/skeletons.ron";
-    let skel_file_new = "./assets/skeletons.lt.rs";
+    let skel_file = "./assets/skeletons.lt.rs";
 
-    let skeletons = skeletons::read(skel_file, skel_file_new).unwrap();
+    let skeletons = skeletons::read(skel_file).unwrap();
     world.add_resource(skeletons);
 
     let should_close = false;
     let mut skel_change = std::fs::metadata(skel_file).unwrap().modified().unwrap();
-    let mut skel_change_new = std::fs::metadata(skel_file_new).unwrap().modified().unwrap();
     let mut last = std::time::Instant::now();
     while !window_should_close(&world) && !should_close {
         {
@@ -448,15 +444,13 @@ fn main() {
 
             {
                 let skel_new = std::fs::metadata(skel_file).unwrap().modified().unwrap();
-                let skel_new_new = std::fs::metadata(skel_file_new).unwrap().modified().unwrap();
-                if skel_new > skel_change || skel_new_new > skel_change_new {
+                if skel_new > skel_change {
                     let mut skeletons = world.write_resource::<skeletons::Skeletons>();
-                    match skeletons::read(skel_file, skel_file_new) {
+                    match skeletons::read(skel_file) {
                         Ok(skel) => {
                             println!("Reload skeletons");
                             *skeletons = skel;
                             skel_change = skel_new;
-                            skel_change_new = skel_new_new;
                         }
                         Err(_) => (),
                     }
