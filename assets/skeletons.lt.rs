@@ -25,6 +25,35 @@ fn vector_cos(vector: any) {
     vector_theta(vector).cos()
 }
 
+// TODO actually maybe function arguments should be pass by reference.....
+fn arm_position(arm_action: any) {
+    match arm_action {
+        None => (
+            ((vx_sin * (-0.01)), (-0.02)),
+            ((0.0), (-0.3)),
+            (vx_sin * (10.0)),
+        ),
+        Bow(vec) => (
+            ((0.0), (-0.2)),
+            ((0.0), (-0.3)),
+            if (vec.0 > (0.0)) {
+                (((vector_theta(vec) / pi) * (180.0)) + (180.0))
+            } else {
+                ((vector_theta(vec) / pi) * (180.0))
+            },
+        ),
+        Throw(vec) => (
+            ((0), (-0.2)),
+            ((0), ((-0.3) + ((0.02) * vector_mag(vec.clone())))),
+            if (vec.0 > 0.0) {
+                vector_theta(vec) / pi * 180.0 + 270.0
+            } else {
+                vector_theta(vec) / pi * 180.0 + -90.0
+            },
+        )
+    }
+}
+
 fn female(context: any, velocity: any) {
     let vx_sin = vx_sin(context.clone(), velocity.clone());
     let body_offset = body_offset(context.clone(), velocity.clone());
@@ -99,31 +128,7 @@ fn female(context: any, velocity: any) {
             rotation: (((vector_theta(vec) / pi) * (180.0)) + (90.0)),
         })
     } else {
-        let (offset, pivot_offset, rotation) = match context.arm_action {
-            None => (
-                ((vx_sin * (-0.01)), (-0.02)),
-                ((0.0), (-0.3)),
-                (vx_sin * (10.0)),
-            ),
-            Bow(vec) => (
-                ((0.0), (-0.2)),
-                ((0.0), (-0.3)),
-                if (vec.0 > (0.0)) {
-                    (((vector_theta(vec) / pi) * (180.0)) + (180.0))
-                } else {
-                    ((vector_theta(vec) / pi) * (180.0))
-                },
-            ),
-            Throw(vec) => (
-                ((0), (-0.2)),
-                ((0), ((-0.3) + ((0.02) * vector_mag(vec.clone())))),
-                if (vec.0 > 0.0) {
-                    vector_theta(vec) / pi * 180.0 + 270.0
-                } else {
-                    vector_theta(vec) / pi * 180.0 + -90.0
-                },
-            )
-        };
+        let (offset, pivot_offset, rotation) = arm_position(context.arm_action);
         bones.push(Bone {
             sprite: "female_arm.png",
             flip: context.facing == Right,
@@ -131,38 +136,6 @@ fn female(context: any, velocity: any) {
             pivot_offset: pivot_offset,
             rotation: rotation,
         })
-
-        // bones.push(match context.arm_action {
-        //     None => Bone {
-        //         sprite: "female_arm.png",
-        //         flip: context.facing == Right,
-        //         offset: ((vx_sin * (-0.01)), (-0.02)),
-        //         pivot_offset: ((0.0), (-0.3)),
-        //         rotation: (vx_sin * (10.0)),
-        //     },
-        //     Bow(vec) => Bone {
-        //         sprite: "female_arm.png",
-        //         flip: context.facing == Right,
-        //         offset: ((0.0), (-0.2)),
-        //         pivot_offset: ((0.0), (-0.3)),
-        //         rotation: if (vec.0 > (0.0)) {
-        //             (((vector_theta(vec) / pi) * (180.0)) + (180.0))
-        //         } else {
-        //             ((vector_theta(vec) / pi) * (180.0))
-        //         },
-        //     },
-        //     Throw(vec) => Bone {
-        //         sprite: "female_arm.png",
-        //         flip: context.facing == Right,
-        //         offset: ((0), (-0.2)),
-        //         pivot_offset: ((0), ((-0.3) + ((0.02) * vector_mag(vec.clone())))),
-        //         rotation: if (vec.0 > 0.0) {
-        //             vector_theta(vec) / pi * 180.0 + 270.0
-        //         } else {
-        //             vector_theta(vec) / pi * 180.0 + -90.0
-        //         },
-        //     },
-        // })
     };
 
     if let Throw(vec) = context.arm_action {
