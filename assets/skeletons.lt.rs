@@ -132,9 +132,22 @@ fn female(context: any, velocity: any) {
         bones.push(Bone {
             sprite: "female_arm.png",
             flip: context.facing == Right,
-            offset: offset,
-            pivot_offset: pivot_offset,
-            rotation: rotation,
+            offset: offset.clone(),
+            pivot_offset: pivot_offset.clone(),
+            rotation: rotation.clone(),
+        });
+        bones.push(Bone {
+            sprite: "pick_bronze.png",
+            // flip: false,
+            flip: context.facing == Left,
+            offset: (0.0,0.0),
+            pivot_offset: (-0.8, 0.3),
+            // offset: (0.7, 0.7),
+            rotation: rotation + if context.facing == Right { 90.0 } else { -90.0 },
+
+            // pivot_offset: pivot_offset,
+            // offset: offset,
+            scale: 1.3,
         })
     };
 
