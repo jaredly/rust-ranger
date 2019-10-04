@@ -15,7 +15,7 @@ statement = {
 block = { "{" ~ statement* ~ value ~ "}" }
 
 let_binding = {"let" ~ pattern ~ "=" ~ value ~ ";"}
-const_binding = {"const" ~ ident ~ ":" ~ "any" ~ "=" ~ value ~ ";"}
+const_binding = {"const" ~ pattern ~ ":" ~ "any" ~ "=" ~ value ~ ";"}
 
 value = {cast ~ binop_post*}
 binop_post = {binop ~ cast}
