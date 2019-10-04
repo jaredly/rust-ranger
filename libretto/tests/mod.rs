@@ -199,6 +199,22 @@ if 5 == 10 {
 }
 
 #[test]
+fn let_tuple() {
+    assert_eq!(
+        libretto::from_expr::<usize>(
+            &libretto::eval_expr(
+                r##"
+let (a, b, Point {x, ..}) = (2, 3, Point {x: 20, y: 3});
+a + b + x
+"##
+            )
+            .unwrap()
+        ),
+        Ok(25)
+    )
+}
+
+#[test]
 fn auto_copy() {
     assert_eq!(
         libretto::from_expr::<usize>(

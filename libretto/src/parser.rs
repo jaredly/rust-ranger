@@ -344,9 +344,9 @@ pub fn parse_stmt(pair: Pair<Rule>) -> Statement {
     match pair.as_rule() {
         Rule::const_binding | Rule::let_binding => {
             let mut items = pair.into_inner();
-            let ident = items.next().unwrap().as_str().to_owned();
+            let pattern = parse_pattern(items.next().unwrap());
             let value = parse_expr(items.next().unwrap());
-            Statement::Let(ident, value)
+            Statement::Let(pattern, value)
         }
         Rule::value => Statement::ExprDesc(parse_expr(pair)),
         Rule::fndefn => {

@@ -19,7 +19,7 @@ impl<T> TryMap<T> for Vec<T> {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Statement {
-    Let(String, Expr),
+    Let(Pattern, Expr),
     ExprDesc(Expr),
     FnDefn(String, Args, Expr),
 }
@@ -81,9 +81,15 @@ impl Statement {
         scope: &mut Scope,
     ) -> Result<(), EvalError> {
         match self {
-            Statement::Let(name, v) => {
-                v.move_nonlocal_vars(local_vars, scope)?;
-                local_vars.add(name);
+            Statement::Let(pattern, value) => {
+                value.move_nonlocal_vars(local_vars, scope)?;
+                let mut bindings = vec![];
+                pattern_names(pattern, &mut bindings);
+
+                // let mut sub = scope.sub();
+                for name in bindings {
+                    local_vars.add(&name);
+                }
             }
             Statement::ExprDesc(e) => {
                 e.move_nonlocal_vars(local_vars, scope)?;
@@ -98,16 +104,26 @@ impl Statement {
     pub fn eval(self, scope: &mut Scope) -> Result<(), EvalError> {
         // println!(">> Statement eval {:?} with scope: {}", self, scope.show());
         match self {
-            Statement::Let(name, mut v) => {
-                v.eval(scope)?;
-                scope.set_raw(&name, v)
+            Statement::Let(pattern, mut value) => {
+                value.eval(scope)?;
+                let pos = value.pos;
+                if let Some(bindings) = match_pattern(
+                    pattern,
+                    value,
+                    pos
+                )? {
+                    for (name, value) in bindings {
+                        scope.set_raw(&name, value)
+                    }
+                } else {
+                    return Err(EvalErrorDesc::Unmatched("if let pattern".to_owned()).with_pos(pos))
+                }
             }
             Statement::ExprDesc(mut e) => {
                 e.eval(scope)?;
             }
             Statement::FnDefn(name, args, body) => {
                 scope.set_fn(&name, args, body)
-                // scope.set_raw(&name, ExprDesc::Lambda(args, Box::new(body)))
             }
         };
         Ok(())

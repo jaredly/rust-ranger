@@ -14,7 +14,7 @@ statement = {
 }
 block = { "{" ~ statement* ~ value ~ "}" }
 
-let_binding = {"let" ~ ident ~ "=" ~ value ~ ";"}
+let_binding = {"let" ~ pattern ~ "=" ~ value ~ ";"}
 const_binding = {"const" ~ ident ~ ":" ~ "any" ~ "=" ~ value ~ ";"}
 
 value = {cast ~ binop_post*}
@@ -33,7 +33,7 @@ if_cond = {"let" ~ pattern ~ "=" ~ value | value}
 pattern = {"_" | const_ | struct_pattern | tuple_struct_pattern | tuple_pattern | ident}
 tuple_struct_pattern = {upper_ident ~ ("(" ~ (pattern ~ ("," ~ pattern)* ~ ","? )? ~ ")")? }
 tuple_pattern = { "(" ~ pattern ~ ("," ~ pattern)* ~ ","? ~ ")" }
-struct_pattern = {upper_ident ~ "{" ~ ident ~ (":" ~ pattern)? ~ ("," ~ ident ~ (":" ~ pattern)?)* ~ ","? ~ "}" }
+struct_pattern = {upper_ident ~ "{" ~ ident ~ (":" ~ pattern)? ~ ("," ~ ident ~ (":" ~ pattern)?)* ~ ","? ~ ".."? ~ "}" }
 
 match_ = {"match" ~ value ~ "{" ~ pattern ~ "=>" ~ value ~ ("," ~ pattern ~ "=>" ~ value)* ~ ","? ~ "}"}
 
