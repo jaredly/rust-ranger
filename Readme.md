@@ -54,5 +54,8 @@ How cave-ins work:
 
 
 More thoughts about crafting -- if you build a large thing (like a support maybe), then I don't think it should be able to fit in your backpack. It should be "build on site". And then you can deconstruct. But when deconstructing, based on your crafting skill, you won't recover all items (until you're very good at crafting).
+
+Also for deconstructing, you need a tool (sharp rock will do), and probably the quality of the tool impacts how much you can recover.
+
 When crafting a support thing, if it's up to 4 blocks high, then you use one plank for each block of height.
 

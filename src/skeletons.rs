@@ -18,11 +18,14 @@ pub mod component {
         Jump,
     }
 
-    #[derive(Copy, Clone, PartialEq, Serialize)]
+    #[derive(Clone, PartialEq, Serialize)]
     pub enum ArmAction {
         None,
         Throw(na::Vector2<f32>),
         Bow(na::Vector2<f32>),
+        Swing { position: f32, forward: bool, object: String },
+        // TODO maybe use [u8;32] for object ids? So they can be inlined?
+        Hold(String)
     }
 
     use specs::prelude::*;
