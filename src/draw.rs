@@ -120,30 +120,6 @@ impl<'a> System<'a> for Draw {
             let offset = -camera.pos;
 
             for (player, player_collider) in (&player, &colliders).join() {
-                // Maybe highlight things that are close enough to reach?
-                // if let Some(collider) = physics.collider(player.pickup);
-                // for (handle, collider) in physics
-                //     .geom
-                //     .colliders_in_proximity_of(&physics.colliders, player.pickup)
-                //     .unwrap()
-                // {
-                //     if collider.is_sensor() || handle == player_collider.0 {
-                //         continue;
-                //     }
-                //     let body = physics.rigid_body(collider.body()).unwrap();
-                //     if body.is_ground() {
-                //         continue;
-                //     }
-                //     let p = collider.position();
-                //     draw_shape(
-                //         &mut rd,
-                //         Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
-                //         collider.shape(),
-                //         0.1,
-                //         raylib::color::Color::new(255, 255, 100, 255),
-                //     );
-                // }
-
                 if let Some((collider_handle, _entity, _to_vec)) =
                     player.closest_pickupable_entity(&physics, player_collider.0)
                 {
@@ -210,6 +186,32 @@ impl<'a> System<'a> for Draw {
                         Ok(()) => (),
                         Err(err) => println!("Failed to draw! Scripting error {:?}", err),
                     };
+                }
+            }
+
+
+            for (player, player_collider) in (&player, &colliders).join() {
+                for (collider_handle, _entity, _to_vec) in player.tool_colliding_entities(&physics, player_collider.0) {
+                    let collider = physics.collider(collider_handle).unwrap();
+                    let p = collider.position();
+                    draw_shape(
+                        &mut rd,
+                        Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+                        collider.shape(),
+                        0.04,
+                        raylib::color::Color::new(0, 255, 100, 50),
+                    );
+                }
+                {
+                    let collider = physics.collider(player.tool).unwrap();
+                    let p = collider.position();
+                    draw_shape(
+                        &mut rd,
+                        Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+                        collider.shape(),
+                        0.04,
+                        raylib::color::Color::new(0, 255, 100, 200),
+                    );
                 }
             }
         }

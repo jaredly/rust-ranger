@@ -18,6 +18,7 @@ pub struct Player {
     left: DefaultColliderHandle,
     right: DefaultColliderHandle,
     pub pickup: DefaultColliderHandle,
+    pub tool: DefaultColliderHandle,
     pickup_cooldown: f32,
 }
 
@@ -82,6 +83,15 @@ impl Player {
             .build(BodyPartHandle(rb, 0)),
         );
 
+        let tool_sensor = physics_world.colliders.insert(
+            ColliderDesc::new(ShapeHandle::new(Ball::new(0.01)))
+            .sensor(true)
+            .translation(Vector2::new(0.0, 1.0))
+            .user_data(builder.entity)
+            .collision_groups(groups::player())
+            .build(BodyPartHandle(rb, 0)),
+        );
+
         let cb = physics_world.colliders.insert(collider);
         let jcb = physics_world.colliders.insert(jump_sensor);
         let sensor_handle = physics_world.colliders.insert(sensor);
@@ -94,6 +104,7 @@ impl Player {
                 left: left_sensor,
                 right: right_sensor,
                 pickup: pickup_sensor,
+                tool: tool_sensor,
                 pickup_cooldown: 0.0,
             })
             .with(Collider(cb))
@@ -102,6 +113,38 @@ impl Player {
             //     scale: 0.4,
             // })
             .build();
+    }
+
+    #[allow(dead_code)]
+    pub fn tool_colliding_entities(
+        &self,
+        physics: &PhysicsWorld<f32>,
+        player_collider: DefaultColliderHandle,
+    ) -> Vec<(DefaultColliderHandle, Entity, na::Vector2<f32>)> {
+        let player_pos = physics.collider(player_collider).unwrap().position();
+        let mut result = vec![];
+        for (handle, collider) in physics
+            .geom
+            .colliders_in_proximity_of(&physics.colliders, self.tool)
+            .unwrap()
+        {
+            if collider.is_sensor() || handle == player_collider {
+                continue;
+            }
+            // let body = physics.rigid_body(collider.body()).unwrap();
+            // if body.is_ground() {
+            //     continue;
+            // }
+            if let Some(data) = collider.user_data() {
+                if let Some(entity) = data.downcast_ref::<Entity>() {
+                    let to_vec =
+                        player_pos.translation.vector - collider.position().translation.vector;
+                    // let dist = (to_vec).norm_squared().sqrt();
+                    result.push((handle, *entity, to_vec));
+                }
+            }
+        }
+        result
     }
 
     pub fn closest_pickupable_entity(
