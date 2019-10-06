@@ -3,8 +3,8 @@ use specs::prelude::*;
 use nalgebra::Vector2;
 use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
 use nphysics2d::object::{
-    BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, RigidBodyDesc,
-    RigidBody
+    BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, RigidBody,
+    RigidBodyDesc,
 };
 
 use crate::basics::*;
@@ -363,16 +363,33 @@ impl<'a> System<'a> for PlayerSwing {
         WriteExpect<'a, PhysicsWorld<f32>>,
         WriteStorage<'a, skeletons::component::Skeleton>,
         ReadStorage<'a, crate::Block>,
-        ReadStorage<'a, Body>,
-        ReadStorage<'a, Collider>,
+        WriteStorage<'a, Body>,
+        WriteStorage<'a, Collider>,
+        WriteStorage<'a, crate::draw::Drawable>,
         ReadStorage<'a, Player>,
         WriteExpect<'a, crate::skeletons::Skeletons>,
     );
 
-    fn run(&mut self, (entities, rl, mut physics, mut skeletons, blocks, body, collider, player, mut skeletonFns): Self::SystemData) {
+    fn run(
+        &mut self,
+        (
+            entities,
+            rl,
+            mut physics,
+            mut skeletons,
+            blocks,
+            mut bodies,
+            mut colliders,
+            mut drawables,
+            player,
+            mut skeletonFns,
+        ): Self::SystemData,
+    ) {
         use raylib::consts::KeyboardKey::*;
         let mut to_remove = None;
-        for (body, player_collider, player, skeleton) in (&body, &collider, &player, &mut skeletons).join() {
+        for (body, player_collider, player, skeleton) in
+            (&bodies, &colliders, &player, &mut skeletons).join()
+        {
             use skeletons::component::{ArmAction, SwingDirection};
             if rl.is_key_down(KEY_SPACE) {
                 let (position, mut forward, object, swinging) = if let ArmAction::Swing {
@@ -388,7 +405,9 @@ impl<'a> System<'a> for PlayerSwing {
                 };
 
                 if swinging && forward {
-                    for (collider, entity, _to_vec) in player.tool_colliding_entities(&physics, player_collider.0) {
+                    for (collider, entity, _to_vec) in
+                        player.tool_colliding_entities(&physics, player_collider.0)
+                    {
                         if let Some(_) = blocks.get(entity) {
                             to_remove = Some((collider, entity));
                             forward = false;
@@ -403,14 +422,20 @@ impl<'a> System<'a> for PlayerSwing {
                     forward,
                     object,
                     direction: if rl.is_key_down(KEY_W) {
-                        SwingDirection::Up
+                        // SwingDirection::Up
+                        // Umm the up swing is weird
+                        SwingDirection::Forward
                     } else if rl.is_key_down(KEY_S) {
                         SwingDirection::Down
                     } else {
                         SwingDirection::Forward
                     },
                 };
-                let player_pos = physics.collider(player_collider.0).unwrap().position().clone();
+                let player_pos = physics
+                    .collider(player_collider.0)
+                    .unwrap()
+                    .position()
+                    .clone();
                 match libretto::call_fn!(
                     skeletonFns.scope,
                     "tool_tip",
@@ -422,23 +447,75 @@ impl<'a> System<'a> for PlayerSwing {
                         let collider_body = physics.collider(player.tool).unwrap().body();
                         let body = physics.rigid_body_mut(collider_body).unwrap();
                         if let Some(body) = body.downcast_mut::<RigidBody<_>>() {
-                            body.set_position(
-                                na::Isometry2::from_parts(
-                                    (Vector2::new(tool_tip.0, tool_tip.1) + player_pos.translation.vector).into(),
-                                    player_pos.rotation
-                                )
-                            )
+                            body.set_position(na::Isometry2::from_parts(
+                                (Vector2::new(tool_tip.0, tool_tip.1)
+                                    + player_pos.translation.vector)
+                                    .into(),
+                                player_pos.rotation,
+                            ))
                         }
-                    },
-                    Err(err) => {
-                        println!("Failed to get tool tip {:?}", err)
                     }
+                    Err(err) => println!("Failed to get tool tip {:?}", err),
                 };
             } else if let ArmAction::Swing { .. } = &skeleton.arm_action {
                 skeleton.arm_action = ArmAction::None;
             }
         }
         if let Some((collider, entity)) = to_remove {
+            {
+                let pos = physics.collider(collider).unwrap().position().translation;
+
+                if rand::random::<f32>() > 0.4 {
+                    let size = 0.10;
+
+                    crate::items::create_rock(
+                        &mut physics,
+                        &entities,
+                        &mut bodies,
+                        &mut colliders,
+                        &mut drawables,
+                        pos.vector + Vector2::new(size, 0.0),
+                        size,
+                        "ore_coal.png".to_owned(),
+                    );
+
+                    crate::items::create_rock(
+                        &mut physics,
+                        &entities,
+                        &mut bodies,
+                        &mut colliders,
+                        &mut drawables,
+                        pos.vector + Vector2::new(0.0, size),
+                        size,
+                        "ore_coal.png".to_owned(),
+                    );
+
+                    crate::items::create_rock(
+                        &mut physics,
+                        &entities,
+                        &mut bodies,
+                        &mut colliders,
+                        &mut drawables,
+                        pos.vector,
+                        size,
+                        "ore_coal.png".to_owned(),
+                    );
+                } else {
+                    let size = 0.15;
+
+                    crate::items::create_rock(
+                        &mut physics,
+                        &entities,
+                        &mut bodies,
+                        &mut colliders,
+                        &mut drawables,
+                        pos.vector,
+                        size,
+                        "ore_coal.png".to_owned(),
+                    );
+                }
+            }
+
             physics.colliders.remove(collider);
             entities.delete(entity).unwrap();
         }

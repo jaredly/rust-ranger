@@ -3,10 +3,7 @@ extern crate specs_derive;
 #[macro_use]
 extern crate lazy_static;
 
-// For scripting
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
+extern crate rand;
 
 use specs::prelude::*;
 
@@ -30,6 +27,7 @@ mod throw;
 use basics::*;
 use draw::Drawable;
 use throw::ArrowSys;
+mod items;
 
 // Can I just define a block as a normal item, but have it have a flag like "static" or something
 // #[derive(Component)]
@@ -44,7 +42,7 @@ fn make_blocks(
 ) {
     let w = WORLD_WIDTH / BLOCK_SIZE;
 
-    for y in 1..8 {
+    for y in 1..40 {
         for i in 0..w as usize {
             add_block(
                 world,
@@ -155,7 +153,7 @@ fn add_block(
         .with(Collider(ground_collider))
         .with(Block(xi, yi))
         .with(Drawable::Sprite {
-            name: "brick_grey.png".into(),
+            name: "dirt.png".into(),
             scale: 0.4,
         })
         .build();

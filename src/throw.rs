@@ -200,19 +200,6 @@ impl<'a> System<'a> for ArrowSys {
                                 .build(BodyPartHandle(rb_handle, 0));
                             let co_handle = physics_world.colliders.insert(co);
 
-                            // head for more density
-                            // let co_head = physics_world.colliders.insert(
-                            //     ColliderDesc::new(ShapeHandle::new(Ball::new(
-                            //         crate::config::with(|config| config.arrowhead_size),
-                            //     )))
-                            //     .density(crate::config::with(|config| config.arrowhead_density))
-                            //     .material(mh)
-                            //     // .user_data(entity)
-                            //     .ccd_enabled(true)
-                            //     .collision_groups(crate::groups::collide_all_but_player())
-                            //     .build(BodyPartHandle(rb_handle, 0)),
-                            // );
-
                             sensors
                                 .insert(entity, Thrown(arrow.1, crate::groups::PLAYER_GROUP))
                                 .unwrap();
