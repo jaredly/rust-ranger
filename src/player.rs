@@ -366,6 +366,26 @@ impl<'a> System<'a> for PlayerSys {
                 skeleton.set_action(skeletons::component::Action::Jump);
                 push.y += max_jump;
             }
+            use skeletons::component::{ArmAction, SwingDirection};
+            if rl.is_key_down(KEY_SPACE) {
+                let (position, forward, object) = if let ArmAction::Swing { position, forward, object, ..} = &skeleton.arm_action {
+                    (*position, *forward, object.clone())
+                } else {
+                    (0.0, true, "pick_bronze.png".to_owned())
+                };
+                let (position, forward) = advance_swing(position, forward);
+                skeleton.arm_action = ArmAction::Swing {position, forward, object,
+                direction: if rl.is_key_down(KEY_W) {
+                    SwingDirection::Up
+                } else if rl.is_key_down(KEY_S) {
+                    SwingDirection::Down
+                } else {
+                    SwingDirection::Forward
+                }
+                };
+            } else if let ArmAction::Swing {..} = &skeleton.arm_action {
+                skeleton.arm_action = ArmAction::None;
+            }
             // if rl.is_key_down(KEY_S) {
             //     push.y += speed;
             // }
@@ -386,6 +406,24 @@ impl<'a> System<'a> for PlayerSys {
                 nphysics2d::algebra::ForceType::VelocityChange,
                 true,
             );
+        }
+    }
+}
+
+fn advance_swing(mut position: f32, forward: bool) -> (f32, bool) {
+    if forward {
+        position += 0.07;
+        if position > 1.0 {
+            (1.0, false)
+        } else {
+            (position, forward)
+        }
+    } else {
+        position -= 0.05;
+        if position <= 0.0 {
+            (0.0, true)
+        } else {
+            (position, forward)
         }
     }
 }

@@ -7,6 +7,8 @@ use nphysics2d::object::{BodyPartHandle, ColliderDesc, DefaultColliderHandle, Ri
 use crate::basics::*;
 use crate::draw::Drawable;
 
+use crate::skeletons::component::ArmAction;
+
 #[derive(Component)]
 pub struct Thrown(DefaultColliderHandle, usize);
 
@@ -227,7 +229,7 @@ impl<'a> System<'a> for ArrowSys {
                 let end = Vector2::new(vec.x, vec.y);
                 if (initial - end).norm_squared().sqrt() < MIN_THROW {
                     // not far enough
-                    skeleton.arm_action = crate::skeletons::component::ArmAction::None;
+                    skeleton.arm_action = ArmAction::None;
                     return;
                 }
                 let mut vec = (initial - end) * crate::config::with(|config| config.throw_mul);
@@ -237,9 +239,9 @@ impl<'a> System<'a> for ArrowSys {
                     vec.x *= max / amt;
                     vec.y *= max / amt;
                 }
-                skeleton.arm_action = crate::skeletons::component::ArmAction::Throw(vec);
-            } else {
-                skeleton.arm_action = crate::skeletons::component::ArmAction::None;
+                skeleton.arm_action = ArmAction::Throw(vec);
+            } else if let ArmAction::Throw(_) = &skeleton.arm_action {
+                skeleton.arm_action = ArmAction::None;
             }
         }
     }

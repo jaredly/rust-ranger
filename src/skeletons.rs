@@ -18,12 +18,19 @@ pub mod component {
         Jump,
     }
 
+    #[derive(Copy, Clone, PartialEq, Serialize)]
+    pub enum SwingDirection {
+        Up,
+        Down,
+        Forward
+    }
+
     #[derive(Clone, PartialEq, Serialize)]
     pub enum ArmAction {
         None,
         Throw(na::Vector2<f32>),
         Bow(na::Vector2<f32>),
-        Swing { position: f32, forward: bool, object: String },
+        Swing { position: f32, forward: bool, object: String, direction: SwingDirection },
         // TODO maybe use [u8;32] for object ids? So they can be inlined?
         Hold(String)
     }
@@ -147,9 +154,9 @@ pub struct Skeletons {
     pub scope: libretto::Scope,
 }
 
-pub fn read(path: &str) -> Result<Skeletons, ron::de::Error> {
+pub fn read(path: &str) -> Result<Skeletons, libretto::Error> {
     let f = std::fs::read_to_string(path).expect("Failed opening file");
-    let scope = libretto::eval_file(&f).unwrap();
+    let scope = libretto::eval_file(&f)?;
     Ok(Skeletons { scope })
 }
 

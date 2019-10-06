@@ -26,7 +26,8 @@ fn vector_cos(vector: any) {
 }
 
 // TODO actually maybe function arguments should be pass by reference.....
-fn arm_position(arm_action: any) {
+fn arm_position(arm_action: any, flip: any) {
+    // log(arm_action);
     match arm_action {
         None => (
             ((vx_sin * (-0.01)), (-0.02)),
@@ -43,13 +44,30 @@ fn arm_position(arm_action: any) {
             },
         ),
         Throw(vec) => (
-            ((0), (-0.2)),
-            ((0), ((-0.3) + ((0.02) * vector_mag(vec.clone())))),
+            ((0.0), (-0.2)),
+            ((0.0), ((-0.3) + ((0.02) * vector_mag(vec.clone())))),
             if (vec.0 > 0.0) {
                 vector_theta(vec) / pi * 180.0 + 270.0
             } else {
                 vector_theta(vec) / pi * 180.0 + -90.0
             },
+        ),
+        Swing {position, forward, object, direction} => (
+            (0.0, -0.02),
+            (0.0, -0.3),
+            if flip {
+                (-180.0 + position * 140.0 + match direction {
+                    Up => -90.0,
+                    Down => 90.0,
+                    Forward => 0.0
+                })
+            } else {
+                (180.0 - position * 140.0 + match direction {
+                    Up => 90.0,
+                    Down => -90.0,
+                    Forward => 0.0
+                })
+            }
         )
     }
 }
@@ -128,26 +146,28 @@ fn female(context: any, velocity: any) {
             rotation: (((vector_theta(vec) / pi) * (180.0)) + (90.0)),
         })
     } else {
-        let (offset, pivot_offset, rotation) = arm_position(context.arm_action);
+        let (offset, pivot_offset, rotation) = arm_position(context.arm_action, context.facing == Right);
+        if let Swing {object: object} = context.arm_action {
+            bones.push(Bone {
+                sprite: object,
+                // flip: false,
+                flip: context.facing == Left,
+                offset: (0.0,0.0),
+                pivot_offset: (-0.8, 0.3),
+                // offset: (0.7, 0.7),
+                rotation: rotation + if context.facing == Right { 90.0 } else { -90.0 },
+
+                // pivot_offset: pivot_offset,
+                // offset: offset,
+                scale: 1.3,
+            })
+        };
         bones.push(Bone {
             sprite: "female_arm.png",
             flip: context.facing == Right,
             offset: offset.clone(),
             pivot_offset: pivot_offset.clone(),
             rotation: rotation.clone(),
-        });
-        bones.push(Bone {
-            sprite: "pick_bronze.png",
-            // flip: false,
-            flip: context.facing == Left,
-            offset: (0.0,0.0),
-            pivot_offset: (-0.8, 0.3),
-            // offset: (0.7, 0.7),
-            rotation: rotation + if context.facing == Right { 90.0 } else { -90.0 },
-
-            // pivot_offset: pivot_offset,
-            // offset: offset,
-            scale: 1.3,
         })
     };
 

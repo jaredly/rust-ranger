@@ -1137,7 +1137,23 @@ fn match_pattern(pattern: Pattern, value: Expr, pos: Pos) -> Result<Option<Vec<(
                 }
             }
             Some(bindings)
+        },
+        (
+            Pattern::Struct(_, _),
+            Expr {
+                desc: ExprDesc::NamedTuple(_, _),
+                ..
+            },
+        ) | (
+            Pattern::TupleStruct(_, _),
+            Expr {
+                desc: ExprDesc::Struct(_, _),
+                ..
+            },
+        )=> {
+            None
         }
+
         (_pattern, _value) => {
             println!("No match {:?} - {:?}", _pattern, _value);
             return Err(EvalErrorDesc::InvalidType("Mismatched pattern type").with_pos(pos))
