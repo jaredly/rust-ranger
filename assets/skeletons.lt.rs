@@ -72,6 +72,15 @@ fn arm_position(arm_action: any, flip: any) {
     }
 }
 
+fn tool_tip(arm_action: any, facing: any) {
+    let (offset, pivot_offset, rotation) = arm_position(arm_action, facing == Right);
+    let rotation = rotation * pi / 180.0;
+    (
+        offset.0 + pivot_offset.1 * rotation.cos(),
+        offset.1 + pivot_offset.1 * rotation.sin(),
+    )
+}
+
 fn female(context: any, velocity: any) {
     let vx_sin = vx_sin(context.clone(), velocity.clone());
     let body_offset = body_offset(context.clone(), velocity.clone());

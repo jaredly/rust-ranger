@@ -309,6 +309,7 @@ fn main() {
         .with(throw::ThrownSys, "sensor_until", &["p_move"])
         .with(CameraFollowSys, "camera_follow", &["p_move"])
         .with(player::PickupSys, "pickup", &["p_move"])
+        .with(player::PlayerSwing, "player_swing", &["p_move"])
         .with(ArrowSys, "arrows", &["sensor_until"])
         .with(GravitySys, "gravity_on_collide", &["p_move"])
         .with(throw::FletchingSys, "fletching", &["p_move"])

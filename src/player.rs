@@ -350,6 +350,78 @@ impl<'a> System<'a> for PickupSys {
     }
 }
 
+pub struct PlayerSwing;
+
+impl<'a> System<'a> for PlayerSwing {
+    type SystemData = (
+        // Entities<'a>,
+        ReadExpect<'a, raylib::RaylibHandle>,
+        WriteExpect<'a, PhysicsWorld<f32>>,
+        WriteStorage<'a, skeletons::component::Skeleton>,
+        ReadStorage<'a, Body>,
+        ReadStorage<'a, Collider>,
+        ReadStorage<'a, Player>,
+        WriteExpect<'a, crate::skeletons::Skeletons>,
+    );
+
+    fn run(&mut self, (rl, mut physics, mut skeletons, body, collider, player, mut skeletonFns): Self::SystemData) {
+        use raylib::consts::KeyboardKey::*;
+        for (body, player_collider, player, skeleton) in (&body, &collider, &player, &mut skeletons).join() {
+            use skeletons::component::{ArmAction, SwingDirection};
+            if rl.is_key_down(KEY_SPACE) {
+                let (position, forward, object) = if let ArmAction::Swing {
+                    position,
+                    forward,
+                    object,
+                    ..
+                } = &skeleton.arm_action
+                {
+                    (*position, *forward, object.clone())
+                } else {
+                    (0.0, true, "pick_bronze.png".to_owned())
+                };
+                let (position, forward) = advance_swing(position, forward);
+                skeleton.arm_action = ArmAction::Swing {
+                    position,
+                    forward,
+                    object,
+                    direction: if rl.is_key_down(KEY_W) {
+                        SwingDirection::Up
+                    } else if rl.is_key_down(KEY_S) {
+                        SwingDirection::Down
+                    } else {
+                        SwingDirection::Forward
+                    },
+                };
+                let player_pos = physics.collider(player_collider.0).unwrap().position().clone();
+                match libretto::call_fn!(
+                    skeletonFns.scope,
+                    "tool_tip",
+                    skeleton.arm_action,
+                    skeleton.facing
+                ) {
+                    Ok(tool_tip) => {
+                        let tool_tip: (f32, f32) = tool_tip;
+                        let collider = physics.collider_mut(player.tool).unwrap();
+                        collider.set_position(
+                            na::Isometry2::from_parts(
+                                (Vector2::new(tool_tip.0, tool_tip.1) + player_pos.translation.vector).into(),
+                                player_pos.rotation
+                            )
+                        )
+                        // let tool_tip: (f32, f32) = 
+                    },
+                    Err(err) => {
+                        println!("Failed to get tool tip {:?}", err)
+                    }
+                };
+            } else if let ArmAction::Swing { .. } = &skeleton.arm_action {
+                skeleton.arm_action = ArmAction::None;
+            }
+        }
+    }
+}
+
 pub struct PlayerSys;
 
 impl<'a> System<'a> for PlayerSys {
@@ -408,35 +480,6 @@ impl<'a> System<'a> for PlayerSys {
                 println!("Set to jumping");
                 skeleton.set_action(skeletons::component::Action::Jump);
                 push.y += max_jump;
-            }
-            use skeletons::component::{ArmAction, SwingDirection};
-            if rl.is_key_down(KEY_SPACE) {
-                let (position, forward, object) = if let ArmAction::Swing {
-                    position,
-                    forward,
-                    object,
-                    ..
-                } = &skeleton.arm_action
-                {
-                    (*position, *forward, object.clone())
-                } else {
-                    (0.0, true, "pick_bronze.png".to_owned())
-                };
-                let (position, forward) = advance_swing(position, forward);
-                skeleton.arm_action = ArmAction::Swing {
-                    position,
-                    forward,
-                    object,
-                    direction: if rl.is_key_down(KEY_W) {
-                        SwingDirection::Up
-                    } else if rl.is_key_down(KEY_S) {
-                        SwingDirection::Down
-                    } else {
-                        SwingDirection::Forward
-                    },
-                };
-            } else if let ArmAction::Swing { .. } = &skeleton.arm_action {
-                skeleton.arm_action = ArmAction::None;
             }
             // if rl.is_key_down(KEY_S) {
             //     push.y += speed;
