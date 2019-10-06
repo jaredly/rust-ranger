@@ -73,11 +73,16 @@ fn arm_position(arm_action: any, flip: any) {
 }
 
 fn tool_tip(arm_action: any, facing: any) {
-    let (offset, pivot_offset, rotation) = arm_position(arm_action, facing == Right);
+    let flip = facing == Right;
+    let (offset, pivot_offset, rotation) = arm_position(arm_action, flip.clone());
+    let rotation = rotation + if flip.clone() { -80.0 } else { -50.0 };
     let rotation = rotation * pi / 180.0;
+    let pivot_offset = (-0.8, 0.4);
+    let angle = pivot_offset.1.atan2(pivot_offset.0);
+    let mag = vector_mag(pivot_offset.clone());
     (
-        offset.0 + pivot_offset.1 * rotation.cos(),
-        offset.1 + pivot_offset.1 * rotation.sin(),
+        offset.0 + mag * (angle + rotation).cos() * 0.5,
+        offset.1 + mag * (angle + rotation).sin() * 0.5,
     )
 }
 

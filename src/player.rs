@@ -4,6 +4,7 @@ use nalgebra::Vector2;
 use ncollide2d::shape::{Ball, Capsule, Cuboid, ShapeHandle};
 use nphysics2d::object::{
     BodyPartHandle, ColliderDesc, DefaultBodyHandle, DefaultColliderHandle, RigidBodyDesc,
+    RigidBody
 };
 
 use crate::basics::*;
@@ -83,13 +84,16 @@ impl Player {
             .build(BodyPartHandle(rb, 0)),
         );
 
+        let mut tool_body = RigidBodyDesc::new().translation(position).build();
+        tool_body.disable_all_rotations();
+        tool_body.disable_all_translations();
+        let tool_body_handle = physics_world.bodies.insert(tool_body);
         let tool_sensor = physics_world.colliders.insert(
             ColliderDesc::new(ShapeHandle::new(Ball::new(0.01)))
                 .sensor(true)
-                .translation(Vector2::new(0.0, 1.0))
                 .user_data(builder.entity)
                 .collision_groups(groups::player())
-                .build(BodyPartHandle(rb, 0)),
+                .build(BodyPartHandle(tool_body_handle, 0)),
         );
 
         let cb = physics_world.colliders.insert(collider);
@@ -402,13 +406,23 @@ impl<'a> System<'a> for PlayerSwing {
                 ) {
                     Ok(tool_tip) => {
                         let tool_tip: (f32, f32) = tool_tip;
-                        let collider = physics.collider_mut(player.tool).unwrap();
-                        collider.set_position(
-                            na::Isometry2::from_parts(
-                                (Vector2::new(tool_tip.0, tool_tip.1) + player_pos.translation.vector).into(),
-                                player_pos.rotation
+                        let collider_body = physics.collider(player.tool).unwrap().body();
+                        // let current = collider.position();
+                        let body = physics.rigid_body_mut(collider_body).unwrap();
+                        if let Some(body) = body.downcast_mut::<RigidBody<_>>() {
+                            body.set_position(
+                                na::Isometry2::from_parts(
+                                    (Vector2::new(tool_tip.0, tool_tip.1) + player_pos.translation.vector).into(),
+                                    player_pos.rotation
+                                )
                             )
-                        )
+                        }
+                        // body.set_position(
+                        //     na::Isometry2::from_parts(
+                        //         (Vector2::new(tool_tip.0, tool_tip.1) + player_pos.translation.vector).into(),
+                        //         player_pos.rotation
+                        //     )
+                        // )
                         // let tool_tip: (f32, f32) = 
                     },
                     Err(err) => {
