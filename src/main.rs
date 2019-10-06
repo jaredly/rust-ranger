@@ -52,6 +52,8 @@ fn make_blocks(
                 ground_handle,
                 BLOCK_SIZE * i as f32, // * 1.01,
                 phys_h - BLOCK_SIZE * 3.0 + BLOCK_SIZE * y as f32,
+                i,
+                y
             );
         }
     }
@@ -68,6 +70,9 @@ impl<'a> System<'a> for PhysicsMove {
         physics_world.step();
     }
 }
+
+#[derive(Component, Default)]
+pub struct Block(usize, usize);
 
 #[derive(Component, Default)]
 #[storage(NullStorage)]
@@ -132,6 +137,8 @@ fn add_block(
     ground_handle: DefaultBodyHandle,
     x: f32,
     y: f32,
+    xi: usize,
+    yi: usize,
 ) {
     let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(
         BLOCK_SIZE / 2.0,
@@ -146,6 +153,7 @@ fn add_block(
     let ground_collider = physics_world.colliders.insert(ground_collider);
     builder
         .with(Collider(ground_collider))
+        .with(Block(xi, yi))
         .with(Drawable::Sprite {
             name: "brick_grey.png".into(),
             scale: 0.4,

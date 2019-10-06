@@ -349,7 +349,7 @@ impl<'a> System<'a> for PickupSys {
             drawables.remove(entity);
             throwns.remove(entity);
 
-            entities.delete(entity);
+            entities.delete(entity).unwrap();
         }
     }
 }
@@ -358,32 +358,45 @@ pub struct PlayerSwing;
 
 impl<'a> System<'a> for PlayerSwing {
     type SystemData = (
-        // Entities<'a>,
+        Entities<'a>,
         ReadExpect<'a, raylib::RaylibHandle>,
         WriteExpect<'a, PhysicsWorld<f32>>,
         WriteStorage<'a, skeletons::component::Skeleton>,
+        ReadStorage<'a, crate::Block>,
         ReadStorage<'a, Body>,
         ReadStorage<'a, Collider>,
         ReadStorage<'a, Player>,
         WriteExpect<'a, crate::skeletons::Skeletons>,
     );
 
-    fn run(&mut self, (rl, mut physics, mut skeletons, body, collider, player, mut skeletonFns): Self::SystemData) {
+    fn run(&mut self, (entities, rl, mut physics, mut skeletons, blocks, body, collider, player, mut skeletonFns): Self::SystemData) {
         use raylib::consts::KeyboardKey::*;
+        let mut to_remove = None;
         for (body, player_collider, player, skeleton) in (&body, &collider, &player, &mut skeletons).join() {
             use skeletons::component::{ArmAction, SwingDirection};
             if rl.is_key_down(KEY_SPACE) {
-                let (position, forward, object) = if let ArmAction::Swing {
+                let (position, mut forward, object, swinging) = if let ArmAction::Swing {
                     position,
                     forward,
                     object,
                     ..
                 } = &skeleton.arm_action
                 {
-                    (*position, *forward, object.clone())
+                    (*position, *forward, object.clone(), true)
                 } else {
-                    (0.0, true, "pick_bronze.png".to_owned())
+                    (0.0, true, "pick_bronze.png".to_owned(), false)
                 };
+
+                if swinging && forward {
+                    for (collider, entity, _to_vec) in player.tool_colliding_entities(&physics, player_collider.0) {
+                        if let Some(_) = blocks.get(entity) {
+                            to_remove = Some((collider, entity));
+                            forward = false;
+                            break;
+                        }
+                    }
+                }
+
                 let (position, forward) = advance_swing(position, forward);
                 skeleton.arm_action = ArmAction::Swing {
                     position,
@@ -407,7 +420,6 @@ impl<'a> System<'a> for PlayerSwing {
                     Ok(tool_tip) => {
                         let tool_tip: (f32, f32) = tool_tip;
                         let collider_body = physics.collider(player.tool).unwrap().body();
-                        // let current = collider.position();
                         let body = physics.rigid_body_mut(collider_body).unwrap();
                         if let Some(body) = body.downcast_mut::<RigidBody<_>>() {
                             body.set_position(
@@ -417,13 +429,6 @@ impl<'a> System<'a> for PlayerSwing {
                                 )
                             )
                         }
-                        // body.set_position(
-                        //     na::Isometry2::from_parts(
-                        //         (Vector2::new(tool_tip.0, tool_tip.1) + player_pos.translation.vector).into(),
-                        //         player_pos.rotation
-                        //     )
-                        // )
-                        // let tool_tip: (f32, f32) = 
                     },
                     Err(err) => {
                         println!("Failed to get tool tip {:?}", err)
@@ -432,6 +437,10 @@ impl<'a> System<'a> for PlayerSwing {
             } else if let ArmAction::Swing { .. } = &skeleton.arm_action {
                 skeleton.arm_action = ArmAction::None;
             }
+        }
+        if let Some((collider, entity)) = to_remove {
+            physics.colliders.remove(collider);
+            entities.delete(entity).unwrap();
         }
     }
 }
