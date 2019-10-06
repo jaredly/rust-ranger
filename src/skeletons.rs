@@ -1,9 +1,9 @@
 use ron::de::from_reader;
-use serde::{Deserialize};
+use serde::Deserialize;
 use std::{collections::HashMap, fs::File};
 
 pub mod component {
-    use serde::{Serialize};
+    use serde::Serialize;
 
     #[derive(Copy, Clone, PartialEq, Serialize)]
     pub enum Facing {
@@ -22,7 +22,7 @@ pub mod component {
     pub enum SwingDirection {
         Up,
         Down,
-        Forward
+        Forward,
     }
 
     #[derive(Clone, PartialEq, Serialize)]
@@ -30,9 +30,14 @@ pub mod component {
         None,
         Throw(na::Vector2<f32>),
         Bow(na::Vector2<f32>),
-        Swing { position: f32, forward: bool, object: String, direction: SwingDirection },
+        Swing {
+            position: f32,
+            forward: bool,
+            object: String,
+            direction: SwingDirection,
+        },
         // TODO maybe use [u8;32] for object ids? So they can be inlined?
-        Hold(String)
+        Hold(String),
     }
 
     use specs::prelude::*;
@@ -173,19 +178,9 @@ pub mod draw {
             rotation: f32,
             scale: f32,
         ) -> Result<(), libretto::Error> {
-            let sk: new::Skeleton = libretto::call_fn!(
-                self.scope,
-                &state.name,
-                state,
-                velocity.linear
-            )?;
-            sk.draw(
-                rd,
-                &sheet,
-                position,
-                rotation,
-                scale,
-            );
+            let sk: new::Skeleton =
+                libretto::call_fn!(self.scope, &state.name, state, velocity.linear)?;
+            sk.draw(rd, &sheet, position, rotation, scale);
             Ok(())
         }
     }
@@ -202,14 +197,8 @@ pub mod draw {
             for bone in &self.bones {
                 let local_scale = self.scale * bone.scale;
                 let offset = position
-                    + na::Vector2::new(
-                        self.offset.0 * local_scale,
-                        self.offset.1 * local_scale,
-                    )
-                    + na::Vector2::new(
-                        bone.offset.0 * local_scale,
-                        bone.offset.1 * local_scale,
-                    );
+                    + na::Vector2::new(self.offset.0 * local_scale, self.offset.1 * local_scale)
+                    + na::Vector2::new(bone.offset.0 * local_scale, bone.offset.1 * local_scale);
                 let flip = bone.flip;
                 sheet.draw(
                     rd,

@@ -85,11 +85,11 @@ impl Player {
 
         let tool_sensor = physics_world.colliders.insert(
             ColliderDesc::new(ShapeHandle::new(Ball::new(0.01)))
-            .sensor(true)
-            .translation(Vector2::new(0.0, 1.0))
-            .user_data(builder.entity)
-            .collision_groups(groups::player())
-            .build(BodyPartHandle(rb, 0)),
+                .sensor(true)
+                .translation(Vector2::new(0.0, 1.0))
+                .user_data(builder.entity)
+                .collision_groups(groups::player())
+                .build(BodyPartHandle(rb, 0)),
         );
 
         let cb = physics_world.colliders.insert(collider);
@@ -411,22 +411,31 @@ impl<'a> System<'a> for PlayerSys {
             }
             use skeletons::component::{ArmAction, SwingDirection};
             if rl.is_key_down(KEY_SPACE) {
-                let (position, forward, object) = if let ArmAction::Swing { position, forward, object, ..} = &skeleton.arm_action {
+                let (position, forward, object) = if let ArmAction::Swing {
+                    position,
+                    forward,
+                    object,
+                    ..
+                } = &skeleton.arm_action
+                {
                     (*position, *forward, object.clone())
                 } else {
                     (0.0, true, "pick_bronze.png".to_owned())
                 };
                 let (position, forward) = advance_swing(position, forward);
-                skeleton.arm_action = ArmAction::Swing {position, forward, object,
-                direction: if rl.is_key_down(KEY_W) {
-                    SwingDirection::Up
-                } else if rl.is_key_down(KEY_S) {
-                    SwingDirection::Down
-                } else {
-                    SwingDirection::Forward
-                }
+                skeleton.arm_action = ArmAction::Swing {
+                    position,
+                    forward,
+                    object,
+                    direction: if rl.is_key_down(KEY_W) {
+                        SwingDirection::Up
+                    } else if rl.is_key_down(KEY_S) {
+                        SwingDirection::Down
+                    } else {
+                        SwingDirection::Forward
+                    },
                 };
-            } else if let ArmAction::Swing {..} = &skeleton.arm_action {
+            } else if let ArmAction::Swing { .. } = &skeleton.arm_action {
                 skeleton.arm_action = ArmAction::None;
             }
             // if rl.is_key_down(KEY_S) {

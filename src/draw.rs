@@ -189,9 +189,10 @@ impl<'a> System<'a> for Draw {
                 }
             }
 
-
             for (player, player_collider) in (&player, &colliders).join() {
-                for (collider_handle, _entity, _to_vec) in player.tool_colliding_entities(&physics, player_collider.0) {
+                for (collider_handle, _entity, _to_vec) in
+                    player.tool_colliding_entities(&physics, player_collider.0)
+                {
                     let collider = physics.collider(collider_handle).unwrap();
                     let p = collider.position();
                     draw_shape(
