@@ -1,6 +1,6 @@
 Config(
     screen_size: 500,
-    zoom: 100,
+    zoom: 50,
     arrowhead_density: 10.0,
     arrowhead_size: 0.04,
     fletching_torque: 100.0,

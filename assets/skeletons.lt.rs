@@ -151,7 +151,24 @@ fn female(context: any, velocity: any) {
             },
         })
     };
-    if let Some(vec) = context.pointing {
+    if let Swing {object: object} = context.arm_action {
+        let (offset, pivot_offset, rotation) = arm_position(context.arm_action, context.facing == Right);
+        bones.push(Bone {
+            sprite: object,
+            flip: context.facing == Left,
+            offset: (0.0,0.0),
+            pivot_offset: (-0.8, 0.3),
+            rotation: rotation + if context.facing == Right { 90.0 } else { -90.0 },
+            scale: 1.3,
+        });
+        bones.push(Bone {
+            sprite: "female_arm.png",
+            flip: context.facing == Right,
+            offset: offset.clone(),
+            pivot_offset: pivot_offset.clone(),
+            rotation: rotation.clone(),
+        })
+    } else if let Some(vec) = context.pointing {
         bones.push(Bone {
             sprite: "female_arm.png",
             flip: context.facing == Right,
@@ -161,21 +178,6 @@ fn female(context: any, velocity: any) {
         })
     } else {
         let (offset, pivot_offset, rotation) = arm_position(context.arm_action, context.facing == Right);
-        if let Swing {object: object} = context.arm_action {
-            bones.push(Bone {
-                sprite: object,
-                // flip: false,
-                flip: context.facing == Left,
-                offset: (0.0,0.0),
-                pivot_offset: (-0.8, 0.3),
-                // offset: (0.7, 0.7),
-                rotation: rotation + if context.facing == Right { 90.0 } else { -90.0 },
-
-                // pivot_offset: pivot_offset,
-                // offset: offset,
-                scale: 1.3,
-            })
-        };
         bones.push(Bone {
             sprite: "female_arm.png",
             flip: context.facing == Right,
