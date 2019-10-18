@@ -49,11 +49,11 @@ impl Player {
             .user_data(builder.entity)
             .collision_groups(groups::member_all_but_player())
             .build(BodyPartHandle(rb, 0));
-        let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
+        let jump_sensor = ColliderDesc::new(ShapeHandle::new(Capsule::new(0.0, width - offset)))
             .sensor(true)
             .user_data(builder.entity)
             .collision_groups(groups::player())
-            .translation(Vector2::new(0.0, offset))
+            .translation(Vector2::new(0.0, height + offset * 2.0))
             .build(BodyPartHandle(rb, 0));
         let left_sensor = physics_world.colliders.insert(
             ColliderDesc::new(ShapeHandle::new(Capsule::new(height, width)))
@@ -578,7 +578,7 @@ impl<'a> System<'a> for PlayerSys {
                 }
                 push.x -= speed;
             }
-            if rl.is_key_down(KEY_W) && on_ground(&player, &physics, &body) && v.y > -jump_speed {
+            if rl.is_key_down(KEY_W) && on_ground(&player, &physics, &body) && v.y > -0.01 {
                 let max_jump = -jump_speed - v.y;
                 println!("Set to jumping");
                 skeleton.set_action(skeletons::component::Action::Jump);
