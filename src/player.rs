@@ -302,7 +302,7 @@ impl<'a> System<'a> for PickupSys {
         if let Some((player, skeleton, player_collider)) =
             (&mut players, &mut skeletons, &colliders).join().next()
         {
-            if rl.is_key_down(KEY_C) {
+            if rl.is_key_down(KEY_C) && !rl.is_key_down(KEY_SPACE) {
                 if player.pickup_cooldown > 0.0 {
                     let tick = tick.0.as_micros() as f32 / 1000.0;
                     player.pickup_cooldown -= tick;
