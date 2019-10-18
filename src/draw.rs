@@ -75,6 +75,19 @@ fn draw_shape(
     }
 }
 
+fn draw_collider(rd: &mut DrawHandle, collider: nphysics2d::object::DefaultColliderHandle, physics: &PhysicsWorld<f32>, color: raylib::color::Color, offset: na::Vector2<f32>) {
+    if let Some(collider) = physics.collider(collider) {
+        let p = collider.position();
+        draw_shape(
+            rd,
+            Isometry2::from_parts((p.translation.vector + offset).into(), p.rotation),
+            collider.shape(),
+            0.0,
+            color
+        );
+    }
+}
+
 impl<'a> System<'a> for Draw {
     type SystemData = (
         WriteExpect<'a, raylib::RaylibHandle>,
@@ -133,9 +146,18 @@ impl<'a> System<'a> for Draw {
                         raylib::color::Color::new(255, 255, 100, 200),
                     );
                 }
+
+                if config!(show_colliders) {
+                    draw_collider(&mut rd, player.down, &physics, raylib::color::Color::new(255, 0, 0, 255), offset);
+                    draw_collider(&mut rd, player.left, &physics, raylib::color::Color::new(0, 255, 0, 255), offset);
+                    draw_collider(&mut rd, player.right, &physics, raylib::color::Color::new(255, 0, 255, 255), offset);
+                }
             }
 
             for (collider, drawable) in (&colliders, &drawables).join() {
+                if config!(show_colliders) {
+                    draw_collider(&mut rd, collider.0, &physics, raylib::color::Color::new(255, 0, 255, 255), offset);
+                }
                 if let Some(collider) = physics.collider(collider.0) {
                     let p = collider.position() * Point2::new(0.0, 0.0);
                     let r = collider.position().rotation.angle() * 180.0 / std::f32::consts::PI;

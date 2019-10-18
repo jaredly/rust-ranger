@@ -20,6 +20,8 @@ pub struct Config {
     pub pickup_cooldown: f32,
     pub pickup_switch: f32,
     pub pickup_empty_angle: f32,
+    pub show_colliders: bool,
+    pub prevent_stuck: bool,
 }
 
 impl Default for Config {
@@ -43,4 +45,10 @@ pub fn with<R, F: FnOnce(&mut Config) -> R>(f: F) -> R {
 
 lazy_static! {
     static ref CONFIG: Mutex<Config> = Mutex::new(read(CONFIG_FILE).unwrap());
+}
+
+macro_rules! config {
+    ($name: ident) => {
+        crate::config::with(|config|config.$name)
+    };
 }

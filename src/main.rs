@@ -17,6 +17,7 @@ pub const BALL_RADIUS: f32 = 0.1;
 
 // mod new_scripting;
 mod basics;
+#[macro_use]
 mod config;
 mod draw;
 mod groups;
@@ -197,7 +198,7 @@ impl Default for ZoomCamera {
             target: raylib::math::Vector2::new(0.0, 0.0),
             offset: raylib::math::Vector2::new(0.0, 0.0),
             rotation: 0.0,
-            zoom: config::with(|config| config.zoom),
+            zoom: config!(zoom),
         })
     }
 }
@@ -265,8 +266,8 @@ mod test {
 
 fn main() {
     // screen
-    let screen_w = config::with(|c| c.screen_size);
-    let screen_h = config::with(|c| c.screen_size);
+    let screen_w = config!(screen_size);
+    let screen_h = config!(screen_size);
 
     let (mut rl, thread) = raylib::init()
         .size(screen_w as i32, screen_h as i32)

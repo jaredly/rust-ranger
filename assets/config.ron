@@ -12,4 +12,6 @@ Config(
     pickup_cooldown: 350.0,
     pickup_switch: 150.0,
     pickup_empty_angle: 180.0,
+    show_colliders: false,
+    prevent_stuck: false
 )

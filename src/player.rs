@@ -15,9 +15,9 @@ use crate::throw;
 
 #[derive(Component)]
 pub struct Player {
-    down: DefaultColliderHandle,
-    left: DefaultColliderHandle,
-    right: DefaultColliderHandle,
+    pub down: DefaultColliderHandle,
+    pub left: DefaultColliderHandle,
+    pub right: DefaultColliderHandle,
     pub pickup: DefaultColliderHandle,
     pub tool: DefaultColliderHandle,
     pickup_cooldown: f32,
@@ -234,11 +234,14 @@ impl Player {
     }
 
     fn can_jump(&self, physics: &PhysicsWorld<f32>, body: &DefaultBodyHandle) -> bool {
-        for (_handle, collider) in physics
+        for (collidder_handle, collider) in physics
             .geom
             .colliders_in_proximity_of(&physics.colliders, self.down)
             .unwrap()
         {
+            if collidder_handle == self.tool {
+                continue;
+            }
             let bh = collider.body();
             if &bh == body {
                 continue;
@@ -291,7 +294,7 @@ impl<'a> System<'a> for PickupSys {
         use raylib::consts::KeyboardKey::*;
         let mut to_remove = None;
         fn empty_vec(left: bool) -> Vector2<f32> {
-            let a = crate::config::with(|config| config.pickup_empty_angle);
+            let a = config!(pickup_empty_angle);
             let a =
                 a / 180.0 * std::f32::consts::PI + if left { std::f32::consts::PI } else { 0.0 };
             Vector2::new(a.cos(), a.sin())
@@ -305,7 +308,7 @@ impl<'a> System<'a> for PickupSys {
                     player.pickup_cooldown -= tick;
 
                     // point to the next thing
-                    if player.pickup_cooldown < crate::config::with(|config| config.pickup_switch) {
+                    if player.pickup_cooldown < config!(pickup_switch) {
                         if let Some((collider_handle, entity, to_vec)) =
                             player.closest_pickupable_entity(&physics_world, player_collider.0)
                         {
@@ -313,7 +316,7 @@ impl<'a> System<'a> for PickupSys {
                             to_remove = Some((collider_handle, entity));
                             skeleton.pointing = Some(to_vec);
                             player.pickup_cooldown =
-                                crate::config::with(|config| config.pickup_cooldown);
+                                config!(pickup_cooldown);
                         //
                         } else {
                             skeleton.pointing = Some(empty_vec(
@@ -326,7 +329,7 @@ impl<'a> System<'a> for PickupSys {
                 {
                     to_remove = Some((collider_handle, entity));
                     skeleton.pointing = Some(to_vec);
-                    player.pickup_cooldown = crate::config::with(|config| config.pickup_cooldown);
+                    player.pickup_cooldown = config!(pickup_cooldown);
                 //
                 } else {
                     skeleton.pointing = Some(empty_vec(

@@ -53,7 +53,7 @@ fn arm_position(arm_action: any, flip: any) {
             },
         ),
         Swing {position, forward, object, direction} => (
-            (0.0, -0.02),
+            (0.0, if direction.clone() == Down { 0.1 } else { -0.02 }),
             (0.0, -0.3),
             if flip {
                 (-180.0 + position * 140.0 + match direction {
