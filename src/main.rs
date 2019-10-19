@@ -29,34 +29,7 @@ use basics::*;
 use draw::Drawable;
 use throw::ArrowSys;
 mod items;
-
-// Can I just define a block as a normal item, but have it have a flag like "static" or something
-// #[derive(Component)]
-// struct Block;
-
-fn make_blocks(
-    world: &mut World,
-    physics_world: &mut PhysicsWorld<f32>,
-    ground_handle: DefaultBodyHandle,
-    _phys_w: f32,
-    phys_h: f32,
-) {
-    let w = WORLD_WIDTH / BLOCK_SIZE;
-
-    for y in 1..40 {
-        for i in 0..w as usize {
-            add_block(
-                world,
-                physics_world,
-                ground_handle,
-                BLOCK_SIZE * i as f32, // * 1.01,
-                phys_h - BLOCK_SIZE * 3.0 + BLOCK_SIZE * y as f32,
-                i,
-                y
-            );
-        }
-    }
-}
+mod terrain;
 
 struct PhysicsMove;
 
@@ -69,9 +42,6 @@ impl<'a> System<'a> for PhysicsMove {
         physics_world.step();
     }
 }
-
-#[derive(Component, Default)]
-pub struct Block(usize, usize);
 
 #[derive(Component, Default)]
 #[storage(NullStorage)]
@@ -126,38 +96,6 @@ impl<'a> System<'a> for GravitySys {
             gravities.remove(entity);
         }
     }
-}
-
-static BLOCK_SIZE: f32 = 0.4;
-
-fn add_block(
-    world: &mut World,
-    physics_world: &mut PhysicsWorld<f32>,
-    ground_handle: DefaultBodyHandle,
-    x: f32,
-    y: f32,
-    xi: usize,
-    yi: usize,
-) {
-    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(
-        BLOCK_SIZE / 2.0,
-        BLOCK_SIZE / 2.0,
-    )));
-    let builder = world.create_entity();
-    let ground_collider = ColliderDesc::new(ground_shape)
-        .user_data(builder.entity)
-        .translation(Vector2::new(x, y))
-        .collision_groups(groups::member_all_but_player())
-        .build(BodyPartHandle(ground_handle, 0));
-    let ground_collider = physics_world.colliders.insert(ground_collider);
-    builder
-        .with(Collider(ground_collider))
-        .with(Block(xi, yi))
-        .with(Drawable::Sprite {
-            name: "dirt.png".into(),
-            scale: 0.4,
-        })
-        .build();
 }
 
 fn add_wall(
@@ -399,7 +337,7 @@ fn main() {
         300.0,
     );
 
-    make_blocks(
+    terrain::make_blocks(
         &mut world,
         &mut physics_world,
         ground_handle,

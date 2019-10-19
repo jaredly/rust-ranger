@@ -365,7 +365,7 @@ impl<'a> System<'a> for PlayerSwing {
         ReadExpect<'a, raylib::RaylibHandle>,
         WriteExpect<'a, PhysicsWorld<f32>>,
         WriteStorage<'a, skeletons::component::Skeleton>,
-        ReadStorage<'a, crate::Block>,
+        ReadStorage<'a, crate::terrain::Block>,
         WriteStorage<'a, Body>,
         WriteStorage<'a, Collider>,
         WriteStorage<'a, crate::draw::Drawable>,
@@ -385,7 +385,7 @@ impl<'a> System<'a> for PlayerSwing {
             mut colliders,
             mut drawables,
             player,
-            mut skeletonFns,
+            mut skeleton_fns,
         ): Self::SystemData,
     ) {
         use raylib::consts::KeyboardKey::*;
@@ -440,7 +440,7 @@ impl<'a> System<'a> for PlayerSwing {
                     .position()
                     .clone();
                 match libretto::call_fn!(
-                    skeletonFns.scope,
+                    skeleton_fns.scope,
                     "tool_tip",
                     skeleton.arm_action,
                     skeleton.facing

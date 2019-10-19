@@ -1,9 +1,11 @@
+use crate::basics::{Id, id};
+
 pub struct Coords {
-    name: String,
+    name: Id,
     rect: raylib::math::Rectangle,
     px: f32,
     py: f32,
-    texture: String,
+    texture: Id,
 }
 
 use sxd_xpath::nodeset::Node;
@@ -29,7 +31,7 @@ impl Attr for sxd_document::dom::Element<'_> {
 }
 
 impl Coords {
-    fn from(node: &sxd_xpath::nodeset::Node, texture: &str) -> Option<Self> {
+    fn from(node: &sxd_xpath::nodeset::Node, texture: Id) -> Option<Self> {
         match node {
             Node::Element(element) => {
                 match element.name().local_part() {
@@ -42,20 +44,16 @@ impl Coords {
                         let px = element.attr_opt::<f32>("pX", 0.5);
                         let py = element.attr_opt::<f32>("pY", 0.5);
                         Some(Coords {
-                            name,
+                            name: id(&name),
                             rect: raylib::math::Rectangle::new(
                                 x as f32,
                                 y as f32,
                                 width as f32,
                                 height as f32,
                             ),
-                            // x,
-                            // y,
-                            // width,
-                            // height,
                             px,
                             py,
-                            texture: texture.to_owned(),
+                            texture,
                         })
                     }
                     "SubTexture" => {
@@ -67,20 +65,16 @@ impl Coords {
                         let px = element.attr_opt::<f32>("pX", 0.5);
                         let py = element.attr_opt::<f32>("pY", 0.5);
                         Some(Coords {
-                            name,
+                            name: id(&name),
                             rect: raylib::math::Rectangle::new(
                                 x as f32,
                                 y as f32,
                                 width as f32,
                                 height as f32,
                             ),
-                            // x,
-                            // y,
-                            // width,
-                            // height,
                             px,
                             py,
-                            texture: texture.to_owned(),
+                            texture,
                         })
                     }
                     _ => None,
@@ -92,8 +86,8 @@ impl Coords {
 }
 
 pub struct SpriteSheet {
-    pub textures: std::collections::HashMap<String, raylib::texture::Texture2D>,
-    pub sprites: std::collections::HashMap<String, Coords>,
+    pub textures: std::collections::HashMap<Id, raylib::texture::Texture2D>,
+    pub sprites: std::collections::HashMap<Id, Coords>,
 }
 
 // pub struct SpriteSheets(Vec<SpriteSheet>);
@@ -103,7 +97,7 @@ use sxd_xpath::{evaluate_xpath, Value};
 
 // use sxd_document::dom::*;
 
-fn get_coords(root: Package, texture: &str) -> Vec<Coords> {
+fn get_coords(root: Package, texture: Id) -> Vec<Coords> {
     let doc = root.as_document();
     let result = evaluate_xpath(&doc, "/*/SubTexture");
     let mut sprites: Vec<Coords> = match result {
@@ -160,10 +154,11 @@ impl SpriteSheet {
         let image = rl.load_texture(rt, image_path).unwrap();
         let xml = parser::parse(&std::fs::read_to_string(xml_path).expect("xml file not found"))
             .expect("Invalid XML file");
-        let coords = get_coords(xml, image_path);
-        self.textures.insert(image_path.to_owned(), image);
+        let id = id(image_path);
+        let coords = get_coords(xml, id);
+        self.textures.insert(id, image);
         for item in coords {
-            self.sprites.insert(item.name.clone(), item);
+            self.sprites.insert(item.name, item);
         }
     }
 

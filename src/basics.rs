@@ -11,6 +11,12 @@ use nphysics2d::joint::DefaultJointConstraintSet;
 use nphysics2d::object::{DefaultBodySet, DefaultColliderSet};
 use nphysics2d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
 
+pub type Id = arrayvec::ArrayString<[u8; 64]>;
+
+pub fn id(val: &str) -> Id {
+    Id::from(val).unwrap()
+}
+
 pub struct Tick(pub std::time::Duration);
 impl Default for Tick {
     fn default() -> Self {
